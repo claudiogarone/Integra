@@ -123,9 +123,9 @@ export default function Dashboard() {
           <Link href="/dashboard/crm" className="flex items-center gap-3 py-3 px-4 text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition-all">
             <span>👥</span> CRM Contatti
           </Link>
-          <a href="#" className="flex items-center gap-3 py-3 px-4 text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition-all">
-            <span>📅</span> Agenda
-          </a>
+          <Link href="/dashboard/agenda" className="flex items-center gap-3 py-3 px-4 text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition-all">
+   <span>📅</span> Agenda
+</Link>
         </nav>
 
         <div className="p-4 border-t border-gray-800">
