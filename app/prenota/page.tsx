@@ -14,11 +14,14 @@ export default function PrenotaPage() {
 
   const supabase = createClient()
 
+  // --- CONFIGURAZIONE EMAIL ADMIN ---
+  const tuaEmailAdmin = 'claudiogarone@gmail.com' 
+
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
-    // Salva nella tabella pubblica 'bookings'
+    // 1. Salva nel Database (Tabella Pubblica)
     const { error } = await supabase
       .from('bookings')
       .insert({
@@ -29,10 +32,63 @@ export default function PrenotaPage() {
       })
 
     if (error) {
-      alert('Errore: ' + error.message)
-    } else {
-      setSuccess(true) // Mostra messaggio di ringraziamento
+      alert('Errore database: ' + error.message)
+      setLoading(false)
+      return
     }
+
+    // --- INIZIO AUTOMAZIONE EMAIL ---
+    try {
+      // Formattiamo la data per renderla leggibile nelle mail
+      const dataLeggibile = new Date(date).toLocaleDateString('it-IT', { 
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+      })
+
+      // A. MAIL PER IL CLIENTE (Conferma)
+      await fetch('/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emails: [email], // L'email che il cliente ha inserito nel form
+          subject: '✅ Conferma Appuntamento - Pastaorosa',
+          content: `
+            <h1>Ciao ${name}!</h1>
+            <p>La tua richiesta di appuntamento è stata confermata.</p>
+            <p><strong>Quando:</strong> ${dataLeggibile}</p>
+            <p>Non vediamo l'ora di vederti!</p>
+            <br>
+            <p><em>Staff Pastaorosa</em></p>
+          `
+        })
+      })
+
+      // B. MAIL PER TE (Notifica Admin)
+      await fetch('/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emails: [tuaEmailAdmin], // Invia a claudiogarone@gmail.com
+          subject: `🔔 Nuova Prenotazione: ${name}`,
+          content: `
+            <h2>Hai un nuovo appuntamento!</h2>
+            <ul>
+              <li><strong>Cliente:</strong> ${name}</li>
+              <li><strong>Email:</strong> ${email}</li>
+              <li><strong>Data:</strong> ${dataLeggibile}</li>
+              <li><strong>Note:</strong> ${notes || 'Nessuna nota'}</li>
+            </ul>
+            <p>Vai alla Dashboard per gestirlo.</p>
+          `
+        })
+      })
+
+    } catch (err) {
+      console.error("Errore invio email automatiche", err)
+      // Non blocchiamo l'utente se la mail fallisce, l'importante è che la prenotazione sia salvata
+    }
+    // --- FINE AUTOMAZIONE ---
+
+    setSuccess(true) // Mostra messaggio di ringraziamento
     setLoading(false)
   }
 
@@ -43,7 +99,7 @@ export default function PrenotaPage() {
           <div className="text-6xl mb-6">🎉</div>
           <h1 className="text-3xl font-bold text-yellow-500 mb-4">Richiesta Inviata!</h1>
           <p className="text-gray-300 mb-8">
-            Grazie {name}, abbiamo ricevuto la tua richiesta per il <strong>{new Date(date).toLocaleDateString('it-IT')}</strong> alle <strong>{new Date(date).toLocaleTimeString('it-IT', {hour: '2-digit', minute:'2-digit'})}</strong>.
+            Grazie {name}, abbiamo ricevuto la tua richiesta per il <strong>{new Date(date).toLocaleDateString('it-IT')}</strong>.
             <br/><br/>
             Ti contatteremo presto via email per confermare.
           </p>
@@ -98,7 +154,7 @@ export default function PrenotaPage() {
                 type="datetime-local" 
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-white focus:border-yellow-500 outline-none transition" // Nota: su mobile apre il calendario nativo
+                className="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-white focus:border-yellow-500 outline-none transition"
                 required
               />
             </div>
