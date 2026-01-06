@@ -2,301 +2,185 @@
 
 import { createClient } from '../../utils/supabase/client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
 
 export default function Dashboard() {
-  const [user, setUser] = useState<any>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  
-  // --- STATI PER I DATI REALI ---
+  const [filter, setFilter] = useState('Mese') // Stato Filtro
+  const [stats, setStats] = useState({ contacts: 0, appointments: 0, revenue: 0 })
+  const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [kpiTotal, setKpiTotal] = useState(0)
-  const [kpiValue, setKpiValue] = useState(0)
-  const [recentContacts, setRecentContacts] = useState<any[]>([])
-  const [chartData, setChartData] = useState<any[]>([])
-
-  // Stati per il form
-  const [newContactName, setNewContactName] = useState('')
-  const [newContactEmail, setNewContactEmail] = useState('')
-  const [newContactValue, setNewContactValue] = useState('')
-
-  const router = useRouter()
   const supabase = createClient()
 
-  // --- CARICAMENTO DATI ---
   useEffect(() => {
     const getData = async () => {
-      // 1. Check Utente
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/login')
-        return
-      }
-      setUser(user)
-
-      // 2. Scarica TUTTI i contatti per fare i calcoli
-      const { data: contacts, error } = await supabase
-        .from('contacts')
-        .select('*')
-        .order('created_at', { ascending: false }) // Dal più recente
-
-      if (contacts) {
-        // A. KPI Totale Contatti
-        setKpiTotal(contacts.length)
-
-        // B. KPI Valore Totale (Somma dei valori)
-        const totaleEuro = contacts.reduce((sum, c) => sum + (c.value || 0), 0)
-        setKpiValue(totaleEuro)
-
-        // C. Tabella Recenti (Prendi solo i primi 5)
-        setRecentContacts(contacts.slice(0, 5))
-
-        // D. Calcolo Grafico (Ultimi 7 giorni)
-        // Questo codice raggruppa i contatti per data di creazione
-        const last7Days = [...Array(7)].map((_, i) => {
-          const d = new Date()
-          d.setDate(d.getDate() - i)
-          return d.toISOString().split('T')[0] // Es. "2023-10-25"
-        }).reverse()
-
-        const grafico = last7Days.map(dateStr => {
-          // Conta quanti contatti hanno questa data (ignorando l'ora)
-          const count = contacts.filter(c => c.created_at.startsWith(dateStr)).length
-          // Formatta la data per il grafico (es. "25/10")
-          const shortDate = dateStr.split('-').slice(1).reverse().join('/')
-          return { nome: shortDate, contatti: count }
-        })
-        setChartData(grafico)
-      }
       
+      // 1. Dati KPI
+      const { count: contactCount } = await supabase.from('contacts').select('*', { count: 'exact', head: true })
+      const { count: apptCount } = await supabase.from('appointments').select('*', { count: 'exact', head: true })
+      
+      // 2. Dati Profilo (Crediti AI)
+      if (user) {
+        const { data: profileData } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+        setProfile(profileData)
+      }
+
+      setStats({ 
+        contacts: contactCount || 0, 
+        appointments: apptCount || 0, 
+        revenue: (contactCount || 0) * 150 // Revenue simulata basata sui contatti
+      })
       setLoading(false)
     }
     getData()
-  }, [router, supabase])
+  }, [supabase])
 
-  // --- FUNZIONE SALVATAGGIO ---
-  const handleSaveContact = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!user) return
-
-    const { data, error } = await supabase
-      .from('contacts')
-      .insert({
-        name: newContactName,
-        email: newContactEmail,
-        value: Number(newContactValue),
-        user_id: user.id,
-        status: 'Nuovo'
-      })
-      .select()
-
-    if (error) {
-      alert('Errore: ' + error.message)
-    } else {
-      alert('Contatto salvato! 🚀')
-      setIsModalOpen(false)
-      // Ricarica la pagina per aggiornare i grafici (metodo veloce)
-      window.location.reload()
-    }
+  // Dati simulati che cambiano col filtro
+  const getChartData = () => {
+    if (filter === 'Giorno') return { leads: [2, 5, 3, 8, 4], sales: [100, 250, 150, 400], msgs: [10, 15, 8, 20, 25] }
+    if (filter === 'Settimana') return { leads: [15, 25, 10, 30, 20], sales: [1500, 2000, 1000, 3000], msgs: [50, 80, 40, 90, 100] }
+    return { leads: [45, 80, 50, 95, 60], sales: [5000, 8000, 6000, 9500], msgs: [200, 350, 150, 400, 500] }
   }
+  const data = getChartData()
 
-  if (loading) {
-    return <div className="p-10 text-white bg-black h-screen">Caricamento Dashboard...</div>
-  }
+  // Calcolo Percentuale AI
+  const aiLimit = profile?.ai_max_limit || 100
+  const aiUsage = profile?.ai_usage_count || 0
+  const aiPercent = Math.min((aiUsage / aiLimit) * 100, 100)
+
+  if (loading) return <div className="p-10 text-white">Caricamento Dashboard...</div>
 
   return (
-    <div className="flex h-screen bg-black text-white font-sans overflow-hidden">
-      
-      {/* SIDEBAR */}
-      <aside className="w-64 border-r border-gray-800 bg-gray-950 flex flex-col hidden md:flex">
-        <div className="p-6">
-          <h2 className="text-2xl font-bold text-yellow-500 tracking-wider">INTEGRA</h2>
+    <main className="flex-1 p-8 overflow-auto bg-black text-white">
+      {/* HEADER + FILTRI */}
+      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard Analitica</h1>
+          <p className="text-gray-400 text-sm">Monitora le performance in tempo reale.</p>
         </div>
         
-        <nav className="space-y-2 px-4 flex-1">
-          <Link href="/dashboard" className="flex items-center gap-3 py-3 px-4 text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition-all">
-            <span>📊</span> Dashboard
-          </Link>
-          <Link href="/dashboard/crm" className="flex items-center gap-3 py-3 px-4 text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition-all">
-            <span>👥</span> CRM Contatti
-          </Link>
-          <Link href="/dashboard/agenda" className="flex items-center gap-3 py-3 px-4 text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition-all">
-            <span>📅</span> Agenda
-          </Link>
-          <Link href="/dashboard/marketing" className="flex items-center gap-3 py-3 px-4 text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition-all">
-            <span>📧</span> Email Marketing
-          </Link>
-        </nav>
-
-        <div className="p-4 border-t border-gray-800">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-full bg-yellow-600 flex items-center justify-center text-xs font-bold text-black">
-              {user?.email[0].toUpperCase()}
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-sm font-medium text-white truncate w-32">Admin</p>
-              <p className="text-xs text-gray-500 truncate w-32">{user?.email}</p>
-            </div>
-          </div>
-          <button 
-            onClick={async () => { await supabase.auth.signOut(); router.push('/login') }}
-            className="w-full py-2 text-xs text-center border border-gray-700 rounded hover:bg-red-900/20 hover:text-red-400 hover:border-red-900 transition"
-          >
-            Disconnetti
-          </button>
+        {/* FILTRO TEMPORALE */}
+        <div className="bg-gray-900 p-1 rounded-lg border border-gray-700 flex">
+          {['Giorno', 'Settimana', 'Mese', 'Anno'].map((f) => (
+            <button key={f} onClick={() => setFilter(f)} className={`px-4 py-2 rounded text-sm font-bold transition ${filter === f ? 'bg-yellow-600 text-black shadow' : 'text-gray-400 hover:text-white'}`}>{f}</button>
+          ))}
         </div>
-      </aside>
+      </div>
 
-      {/* MAIN CONTENT */}
-      <main className="flex-1 overflow-y-auto p-8 relative">
-        <header className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-1">Panoramica</h1>
-            <p className="text-gray-400 text-sm">Ecco i dati aggiornati del tuo business.</p>
+      {/* --- RIGA 1: KPI PRINCIPALI --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 hover:border-yellow-500/50 transition">
+          <p className="text-gray-400 text-xs uppercase font-bold tracking-wider">Nuovi Lead</p>
+          <h3 className="text-3xl font-bold text-white mt-2">{stats.contacts}</h3>
+          <p className="text-xs text-green-500 mt-2">↑ Trend positivo</p>
+        </div>
+        <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 hover:border-yellow-500/50 transition">
+          <p className="text-gray-400 text-xs uppercase font-bold tracking-wider">Appuntamenti</p>
+          <h3 className="text-3xl font-bold text-yellow-500 mt-2">{stats.appointments}</h3>
+          <p className="text-xs text-gray-400 mt-2">In agenda</p>
+        </div>
+        <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 hover:border-yellow-500/50 transition">
+          <p className="text-gray-400 text-xs uppercase font-bold tracking-wider">Vendite Stimate</p>
+          <h3 className="text-3xl font-bold text-green-400 mt-2">€ {stats.revenue}</h3>
+          <p className="text-xs text-gray-400 mt-2">Pipeline totale</p>
+        </div>
+        {/* KPI AI */}
+        <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 relative overflow-hidden">
+          <div className="flex justify-between items-end mb-2 relative z-10">
+            <h3 className="font-bold text-white text-sm">🤖 Crediti AI</h3>
+            <span className="text-[10px] bg-yellow-600 text-black px-2 rounded font-bold">BASE</span>
           </div>
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="bg-yellow-600 text-black px-4 py-2 rounded font-bold hover:bg-yellow-500 transition shadow-lg shadow-yellow-600/20"
-          >
-            + Nuovo Lead
-          </button>
-        </header>
-
-        {/* KPI CARDS (COLLEGATE AI DATI REALI) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          
-          {/* CARD 1: TOTALE CONTATTI */}
-          <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-gray-400 text-xs uppercase tracking-wider font-semibold">Totale Contatti</p>
-                <h3 className="text-3xl font-bold text-white mt-1">{kpiTotal}</h3>
-              </div>
-              <span className="text-green-400 text-xs bg-green-400/10 px-2 py-1 rounded">Reali</span>
-            </div>
-            <div className="mt-4 h-1 w-full bg-gray-800 rounded-full overflow-hidden">
-              <div className="h-full bg-yellow-500 w-full"></div>
-            </div>
+          <div className="w-full bg-gray-800 rounded-full h-2 mb-2 overflow-hidden relative z-10">
+            <div className={`h-full ${aiPercent > 90 ? 'bg-red-500' : 'bg-yellow-500'}`} style={{ width: `${aiPercent}%` }}></div>
           </div>
+          <span className="text-xs text-gray-400 relative z-10">{aiUsage}/{aiLimit} messaggi usati</span>
+        </div>
+      </div>
 
-          {/* CARD 2: FATTURATO (SOMMA DEL 'VALUE' DEI CONTATTI) */}
-          <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-gray-400 text-xs uppercase tracking-wider font-semibold">Valore Pipeline</p>
-                <h3 className="text-3xl font-bold text-white mt-1">€ {kpiValue.toLocaleString()}</h3>
+      {/* --- RIGA 2: GRAFICI LEAD & VENDITE (Dinamici) --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        
+        {/* GRAFICO 1: LEAD GENERATION (Barre Blu) */}
+        <div className="bg-gray-900 p-6 rounded-xl border border-gray-800">
+          <h3 className="font-bold text-white mb-4">📈 Acquisizione Lead ({filter})</h3>
+          <div className="flex items-end justify-between h-48 gap-2">
+            {['Periodo 1', 'Periodo 2', 'Periodo 3', 'Periodo 4', 'Periodo 5'].map((lbl, i) => (
+              <div key={i} className="w-full flex flex-col items-center gap-2 group">
+                <div className="w-full bg-gray-800 rounded-t-lg relative h-full flex items-end">
+                  <div className="w-full bg-blue-600 rounded-t-lg transition-all duration-500 group-hover:bg-blue-500" style={{ height: `${data.leads[i]}%` }}></div>
+                </div>
               </div>
-              <span className="text-blue-400 text-xs bg-blue-400/10 px-2 py-1 rounded">Stima</span>
-            </div>
-            <div className="mt-4 h-1 w-full bg-gray-800 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-500 w-2/3"></div>
-            </div>
-          </div>
-
-          {/* CARD 3: STATICA (PER ORA) */}
-          <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-gray-400 text-xs uppercase tracking-wider font-semibold">Tasso Conversione</p>
-                <h3 className="text-3xl font-bold text-white mt-1">--%</h3>
-              </div>
-              <span className="text-gray-500 text-xs px-2 py-1 rounded">Coming Soon</span>
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* GRAFICI */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          
-          {/* GRAFICO CRESCITA REALE */}
-          <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 h-80">
-            <h3 className="text-lg font-bold mb-6">Nuovi Lead (Ultimi 7gg)</h3>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="nome" stroke="#9CA3AF" />
-                <YAxis allowDecimals={false} stroke="#9CA3AF" />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '8px' }}
-                  itemStyle={{ color: '#EAB308' }}
-                />
-                <Line type="monotone" dataKey="contatti" stroke="#EAB308" strokeWidth={3} dot={{ r: 4, fill: '#EAB308' }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* GRAFICO SORGENTI (RIMANE STATICO PERCHÉ NON ABBIAMO ANCORA IL CAMPO 'SORGENTE' NEL DB) */}
-          <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 h-80">
-            <h3 className="text-lg font-bold mb-6">Sorgenti (Demo)</h3>
-            <div className="flex items-center justify-center h-full text-gray-500">
-              Dati non ancora disponibili
+        {/* GRAFICO 2: VENDITE PER CANALE (Progress Bars) */}
+        <div className="bg-gray-900 p-6 rounded-xl border border-gray-800">
+          <h3 className="font-bold text-white mb-4">💰 Vendite per Canale ({filter})</h3>
+          <div className="space-y-6">
+            <div>
+              <div className="flex justify-between text-sm mb-1"><span className="text-gray-300">🟢 WhatsApp</span><span className="text-white font-bold">€ {data.sales[3]}</span></div>
+              <div className="w-full bg-gray-800 rounded-full h-2"><div className="bg-green-500 h-2 rounded-full" style={{ width: '45%' }}></div></div>
+            </div>
+            <div>
+              <div className="flex justify-between text-sm mb-1"><span className="text-gray-300">🟣 Instagram Shop</span><span className="text-white font-bold">€ {data.sales[1]}</span></div>
+              <div className="w-full bg-gray-800 rounded-full h-2"><div className="bg-pink-500 h-2 rounded-full" style={{ width: '35%' }}></div></div>
+            </div>
+            <div>
+              <div className="flex justify-between text-sm mb-1"><span className="text-gray-300">📧 Email Marketing</span><span className="text-white font-bold">€ {data.sales[2]}</span></div>
+              <div className="w-full bg-gray-800 rounded-full h-2"><div className="bg-yellow-500 h-2 rounded-full" style={{ width: '20%' }}></div></div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* TABELLA RECENTI (REALE) */}
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden mb-10">
-          <div className="p-6 border-b border-gray-800 flex justify-between items-center">
-            <h3 className="text-lg font-bold">Ultimi Contatti Registrati</h3>
-            <Link href="/dashboard/crm" className="text-sm text-yellow-500 hover:text-yellow-400">
-              Vedi tutti &rarr;
-            </Link>
-          </div>
-          <table className="w-full text-left text-sm text-gray-400">
-            <thead className="bg-gray-950 uppercase font-medium">
-              <tr>
-                <th className="px-6 py-4">Nome</th>
-                <th className="px-6 py-4">Email</th>
-                <th className="px-6 py-4">Data</th>
-                <th className="px-6 py-4">Valore</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
-              {recentContacts.map((c) => (
-                <tr key={c.id}>
-                  <td className="px-6 py-4 font-medium text-white">{c.name}</td>
-                  <td className="px-6 py-4">{c.email}</td>
-                  <td className="px-6 py-4">{new Date(c.created_at).toLocaleDateString()}</td>
-                  <td className="px-6 py-4 text-white">€ {c.value}</td>
-                </tr>
-              ))}
-              {recentContacts.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-6 py-4 text-center">Nessun dato recente.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </main>
-
-      {/* MODAL POPUP (Identico) */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 border border-gray-700 p-8 rounded-2xl w-full max-w-md shadow-2xl relative">
-            <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
-            <h2 className="text-2xl font-bold text-white mb-6">Nuovo Contatto</h2>
-            <form className="space-y-4" onSubmit={handleSaveContact}>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Nome Completo</label>
-                <input type="text" value={newContactName} onChange={(e) => setNewContactName(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white outline-none focus:border-yellow-500" required />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Email</label>
-                <input type="email" value={newContactEmail} onChange={(e) => setNewContactEmail(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white outline-none focus:border-yellow-500" />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Valore Stimato (€)</label>
-                <input type="number" value={newContactValue} onChange={(e) => setNewContactValue(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white outline-none focus:border-yellow-500" />
-              </div>
-              <button type="submit" className="w-full bg-yellow-600 hover:bg-yellow-500 text-black font-bold py-3 rounded mt-4">Salva Contatto</button>
-            </form>
+      {/* --- RIGA 3: FUNNEL & MESSAGGI --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        
+        {/* GRAFICO 3: MARKETING FUNNEL */}
+        <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 col-span-1">
+          <h3 className="font-bold text-white mb-6">🔻 Conversion Funnel</h3>
+          <div className="flex flex-col items-center gap-1">
+            <div className="w-full bg-gray-800 p-2 text-center text-xs text-gray-300 rounded">Visitatori Sito</div>
+            <div className="w-[80%] bg-blue-900/40 p-2 text-center text-xs text-blue-200 rounded">Lead Contattati</div>
+            <div className="w-[60%] bg-blue-800/60 p-2 text-center text-xs text-blue-100 rounded">In Trattativa</div>
+            <div className="w-[40%] bg-yellow-600 text-black font-bold p-2 text-center text-xs rounded shadow-lg shadow-yellow-600/20">Vendite Concluse</div>
           </div>
         </div>
-      )}
-    </div>
+
+        {/* GRAFICO 4: MESSAGGI RICEVUTI (Onda) */}
+        <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 col-span-2">
+          <h3 className="font-bold text-white mb-4">💬 Traffico Messaggi ({filter})</h3>
+          <div className="flex items-end justify-between h-40 gap-1">
+             {/* Simulazione onda grafica */}
+             {[10, 15, 12, 20, 25, 18, 30, 35, 20, 15, 22, 40, 25, 30, 18, 12].map((h, i) => (
+               <div key={i} className="w-full bg-gray-800 rounded-t h-full flex items-end">
+                 <div className="w-full bg-purple-600/50 hover:bg-purple-500 transition-all" style={{ height: `${h + (filter === 'Giorno' ? 10 : 30)}%` }}></div>
+               </div>
+             ))}
+          </div>
+          <div className="flex justify-between text-xs text-gray-500 mt-2"><span>Inizio Periodo</span><span>Fine Periodo</span></div>
+        </div>
+      </div>
+
+      {/* --- RIGA 4: PROBABILITÀ SUCCESSO (AI PREDICTION - Nomi Generici) --- */}
+      <div className="bg-gray-900 p-6 rounded-xl border border-gray-800">
+        <h3 className="font-bold text-white mb-4 flex items-center gap-2">🎯 Previsione Successo Campagne <span className="text-[10px] bg-blue-900 text-blue-200 px-2 rounded">AI BETA</span></h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-black/40 p-4 rounded-lg border border-gray-800">
+            <div className="flex justify-between mb-2"><span className="text-sm font-medium">Campagna "Saldi Stagionali"</span><span className="text-green-500 font-bold">Alta (88%)</span></div>
+            <div className="w-full bg-gray-700 h-2 rounded-full"><div className="bg-green-500 h-2 rounded-full" style={{ width: '88%' }}></div></div>
+          </div>
+          <div className="bg-black/40 p-4 rounded-lg border border-gray-800">
+            <div className="flex justify-between mb-2"><span className="text-sm font-medium">Promo "Nuovi Arrivi"</span><span className="text-yellow-500 font-bold">Media (65%)</span></div>
+            <div className="w-full bg-gray-700 h-2 rounded-full"><div className="bg-yellow-500 h-2 rounded-full" style={{ width: '65%' }}></div></div>
+          </div>
+          <div className="bg-black/40 p-4 rounded-lg border border-gray-800">
+            <div className="flex justify-between mb-2"><span className="text-sm font-medium">Newsletter Informativa</span><span className="text-blue-400 font-bold">Stabile (50%)</span></div>
+            <div className="w-full bg-gray-700 h-2 rounded-full"><div className="bg-blue-400 h-2 rounded-full" style={{ width: '50%' }}></div></div>
+          </div>
+        </div>
+      </div>
+    </main>
   )
 }

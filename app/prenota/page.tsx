@@ -39,25 +39,44 @@ export default function PrenotaPage() {
 
     // --- INIZIO AUTOMAZIONE EMAIL ---
     try {
-      // Formattiamo la data per renderla leggibile nelle mail
-      const dataLeggibile = new Date(date).toLocaleDateString('it-IT', { 
+      // Calcoli per il Calendario
+      const dataInizio = new Date(date)
+      const dataFine = new Date(dataInizio.getTime() + 60 * 60 * 1000) // Aggiunge 1 ora
+      
+      // Formattazione data per Google Calendar (YYYYMMDDTHHMMSSZ)
+      const formatGoogle = (d: Date) => d.toISOString().replace(/-|:|\.\d+/g, '')
+      
+      // Link Magico per Google Calendar
+      const googleCalendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=Appuntamento+Pastaorosa&details=${encodeURIComponent(notes || 'Appuntamento confermato')}&dates=${formatGoogle(dataInizio)}/${formatGoogle(dataFine)}`
+
+      // Data leggibile per il testo della mail
+      const dataLeggibile = dataInizio.toLocaleDateString('it-IT', { 
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
       })
 
-      // A. MAIL PER IL CLIENTE (Conferma)
+      // A. MAIL PER IL CLIENTE (Con Link Calendario)
       await fetch('/api/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          emails: [email], // L'email che il cliente ha inserito nel form
+          emails: [email],
           subject: '✅ Conferma Appuntamento - Pastaorosa',
           content: `
-            <h1>Ciao ${name}!</h1>
-            <p>La tua richiesta di appuntamento è stata confermata.</p>
-            <p><strong>Quando:</strong> ${dataLeggibile}</p>
-            <p>Non vediamo l'ora di vederti!</p>
-            <br>
-            <p><em>Staff Pastaorosa</em></p>
+            <div style="font-family: sans-serif; color: #333;">
+              <h1>Ciao ${name}!</h1>
+              <p>La tua richiesta di appuntamento è stata confermata.</p>
+              <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 0;"><strong>📅 Quando:</strong> ${dataLeggibile}</p>
+                <p style="margin: 10px 0 0 0;"><strong>📍 Dove:</strong> Sede Pastaorosa</p>
+              </div>
+              
+              <a href="${googleCalendarUrl}" target="_blank" style="background-color: #EAB308; color: black; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                📅 Aggiungi a Google Calendar
+              </a>
+
+              <p style="margin-top: 30px;">Non vediamo l'ora di vederti!</p>
+              <p><em>Staff Pastaorosa</em></p>
+            </div>
           `
         })
       })
@@ -67,7 +86,7 @@ export default function PrenotaPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          emails: [tuaEmailAdmin], // Invia a claudiogarone@gmail.com
+          emails: [tuaEmailAdmin], 
           subject: `🔔 Nuova Prenotazione: ${name}`,
           content: `
             <h2>Hai un nuovo appuntamento!</h2>
@@ -77,18 +96,17 @@ export default function PrenotaPage() {
               <li><strong>Data:</strong> ${dataLeggibile}</li>
               <li><strong>Note:</strong> ${notes || 'Nessuna nota'}</li>
             </ul>
-            <p>Vai alla Dashboard per gestirlo.</p>
+            <p><a href="https://integra-theta.vercel.app/dashboard/agenda">Vai all'Agenda</a></p>
           `
         })
       })
 
     } catch (err) {
       console.error("Errore invio email automatiche", err)
-      // Non blocchiamo l'utente se la mail fallisce, l'importante è che la prenotazione sia salvata
     }
     // --- FINE AUTOMAZIONE ---
 
-    setSuccess(true) // Mostra messaggio di ringraziamento
+    setSuccess(true)
     setLoading(false)
   }
 
@@ -99,9 +117,8 @@ export default function PrenotaPage() {
           <div className="text-6xl mb-6">🎉</div>
           <h1 className="text-3xl font-bold text-yellow-500 mb-4">Richiesta Inviata!</h1>
           <p className="text-gray-300 mb-8">
-            Grazie {name}, abbiamo ricevuto la tua richiesta per il <strong>{new Date(date).toLocaleDateString('it-IT')}</strong>.
-            <br/><br/>
-            Ti contatteremo presto via email per confermare.
+            Grazie {name}, abbiamo ricevuto la tua richiesta.<br/>
+            Controlla la tua email per il link al calendario!
           </p>
           <Link href="/" className="text-sm text-gray-500 hover:text-white underline">
             Torna alla Home
@@ -123,65 +140,27 @@ export default function PrenotaPage() {
         {/* Form */}
         <div className="bg-gray-900 p-8 rounded-2xl border border-gray-800 shadow-2xl">
           <form onSubmit={handleBooking} className="space-y-5">
-            
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Il tuo Nome</label>
-              <input 
-                type="text" 
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-white focus:border-yellow-500 outline-none transition"
-                placeholder="Mario Rossi"
-                required
-              />
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-white focus:border-yellow-500 outline-none transition" placeholder="Mario Rossi" required />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">La tua Email</label>
-              <input 
-                type="email" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-white focus:border-yellow-500 outline-none transition"
-                placeholder="mario@gmail.com"
-                required
-              />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-white focus:border-yellow-500 outline-none transition" placeholder="mario@gmail.com" required />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Quando vorresti venire?</label>
-              <input 
-                type="datetime-local" 
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-white focus:border-yellow-500 outline-none transition"
-                required
-              />
+              <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} className="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-white focus:border-yellow-500 outline-none transition" required />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Note (Opzionale)</label>
-              <textarea 
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-white focus:border-yellow-500 outline-none transition h-24 resize-none"
-                placeholder="Scrivi qui se hai esigenze particolari..."
-              />
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 text-white focus:border-yellow-500 outline-none transition h-24 resize-none" placeholder="Scrivi qui se hai esigenze particolari..." />
             </div>
-
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full bg-yellow-600 hover:bg-yellow-500 text-black font-bold py-4 rounded-lg transition transform active:scale-95 disabled:opacity-50 disabled:scale-100 mt-4"
-            >
+            <button type="submit" disabled={loading} className="w-full bg-yellow-600 hover:bg-yellow-500 text-black font-bold py-4 rounded-lg transition transform active:scale-95 disabled:opacity-50 disabled:scale-100 mt-4">
               {loading ? 'Invio in corso...' : 'Conferma Prenotazione'}
             </button>
-
           </form>
-          
-          <p className="text-center text-xs text-gray-600 mt-6">
-            Powered by Integra Platform
-          </p>
+          <p className="text-center text-xs text-gray-600 mt-6">Powered by Integra Platform</p>
         </div>
       </div>
     </main>

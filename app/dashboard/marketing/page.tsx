@@ -147,29 +147,7 @@ export default function MarketingPage() {
   return (
     <div className="flex h-screen bg-black text-white font-sans overflow-hidden">
       
-      {/* SIDEBAR */}
-      <aside className="w-64 border-r border-gray-800 bg-gray-950 flex flex-col hidden md:flex">
-        <div className="p-6">
-          <h2 className="text-2xl font-bold text-yellow-500 tracking-wider">INTEGRA</h2>
-        </div>
-        <nav className="space-y-2 px-4 flex-1">
-          <Link href="/dashboard" className="flex items-center gap-3 py-3 px-4 text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition-all">
-            <span>📊</span> Dashboard
-          </Link>
-          <Link href="/dashboard/crm" className="flex items-center gap-3 py-3 px-4 text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition-all">
-            <span>👥</span> CRM Contatti
-          </Link>
-          <Link href="/dashboard/agenda" className="flex items-center gap-3 py-3 px-4 text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition-all">
-            <span>📅</span> Agenda
-          </Link>
-          <Link href="/dashboard/marketing" className="flex items-center gap-3 py-3 px-4 bg-gray-900 rounded-lg text-yellow-500 font-medium shadow-lg shadow-yellow-900/10">
-            <span>📧</span> Email Marketing
-          </Link>
-        </nav>
-        <div className="p-4 border-t border-gray-800">
-           <button onClick={async () => { await supabase.auth.signOut(); router.push('/login') }} className="w-full py-2 text-xs text-center border border-gray-700 rounded hover:bg-red-900/20 hover:text-red-400 transition">Disconnetti</button>
-        </div>
-      </aside>
+     
 
       {/* MAIN CONTENT */}
       <main className="flex-1 p-10 overflow-auto">
