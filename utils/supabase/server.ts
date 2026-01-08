@@ -18,7 +18,7 @@ export function createClient() {
               cookieStore.set(name, value, options)
             )
           } catch {
-            // Questo errore può essere ignorato se eseguito da un Server Component
+            // I cookie non possono essere settati da un Server Component, ignoriamo l'errore
           }
         },
       },

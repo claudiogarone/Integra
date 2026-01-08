@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '../../utils/supabase/server'
+import { createClient } from '@/utils/supabase/server'
 import Anthropic from '@anthropic-ai/sdk'
 
 export async function generateMarketingContent(prompt: string) {
