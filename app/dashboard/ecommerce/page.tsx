@@ -2,9 +2,10 @@
 
 import { createClient } from '../../../utils/supabase/client'
 import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation' // <--- AGGIUNTO QUESTO
 import Papa from 'papaparse'
 
-// Definiamo i limiti per piano (in un caso reale, questi verrebbero dal DB profilo utente)
+// Definiamo i limiti per piano
 const PLAN_LIMITS = {
   Base: { maxProducts: 10, maxFileSize: 5 * 1024 * 1024, canImport: false }, // 5MB
   Enterprise: { maxProducts: 150, maxFileSize: 10 * 1024 * 1024, canImport: true }, // 10MB
@@ -16,16 +17,17 @@ export default function EcommercePage() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   
-  // Simuliamo il piano dell'utente (qui dovresti recuperarlo dalla tabella 'profiles' o 'subscriptions')
-  // Cambia questo valore per testare i diversi limiti: 'Base', 'Enterprise', 'Ambassador'
-  const [userPlan, setUserPlan] = useState<'Base' | 'Enterprise' | 'Ambassador'>('Base') 
+  // Stato del Piano Utente
+  const [userPlan, setUserPlan] = useState<'Base' | 'Enterprise' | 'Ambassador'>('Base')
 
+  // Stati UI
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState<'manual' | 'ai_lens' | 'url'>('manual')
   const [analyzing, setAnalyzing] = useState(false)
 
+  // Form Dati
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -34,27 +36,43 @@ export default function EcommercePage() {
   })
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imageUrlPreview, setImageUrlPreview] = useState<string | null>(null)
+  
+  // Refs
   const fileInputRef = useRef<HTMLInputElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
 
+  const router = useRouter() // <--- INIZIALIZZATO ROUTER
   const supabase = createClient()
 
   useEffect(() => {
     const getData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setUser(user)
-        const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false })
-        if (data) setProducts(data)
-        
-        // TODO: Qui dovresti fare una query per ottenere il piano reale dell'utente
-        // es. const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
-        // if(profile) setUserPlan(profile.plan)
+      if (!user) { router.push('/login'); return }
+      setUser(user)
+
+      // 1. LEGGI IL PIANO REALE DAL DB
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('plan')
+        .eq('id', user.id)
+        .single()
+      
+      if (profile && profile.plan) {
+         setUserPlan(profile.plan)
       }
+
+      // 2. SCARICA I PRODOTTI (Corretto: prima c'era campaigns)
+      const { data } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (data) setProducts(data)
+
       setLoading(false)
     }
     getData()
-  }, [supabase])
+  }, [router, supabase])
 
   // --- CONTROLLO LIMITI ---
   const checkLimits = () => {
@@ -84,13 +102,13 @@ export default function EcommercePage() {
     setAnalyzing(true)
 
     try {
-      // 1. Converti immagine in Base64
+      // 1. Converti immagine in Base64 per inviarla all'API
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
         const base64Image = reader.result;
 
-        // 2. Chiama la nostra API
+        // 2. Chiama la nostra API (Claude Vision)
         const response = await fetch('/api/analyze-product', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -101,7 +119,7 @@ export default function EcommercePage() {
 
         if (data.error) throw new Error(data.error);
 
-        // 3. Popola il form
+        // 3. Popola il form con i dati AI
         setFormData({
           name: data.name || '',
           description: data.description || '',
@@ -109,7 +127,7 @@ export default function EcommercePage() {
           category: data.category || 'Prodotti'
         });
         
-        setActiveTab('manual'); // Mostra all'utente il risultato
+        setActiveTab('manual'); // Mostra all'utente il risultato per conferma
       };
     } catch (error: any) {
       alert("Errore Analisi AI: " + error.message);
@@ -159,8 +177,10 @@ export default function EcommercePage() {
             }
         }
     })
+    if (importInputRef.current) importInputRef.current.value = ''
   }
 
+  // --- SALVATAGGIO ---
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)

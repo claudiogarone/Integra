@@ -2,14 +2,14 @@
 
 import { createClient } from '../../../utils/supabase/client'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation' // <--- IMPORTANTE: Aggiunto
 
 export default function QuotesPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   
   // SIMULAZIONE PIANO UTENTE
-  // Cambia questo valore in 'Enterprise' per sbloccare l'AI
-  const [userPlan, setUserPlan] = useState<'Base' | 'Enterprise'>('Base') 
+  const [userPlan, setUserPlan] = useState<'Base' | 'Enterprise' | 'Ambassador'>('Base') 
 
   // Dati dal Database
   const [contacts, setContacts] = useState<any[]>([])
@@ -27,22 +27,39 @@ export default function QuotesPage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
 
+  const router = useRouter() // <--- IMPORTANTE: Inizializzato
   const supabase = createClient()
 
   useEffect(() => {
-    const fetchData = async () => {
+    const getData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setUser(user)
-        const { data: c } = await supabase.from('contacts').select('*')
-        const { data: p } = await supabase.from('products').select('*')
-        if(c) setContacts(c)
-        if(p) setProducts(p)
+      if (!user) { router.push('/login'); return }
+      setUser(user)
+
+      // --- LEGGI IL PIANO REALE DAL DB ---
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('plan')
+        .eq('id', user.id)
+        .single()
+      
+      if (profile && profile.plan) {
+         setUserPlan(profile.plan)
       }
+      // -------------------------------------------------------------
+
+      // Carica Contatti
+      const { data: c } = await supabase.from('contacts').select('*')
+      if(c) setContacts(c)
+
+      // Carica Prodotti
+      const { data: p } = await supabase.from('products').select('*')
+      if(p) setProducts(p)
+
       setLoading(false)
     }
-    fetchData()
-  }, [supabase])
+    getData()
+  }, [router, supabase])
 
   // --- LOGICA PREVENTIVO ---
   const handleContactChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
