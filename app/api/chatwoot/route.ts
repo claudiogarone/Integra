@@ -1,4 +1,4 @@
-mport { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 const CHATWOOT_URL = ''; const API_TOKEN = 'zeHgZgfbrKrEmSAmiqtnsyq9r'; const ACCOUNT_ID = '1';
 
