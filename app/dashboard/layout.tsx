@@ -78,6 +78,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                <Link href="/dashboard/agenda" className={getLinkClass('/dashboard/agenda')}>
                 <span className="text-2xl">📅</span> Agenda
               </Link>
+              <Link href="/dashboard/inbox" className="...">   💬 Messaggi & Chiamate
+              </Link>
               <Link 
   href="/dashboard/quotes" 
   className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition"
