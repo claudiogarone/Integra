@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,24 +27,29 @@ export default function RootLayout({
       <body className={geistSans.variable + " " + geistMono.variable + " antialiased"}>
         {children}
 
-        <Script id="chatwoot-widget" strategy="afterInteractive">
-          {`
-            (function(d,t) {
-              var BASE_URL="https://chat-web.server.integraos.tech";
-              var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
-              g.src=BASE_URL+"/packs/js/sdk.js";
-              g.defer = true;
-              g.async = true;
-              s.parentNode.insertBefore(g,s);
-              g.onload=function(){
-                window.chatwootSDK.run({
-                  websiteToken: 'jEM1jGSwePBWdynMbjbvCqFN',
-                  baseUrl: BASE_URL
-                })
-              }
-            })(document,"script");
-          `}
-        </Script>
+        {/* INIEZIONE DIRETTA CHATWOOT */}
+        <div
+          dangerouslySetInnerHTML={{
+            __html: `
+              <script>
+                (function(d,t) {
+                  var BASE_URL="https://chat-web.server.integraos.tech";
+                  var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
+                  g.src=BASE_URL+"/packs/js/sdk.js";
+                  g.defer = true;
+                  g.async = true;
+                  s.parentNode.insertBefore(g,s);
+                  g.onload=function(){
+                    window.chatwootSDK.run({
+                      websiteToken: 'jEM1jGSwePBWdynMbjbvCqFN',
+                      baseUrl: BASE_URL
+                    })
+                  }
+                })(document,"script");
+              </script>
+            `,
+          }}
+        />
       </body>
     </html>
   );
