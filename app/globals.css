@@ -24,3 +24,19 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+/* FORZA LA VISIBILITÀ DELLA CHAT */
+.woot-widget-holder {
+  z-index: 2147483647 !important; /* Valore massimo possibile */
+  position: fixed !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+iframe#chatwoot_live_chat_widget {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
