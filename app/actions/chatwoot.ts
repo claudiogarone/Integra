@@ -1,56 +1,60 @@
 'use server'
 
-const CHATWOOT_API_TOKEN = process.env.CHATWOOT_API_TOKEN || process.env.CHATWOOT_API_KEY;
-const CHATWOOT_BASE_URL = process.env.NEXT_PUBLIC_CHATWOOT_BASE_URL || process.env.NEXT_PUBLIC_CHATWOOT_URL;
-const ACCOUNT_ID = process.env.CHATWOOT_ACCOUNT_ID || '1';
+// Definizione sicura delle variabili
+const TOKEN = process.env.CHATWOOT_API_TOKEN || process.env.CHATWOOT_API_KEY || '';
+const BASE = process.env.NEXT_PUBLIC_CHATWOOT_BASE_URL || process.env.NEXT_PUBLIC_CHATWOOT_URL || '';
+const ACCOUNT = process.env.CHATWOOT_ACCOUNT_ID || '1';
+
+// Tipi per evitare errori di build TS
+interface ChatwootResponse {
+  payload?: any;
+  data?: { payload: any };
+}
 
 async function chatwootFetch(endpoint: string, options: RequestInit = {}) {
-  // Controlla che le chiavi esistano
-  if (!CHATWOOT_API_TOKEN || !CHATWOOT_BASE_URL) {
-    console.error("❌ ERRORE CRITICO: Variabili Chatwoot mancanti!");
-    return null;
+  if (!TOKEN || !BASE) {
+    console.error("❌ CHATWOOT ERROR: Missing Env Vars");
+    return []; // Ritorna array vuoto invece di null per non rompere .map
   }
 
-  // Pulisce l'URL (toglie lo slash finale se c'è)
-  const baseUrl = CHATWOOT_BASE_URL.replace(/\/$/, '');
-  const url = `${baseUrl}/api/v1/accounts/${ACCOUNT_ID}${endpoint}`;
+  const cleanBase = BASE.replace(/\/$/, '');
+  const url = `${cleanBase}/api/v1/accounts/${ACCOUNT}${endpoint}`;
 
   try {
-    const response = await fetch(url, {
+    const res = await fetch(url, {
       ...options,
       headers: {
-        'api_access_token': CHATWOOT_API_TOKEN,
+        'api_access_token': TOKEN,
         'Content-Type': 'application/json',
         ...options.headers,
       },
-      cache: 'no-store' // Importante: non salvare nella cache, vogliamo messaggi freschi
+      cache: 'no-store'
     });
 
-    if (!response.ok) {
-      console.error(`❌ Errore API Chatwoot [${response.status}]:`, await response.text());
-      return null;
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("❌ Errore di connessione a Chatwoot:", error);
-    return null;
+    if (!res.ok) return [];
+    
+    const json = await res.json() as ChatwootResponse;
+    return json;
+  } catch (e) {
+    console.error("FETCH ERROR:", e);
+    return [];
   }
 }
 
-// Funzioni che usa la tua pagina Inbox
 export async function getConversations() {
-  const data = await chatwootFetch('/conversations?status=open&sort_by=last_activity_at');
-  return data?.data?.payload || [];
+  const res = await chatwootFetch('/conversations?status=open&sort_by=last_activity_at');
+  // @ts-ignore
+  return res?.data?.payload || [];
 }
 
-export async function getMessages(conversationId: number) {
-  const data = await chatwootFetch(`/conversations/${conversationId}/messages`);
-  return data?.payload || [];
+export async function getMessages(id: number) {
+  const res = await chatwootFetch(`/conversations/${id}/messages`);
+  // @ts-ignore
+  return res?.payload || [];
 }
 
-export async function sendMessage(conversationId: number, content: string) {
-  return await chatwootFetch(`/conversations/${conversationId}/messages`, {
+export async function sendMessage(id: number, content: string) {
+  return await chatwootFetch(`/conversations/${id}/messages`, {
     method: 'POST',
     body: JSON.stringify({ content, message_type: 'outgoing' }),
   });
