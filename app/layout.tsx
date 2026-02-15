@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script"; // <--- IMPORTANTE: Importiamo il componente Script
 import "./globals.css";
 
 const geistSans = Geist({
@@ -24,32 +25,28 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={geistSans.variable + " " + geistMono.variable + " antialiased"}>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
 
-        {/* INIEZIONE DIRETTA CHATWOOT */}
-        <div
-          dangerouslySetInnerHTML={{
-            __html: `
-              <script>
-                (function(d,t) {
-                  var BASE_URL="https://chat-web.server.integraos.tech";
-                  var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
-                  g.src=BASE_URL+"/packs/js/sdk.js";
-                  g.defer = true;
-                  g.async = true;
-                  s.parentNode.insertBefore(g,s);
-                  g.onload=function(){
-                    window.chatwootSDK.run({
-                      websiteToken: 'jEM1jGSwePBWdynMbjbvCqFN',
-                      baseUrl: BASE_URL
-                    })
-                  }
-                })(document,"script");
-              </script>
-            `,
-          }}
-        />
+        {/* WIDGET CHATWOOT (Corretto per Next.js) */}
+        <Script id="chatwoot-widget" strategy="lazyOnload">
+          {`
+            (function(d,t) {
+              var BASE_URL="https://chat-web.server.integraos.tech";
+              var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
+              g.src=BASE_URL+"/packs/js/sdk.js";
+              g.defer = true;
+              g.async = true;
+              s.parentNode.insertBefore(g,s);
+              g.onload=function(){
+                window.chatwootSDK.run({
+                  websiteToken: 'QfCWPNQx6JJDMfW9pDi5xakX', 
+                  baseUrl: BASE_URL
+                })
+              }
+            })(document,"script");
+          `}
+        </Script>
       </body>
     </html>
   );
