@@ -99,7 +99,7 @@ export default function InboxPage() {
       {/* HEADER */}
       <div className="p-6 border-b border-gray-200 bg-white flex justify-between items-center shrink-0">
         <div>
-          <h1 className="text-2xl font-black text-[#00665E] tracking-tight">Unified Inbox</h1>
+          <h1 className="text-2xl font-black text-[#00665E] tracking-tight">Unified Inbox<AGGIORNATO1>
           <p className="text-gray-500 text-xs mt-1">Chatwoot Connected ✅</p>
         </div>
         <div className="flex bg-gray-100 p-1 rounded-xl">
