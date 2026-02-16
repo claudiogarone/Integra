@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { getConversations, getMessages, sendMessage } from '@/app/actions/chatwoot'
 
 // Tipi reali di Chatwoot
@@ -41,13 +41,22 @@ export default function InboxPage() {
   // 1. CARICA LE CONVERSAZIONI ALL'AVVIO
   useEffect(() => {
     async function loadChats() {
-      const data = await getConversations();
-      // @ts-ignore
-      setConversations(data);
+      try {
+        const data = await getConversations();
+        // @ts-ignore
+        if (Array.isArray(data)) {
+             setConversations(data);
+        } else {
+             setConversations([]);
+        }
+      } catch (e) {
+        console.error("Errore caricamento chat", e);
+        setConversations([]);
+      }
     }
     loadChats();
     
-    // Refresh automatico ogni 10 secondi (Polling semplice)
+    // Refresh automatico ogni 10 secondi
     const interval = setInterval(loadChats, 10000);
     return () => clearInterval(interval);
   }, []);
@@ -58,8 +67,13 @@ export default function InboxPage() {
     
     async function loadMsgs() {
       setLoading(true);
-      const msgs = await getMessages(selectedChatId!);
-      setChatMessages(msgs);
+      try {
+        const msgs = await getMessages(selectedChatId!);
+        // @ts-ignore
+        setChatMessages(Array.isArray(msgs) ? msgs : []);
+      } catch (e) {
+        setChatMessages([]);
+      }
       setLoading(false);
     }
     loadMsgs();
@@ -99,7 +113,8 @@ export default function InboxPage() {
       {/* HEADER */}
       <div className="p-6 border-b border-gray-200 bg-white flex justify-between items-center shrink-0">
         <div>
-          <h1 className="text-2xl font-black text-[#00665E] tracking-tight">Unified Inbox<AGGIORNATO1>
+          {/* ERRORE CORRETTO QUI SOTTO: Ho chiuso il tag h1 e messo parentesi tonde */}
+          <h1 className="text-2xl font-black text-[#00665E] tracking-tight">Unified Inbox (AGGIORNATO)</h1>
           <p className="text-gray-500 text-xs mt-1">Chatwoot Connected ✅</p>
         </div>
         <div className="flex bg-gray-100 p-1 rounded-xl">
@@ -114,7 +129,12 @@ export default function InboxPage() {
               
               {/* SIDEBAR LISTA CHAT */}
               <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto">
-                  {conversations.length === 0 && <div className="p-4 text-gray-400 text-sm">Caricamento chat...</div>}
+                  {conversations.length === 0 && (
+                    <div className="p-10 text-center text-gray-400 text-sm">
+                        <p>Caricamento chat...</p>
+                        <p className="text-xs mt-2 text-gray-300">(Se rimane così, scrivi un messaggio dal sito pubblico)</p>
+                    </div>
+                  )}
                   
                   {conversations.map((chat) => (
                       <div 
@@ -144,7 +164,6 @@ export default function InboxPage() {
                       <>
                         {/* Chat Messages */}
                         <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col-reverse"> 
-                            {/* Flex-col-reverse per tenere i messaggi nuovi in basso se non usiamo scroll logic complessa */}
                            <div className="flex flex-col gap-4">
                             {chatMessages.map((msg) => (
                                 <div key={msg.id} className={`flex ${msg.message_type === 'outgoing' ? 'justify-end' : 'justify-start'}`}>
@@ -182,10 +201,9 @@ export default function InboxPage() {
           </div>
       )}
 
-      {/* --- TAB VOIP (Mantenuto uguale al tuo mock) --- */}
+      {/* --- TAB VOIP --- */}
       {activeTab === 'voip' && (
           <div className="flex-1 p-8 flex flex-col items-center justify-center">
-             {/* ... IL TUO CODICE VOIP ESISTENTE VA QUI SE VUOI MANTENERLO ... */}
              <div className="text-center">
                 <h2 className="text-xl font-bold">Modulo VoIP</h2>
                 <p>Integrazione Twilio in arrivo...</p>
