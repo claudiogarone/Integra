@@ -12,9 +12,14 @@ export default function CustomerWallet() {
 
   const handleLogin = async (e: React.FormEvent) => {
       e.preventDefault(); setLoading(true)
-      const { data } = await supabase.from('loyalty_cards').select('*').eq('customer_email', email).single()
+      const { data } = await supabase
+        .from('loyalty_cards')
+        .select('*')
+        .ilike('customer_email', email.trim()) // .ilike + trim() per togliere spazi vuoti
+        .single()
+
       if(data) setCard(data)
-      else alert("Nessuna carta trovata con questa email.")
+      else alert("Nessuna carta trovata con questa email. Sicuro di averla registrata in cassa?")
       setLoading(false)
   }
 

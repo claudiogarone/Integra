@@ -39,7 +39,11 @@ export default function PosTerminal() {
       
       setLoading(true)
       // Cerca
-      let { data: card, error } = await supabase.from('loyalty_cards').select('*').or(`code.eq.${q},customer_email.eq.${q}`).single()
+      const { data: card, error } = await supabase
+        .from('loyalty_cards')
+        .select('*')
+        .or(`code.eq.${q},customer_email.ilike.${q}`) // .ilike ignora maiuscole/minuscole
+        .single()
 
       if (card) {
           setCustomer(card); setStep(3)
