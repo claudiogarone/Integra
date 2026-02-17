@@ -3,7 +3,8 @@
 import { createClient } from '../../utils/supabase/client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Lock, Mail, ArrowRight, Loader2 } from 'lucide-react'
+// ECCO LA CORREZIONE: Ho aggiunto AlertCircle qui sotto 👇
+import { Lock, Mail, ArrowRight, Loader2, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -49,7 +50,7 @@ export default function LoginPage() {
           <p className="text-gray-400 text-sm">Accedi al tuo ecosistema aziendale.</p>
         </div>
 
-        {/* ERROR BOX */}
+        {/* ERROR BOX (Ora funzionerà perché abbiamo importato AlertCircle) */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-600 text-sm rounded-r-xl flex items-center gap-2 animate-in shake">
             <AlertCircle size={16} /> {error}
