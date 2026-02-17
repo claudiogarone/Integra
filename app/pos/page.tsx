@@ -3,7 +3,8 @@
 import { createClient } from '../../utils/supabase/client'
 import { useState } from 'react'
 import { Search, Zap, CheckCircle, Calculator, ArrowRight, Camera, X } from 'lucide-react'
-import { QrReader } from 'react-qr-reader'
+// NUOVA LIBRERIA SCANNER
+import { Scanner } from '@yudiel/react-qr-scanner'
 
 export default function PosTerminal() {
   const [step, setStep] = useState(1) 
@@ -18,7 +19,7 @@ export default function PosTerminal() {
   
   const [loading, setLoading] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
-  const [showScanner, setShowScanner] = useState(false) // Stato Scanner
+  const [showScanner, setShowScanner] = useState(false)
 
   const supabase = createClient()
 
@@ -53,10 +54,9 @@ export default function PosTerminal() {
   }
 
   const createNewCustomer = async (name: string, emailOrCode: string) => {
-      // Se è un codice QR (inizia con CARD-), usa quello come codice, altrimenti genera
       const isCode = emailOrCode.startsWith('CARD-');
       const newCode = isCode ? emailOrCode : 'CARD-' + Math.floor(100000 + Math.random() * 900000);
-      const email = isCode ? '' : emailOrCode; // Se abbiamo scansionato un codice, non abbiamo la mail all'inizio
+      const email = isCode ? '' : emailOrCode; 
 
       const { data: newCard } = await supabase.from('loyalty_cards').insert({
           user_id: store.user_id, customer_email: email, customer_name: name, code: newCode, points: 50, tier: 'Bronze'
@@ -86,12 +86,14 @@ export default function PosTerminal() {
       setTimeout(() => { setSuccessMsg(''); setStep(2); setCustomer(null); setSearchQuery(''); setAmountEuro('') }, 3000)
   }
 
-  // Handle QR Scan Result
-  const handleScan = (result: any, error: any) => {
-      if (result) {
-          setSearchQuery(result?.text);
+  // NUOVA LOGICA SCANNER
+  const handleScan = (results: any[]) => {
+      if (results && results.length > 0) {
+          const code = results[0].rawValue;
+          setSearchQuery(code);
           setShowScanner(false);
-          handleFindCustomer(undefined, result?.text); // Auto-submit
+          // Suona un piccolo bip (opzionale)
+          handleFindCustomer(undefined, code);
       }
   }
 
@@ -126,10 +128,15 @@ export default function PosTerminal() {
                    {step === 2 && (
                        <div className="bg-white p-6 rounded-3xl shadow-xl animate-in slide-in-from-bottom">
                            {showScanner ? (
-                               <div className="mb-4 bg-black rounded-2xl overflow-hidden relative">
-                                   <QrReader onResult={handleScan} constraints={{ facingMode: 'environment' }} className="w-full" />
-                                   <button onClick={() => setShowScanner(false)} className="absolute top-4 right-4 bg-white/20 p-2 rounded-full text-white"><X/></button>
-                                   <p className="text-white text-center py-2 text-xs">Inquadra il QR Code</p>
+                               <div className="mb-4 bg-black rounded-2xl overflow-hidden relative h-64">
+                                   {/* COMPONENTE SCANNER NUOVO */}
+                                   <Scanner 
+                                        onScan={handleScan} 
+                                        components={{ audio: false, finder: false }}
+                                        styles={{ container: { width: '100%', height: '100%' } }}
+                                   />
+                                   <button onClick={() => setShowScanner(false)} className="absolute top-4 right-4 bg-white/20 p-2 rounded-full text-white z-50"><X/></button>
+                                   <p className="absolute bottom-4 w-full text-center text-white text-xs z-50 bg-black/50 py-1">Inquadra il QR Code</p>
                                </div>
                            ) : (
                                <>
