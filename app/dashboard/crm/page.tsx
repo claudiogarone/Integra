@@ -4,11 +4,11 @@ import { createClient } from '../../../utils/supabase/client'
 import { useEffect, useState, useRef, useMemo } from 'react'
 import Papa from 'papaparse'
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, AreaChart, Area 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell 
 } from 'recharts'
 import { 
   Users, DollarSign, TrendingUp, AlertCircle, Filter, ChevronDown, ChevronUp, 
-  Phone, Globe, FileText, Calendar, ShoppingBag, Star, Zap, Activity, PieChart 
+  Phone, Globe, FileText, Calendar, ShoppingBag, Star, Zap, Activity, Download, Bot, Sparkles, X 
 } from 'lucide-react'
 
 export default function CRMPage() {
@@ -16,19 +16,21 @@ export default function CRMPage() {
   const [contacts, setContacts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   
+  // Modali e Pannelli
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isImportInfoOpen, setIsImportInfoOpen] = useState(false)
+  const [showAiPanel, setShowAiPanel] = useState(false) // NUOVO: Pannello AI
+  const [aiSuggestions, setAiSuggestions] = useState<any[]>([]) // NUOVO: Suggerimenti AI
   
   const [editingId, setEditingId] = useState<number | null>(null)
   const [activeTab, setActiveTab] = useState<'profile' | 'sales' | 'marketing'>('profile')
-  const [formData, setFormData] = useState<any>({}) // Semplificato per brevità
+  const [formData, setFormData] = useState<any>({})
   const [saving, setSaving] = useState(false)
   const [showAnalytics, setShowAnalytics] = useState(true)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
 
-  // DEFAULT FORM DATA
   const initialForm = {
     name: '', email: '', phone: '', source: '', notes: '', value: '', status: 'Nuovo',
     customer_since: new Date().toISOString().split('T')[0], churn_date: '', total_orders: 0, ltv: 0, 
@@ -55,7 +57,72 @@ export default function CRMPage() {
     setLoading(false)
   }
 
-  // --- ANALYTICS & PIVOT ---
+  // --- LOGICA EXPORT CSV ---
+  const handleExportCSV = () => {
+      if(contacts.length === 0) return alert("Nessun dato da esportare.");
+      const csv = Papa.unparse(contacts);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `integra_crm_export_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  }
+
+  // --- LOGICA AI ADVISOR (Generatore Suggerimenti) ---
+  const generateAiSuggestions = () => {
+      const suggestions = [];
+      
+      // Regola 1: Clienti Persi da Recuperare
+      const churned = contacts.filter(c => c.churn_date && c.ltv > 500);
+      if(churned.length > 0) {
+          suggestions.push({
+              type: 'alert',
+              title: '🚨 Recupero Alto Valore',
+              text: `Hai ${churned.length} clienti VIP che hanno abbandonato. Invia un coupon "Bentornato".`,
+              action: 'Filtra Persi'
+          });
+      }
+
+      // Regola 2: Clienti "Dormienti" (nessun ordine da 60gg)
+      const dormant = contacts.filter(c => c.last_order_date && new Date(c.last_order_date) < new Date(Date.now() - 60 * 24 * 60 * 60 * 1000));
+      if(dormant.length > 0) {
+          suggestions.push({
+              type: 'warning',
+              title: '💤 Clienti Dormienti',
+              text: `${dormant.length} clienti non acquistano da 2 mesi. È il momento di una newsletter.`,
+              action: 'Crea Campagna'
+          });
+      }
+
+      // Regola 3: Potenziali VIP
+      const potentialVip = contacts.filter(c => c.marketing_engagement_score > 80 && c.status !== 'Chiuso');
+      if(potentialVip.length > 0) {
+           suggestions.push({
+              type: 'success',
+              title: '💎 Potenziali VIP',
+              text: `Ci sono ${potentialVip.length} lead molto interessati (Score > 80). Chiamali oggi!`,
+              action: 'Vedi Lista'
+          });
+      }
+
+      // Fallback
+      if(suggestions.length === 0) {
+          suggestions.push({
+              type: 'info',
+              title: '✅ Tutto sotto controllo',
+              text: 'Al momento non ci sono criticità rilevanti. Continua così!',
+              action: 'Chiudi'
+          });
+      }
+
+      setAiSuggestions(suggestions);
+      setShowAiPanel(true);
+  }
+
+  // --- ANALYTICS ---
   const analyticsData = useMemo(() => {
     const totalValue = contacts.reduce((acc, c) => acc + (Number(c.value) || 0), 0)
     const countNuovi = contacts.filter(c => c.status === 'Nuovo').length
@@ -63,50 +130,69 @@ export default function CRMPage() {
     const countChiusi = contacts.filter(c => c.status === 'Chiuso' || c.status === 'Vinto').length
     const countPersi = contacts.filter(c => c.status === 'Perso').length
     
-    // Funnel Data
     const funnel = [
       { stage: 'Nuovi Lead', count: countNuovi, color: '#3B82F6' },
       { stage: 'In Trattativa', count: countTrattativa, color: '#F59E0B' },
       { stage: 'Clienti Vinti', count: countChiusi, color: '#10B981' },
       { stage: 'Persi', count: countPersi, color: '#EF4444' }
     ]
-
-    // PIVOT TABLE: Analisi per Fonte (ROI)
+    
+    // Pivot per Fonte
     const sourceStats: any = {}
     contacts.forEach(c => {
         const src = c.source || 'Sconosciuto'
-        if(!sourceStats[src]) sourceStats[src] = { name: src, count: 0, value: 0, won: 0 }
+        if(!sourceStats[src]) sourceStats[src] = { name: src, count: 0, value: 0 }
         sourceStats[src].count += 1
         sourceStats[src].value += (Number(c.value) || 0)
-        if(c.status === 'Chiuso' || c.status === 'Vinto') sourceStats[src].won += 1
     })
     const pivotData = Object.values(sourceStats).sort((a:any, b:any) => b.value - a.value)
 
-    return { totalValue, funnel, pivotData, countChiusi }
+    const conversionRate = contacts.length > 0 ? Math.round((countChiusi / contacts.length) * 100) : 0
+    return { totalValue, funnel, conversionRate, countChiusi, pivotData }
   }, [contacts])
 
-  // --- HELPER FUNCTIONS ---
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => { /* ... codice invariato ... */ }
-  const saveToDb = async (newContacts: any[]) => { /* ... codice invariato ... */ }
-
-  const openNewModal = () => { 
-      setEditingId(null); setFormData(initialForm); setActiveTab('profile'); setIsModalOpen(true) 
+  // --- GESTIONE FILE ---
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const fileExt = file.name.split('.').pop()?.toLowerCase()
+    if (fileExt === 'csv') {
+      Papa.parse(file, {
+        header: true, skipEmptyLines: true,
+        complete: async (results) => {
+          const rows: any[] = results.data
+          const newContacts = rows.map((row: any) => ({
+            name: row.Nome || row.Name || 'Senza Nome',
+            email: row.Email || '', phone: row.Telefono || '', source: 'Import CSV',
+            value: 0, status: 'Nuovo', user_id: user.id
+          })).filter((c: any) => c.name !== 'Senza Nome')
+          saveToDb(newContacts)
+        }
+      })
+    } else { alert("Per ora supportiamo solo CSV.") }
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  const saveToDb = async (newContacts: any[]) => {
+    if (newContacts.length === 0) return
+    const { data, error } = await supabase.from('contacts').insert(newContacts).select()
+    if (!error && data) {
+      setContacts([...data, ...contacts])
+      alert(`Importati ${data.length} contatti!`)
+      setIsImportInfoOpen(false)
+    } else { alert('Errore: ' + error?.message) }
+  }
+
+  // --- CRUD ---
+  const openNewModal = () => { setEditingId(null); setFormData(initialForm); setActiveTab('profile'); setIsModalOpen(true) }
   const openEditModal = (contact: any) => { 
       setEditingId(contact.id); 
-      setFormData({ 
-        ...initialForm, ...contact, 
-        // Gestione null
-        marketing_engagement_score: contact.marketing_engagement_score || 0
-      }); 
+      setFormData({ ...initialForm, ...contact, marketing_engagement_score: contact.marketing_engagement_score || 0 }); 
       setActiveTab('profile'); setIsModalOpen(true)
   }
-  
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true)
     const payload = { ...formData, value: Number(formData.value), ltv: Number(formData.ltv), total_orders: Number(formData.total_orders) }
-    
     if (editingId) {
       const { error } = await supabase.from('contacts').update(payload).eq('id', editingId)
       if (!error) { fetchContacts(); setIsModalOpen(false) }
@@ -116,18 +202,14 @@ export default function CRMPage() {
     }
     setSaving(false)
   }
-
-  const handleDelete = async (id: number) => { /* ... codice invariato ... */ }
-  const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
-  
-  // Colore Score
-  const getScoreColor = (score: number) => {
-      if(score >= 80) return 'bg-green-500';
-      if(score >= 50) return 'bg-yellow-500';
-      return 'bg-gray-300';
+  const handleDelete = async (id: number) => { 
+    if(!confirm('Eliminare?')) return; 
+    const { error } = await supabase.from('contacts').delete().eq('id', id); 
+    if (!error) setContacts(contacts.filter(c => c.id !== id)) 
   }
+  const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
 
-  if (loading) return <div className="p-10 text-[#00665E] animate-pulse">Caricamento Integra CRM...</div>
+  if (loading) return <div className="p-10 text-[#00665E] animate-pulse">Caricamento CRM Enterprise...</div>
 
   return (
     <main className="flex-1 p-8 overflow-auto bg-[#F8FAFC] text-gray-900 font-sans relative pb-20">
@@ -136,112 +218,100 @@ export default function CRMPage() {
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-black text-[#00665E] tracking-tight">CRM Enterprise</h1>
-          <p className="text-gray-500 text-sm mt-1">Business Intelligence & Pipeline.</p>
+          <p className="text-gray-500 text-sm mt-1">Intelligence & Customer Data.</p>
         </div>
         <div className="flex gap-3">
           <button onClick={() => setShowAnalytics(!showAnalytics)} className="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-xl font-bold hover:bg-gray-50 transition shadow-sm flex items-center gap-2">
             {showAnalytics ? <ChevronUp size={18}/> : <ChevronDown size={18}/>} Analisi
           </button>
-          <button onClick={openNewModal} className="bg-[#00665E] text-white px-5 py-2 rounded-xl font-bold hover:bg-[#004d46] shadow-lg shadow-[#00665E]/20 transition flex items-center gap-2">+ Nuovo Lead</button>
+          
+          <button onClick={generateAiSuggestions} className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2 rounded-xl font-bold shadow-lg shadow-purple-200 hover:scale-105 transition flex items-center gap-2 animate-pulse">
+            <Bot size={18}/> AI Advisor
+          </button>
+
+          <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+          <button onClick={handleExportCSV} className="bg-white border border-gray-200 text-[#00665E] px-4 py-2 rounded-xl font-bold hover:bg-gray-50 transition shadow-sm flex items-center gap-2">
+             <Download size={18}/> Export CSV
+          </button>
+
+          <button onClick={() => setIsImportInfoOpen(true)} className="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-xl font-bold hover:bg-gray-50 transition shadow-sm">📂 Importa</button>
+          <button onClick={openNewModal} className="bg-[#00665E] text-white px-5 py-2 rounded-xl font-bold hover:bg-[#004d46] shadow-lg shadow-[#00665E]/20 transition flex items-center gap-2">+ Nuovo</button>
         </div>
       </div>
 
-      {/* DASHBOARD ANALITICA "WOW" */}
+      {/* ANALYTICS SECTION */}
       {showAnalytics && (
         <div className="mb-10 animate-in slide-in-from-top duration-500 space-y-6">
-           
-           {/* KPI Cards */}
            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <KpiBox title="Pipeline Value" val={`€ ${analyticsData.totalValue.toLocaleString()}`} icon={<DollarSign className="text-white"/>} bg="bg-gradient-to-br from-blue-500 to-blue-700 text-white" />
-                <KpiBox title="Conversion Rate" val={`${contacts.length > 0 ? Math.round((analyticsData.countChiusi/contacts.length)*100) : 0}%`} icon={<Activity className="text-white"/>} bg="bg-gradient-to-br from-purple-500 to-purple-700 text-white" />
+                <KpiBox title="Conversion Rate" val={`${analyticsData.conversionRate}%`} icon={<Activity className="text-white"/>} bg="bg-gradient-to-br from-purple-500 to-purple-700 text-white" />
                 <KpiBox title="Clienti Vinti" val={analyticsData.countChiusi} icon={<Users className="text-white"/>} bg="bg-gradient-to-br from-green-500 to-green-700 text-white" />
                 <KpiBox title="Lead Totali" val={contacts.length} icon={<Filter className="text-white"/>} bg="bg-gradient-to-br from-gray-700 to-gray-900 text-white" />
            </div>
 
            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
-                {/* 1. FUNNEL VISIVO "WOW" (Gradiente) */}
+                {/* Funnel */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 lg:col-span-2">
                     <h3 className="font-bold text-gray-800 mb-4">Pipeline Funnel</h3>
-                    <div className="h-72 w-full">
+                    <div className="h-64 w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={analyticsData.funnel} layout="vertical" margin={{left: 20}}>
-                                <defs>
-                                    <linearGradient id="colorBar" x1="0" y1="0" x2="1" y2="0">
-                                        <stop offset="0%" stopColor="#00665E" stopOpacity={0.6}/>
-                                        <stop offset="100%" stopColor="#00665E" stopOpacity={1}/>
-                                    </linearGradient>
-                                </defs>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
                                 <XAxis type="number" hide />
                                 <YAxis dataKey="stage" type="category" width={100} tick={{fontSize: 12, fontWeight: 'bold'}} />
-                                <Tooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'}} />
+                                <Tooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '12px'}} />
                                 <Bar dataKey="count" radius={[0, 8, 8, 0]} barSize={32}>
-                                    {analyticsData.funnel.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                    ))}
+                                    {analyticsData.funnel.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
-
-                {/* 2. PIVOT TABLE (Analisi per Fonte) */}
+                {/* Pivot Table */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
                     <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><Zap size={16} className="text-yellow-500"/> Performance Fonti</h3>
                     <div className="flex-1 overflow-auto">
                         <table className="w-full text-xs text-left">
-                            <thead>
-                                <tr className="text-gray-400 border-b border-gray-100">
-                                    <th className="pb-2">Fonte</th>
-                                    <th className="pb-2 text-right">Valore</th>
-                                    <th className="pb-2 text-right">Conv.</th>
-                                </tr>
-                            </thead>
+                            <thead><tr className="text-gray-400 border-b border-gray-100"><th className="pb-2">Fonte</th><th className="pb-2 text-right">Valore</th></tr></thead>
                             <tbody className="divide-y divide-gray-50">
                                 {analyticsData.pivotData.map((row: any, i: number) => (
                                     <tr key={i} className="group hover:bg-gray-50">
                                         <td className="py-3 font-bold text-gray-700">{row.name}</td>
                                         <td className="py-3 text-right text-[#00665E] font-mono font-bold">€{row.value.toLocaleString()}</td>
-                                        <td className="py-3 text-right text-gray-500">{Math.round((row.won / row.count) * 100)}%</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
-                        {analyticsData.pivotData.length === 0 && <p className="text-center text-gray-400 py-4">Nessun dato.</p>}
                     </div>
                 </div>
            </div>
         </div>
       )}
 
-      {/* --- TABELLA CONTATTI PRINCIPALE (Upgrade) --- */}
+      {/* TABELLA CONTATTI */}
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
         <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
             <h3 className="font-bold text-gray-800">Elenco Clienti</h3>
-            <span className="text-xs text-gray-400">{contacts.length} record trovati</span>
+            <span className="text-xs text-gray-400">{contacts.length} record</span>
         </div>
         <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-gray-600">
             <thead className="bg-white border-b border-gray-100 uppercase font-bold text-gray-400 text-[10px] tracking-wider">
                 <tr>
-                <th className="px-6 py-4">Cliente / Azienda</th>
-                <th className="px-6 py-4">Engagement Marketing</th> {/* NUOVO: Barra Score */}
-                <th className="px-6 py-4">Next Action</th>
-                <th className="px-6 py-4">Ultimo Contatto</th> {/* NUOVO: Data */}
-                <th className="px-6 py-4 text-right">Valore LTV</th>
+                <th className="px-6 py-4">Cliente</th>
+                <th className="px-6 py-4">Engagement</th>
+                <th className="px-6 py-4">Fonte</th>
+                <th className="px-6 py-4 text-right">Valore</th>
                 <th className="px-6 py-4 text-center">Stato</th>
-                <th className="px-6 py-4 text-right"></th>
+                <th className="px-6 py-4 text-right">Azioni</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
                 {contacts.map((contact) => (
                     <tr key={contact.id} className="hover:bg-blue-50/30 transition group cursor-pointer" onClick={() => openEditModal(contact)}>
-                    
-                    {/* 1. Cliente */}
                     <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600 flex items-center justify-center font-bold text-xs border border-gray-300 shadow-sm">
+                            <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center font-bold text-xs">
                                 {getInitials(contact.name)}
                             </div>
                             <div>
@@ -250,56 +320,23 @@ export default function CRMPage() {
                             </div>
                         </div>
                     </td>
-                    
-                    {/* 2. Engagement Score (Barra Visiva) */}
                     <td className="px-6 py-4">
-                        <div className="w-24">
-                            <div className="flex justify-between text-[10px] mb-1 font-bold text-gray-500">
-                                <span>Score</span>
-                                <span>{contact.marketing_engagement_score || 0}/100</span>
-                            </div>
-                            <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                                <div 
-                                    className={`h-full rounded-full ${getScoreColor(contact.marketing_engagement_score || 0)}`} 
-                                    style={{width: `${contact.marketing_engagement_score || 0}%`}}
-                                ></div>
-                            </div>
+                        <div className="w-24 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                            <div className={`h-full rounded-full ${contact.marketing_engagement_score > 70 ? 'bg-green-500' : 'bg-yellow-500'}`} style={{width: `${contact.marketing_engagement_score || 0}%`}}></div>
                         </div>
                     </td>
-
-                    {/* 3. Next Action */}
-                    <td className="px-6 py-4">
-                        {contact.next_action ? (
-                             <div className="flex items-center gap-2 text-[11px] font-medium text-orange-700 bg-orange-50 px-2 py-1 rounded-lg border border-orange-100 w-fit">
-                                <Calendar size={10}/> {contact.next_action}
-                             </div>
-                        ) : <span className="text-gray-300 text-xs">-</span>}
-                    </td>
-
-                    {/* 4. Ultimo Contatto */}
-                    <td className="px-6 py-4 text-xs">
-                        {contact.created_at ? new Date(contact.created_at).toLocaleDateString() : '-'}
-                    </td>
-
-                    {/* 5. Valore */}
-                    <td className="px-6 py-4 text-right font-mono text-gray-900 font-bold">
-                        € {contact.value?.toLocaleString()}
-                    </td>
-
-                    {/* 6. Stato */}
+                    <td className="px-6 py-4"><span className="bg-gray-100 px-2 py-1 rounded text-xs">{contact.source || '-'}</span></td>
+                    <td className="px-6 py-4 text-right font-mono text-gray-900 font-bold">€ {contact.value?.toLocaleString()}</td>
                     <td className="px-6 py-4 text-center">
                         <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
                             contact.status === 'Nuovo' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                            (contact.status === 'Chiuso') ? 'bg-green-50 text-green-600 border-green-100' :
-                            'bg-yellow-50 text-yellow-600 border-yellow-100'
-                        }`}>
-                        {contact.status}
-                        </span>
+                            (contact.status === 'Chiuso') ? 'bg-green-50 text-green-600 border-green-100' : 'bg-yellow-50 text-yellow-600 border-yellow-100'
+                        }`}>{contact.status}</span>
                     </td>
-
-                    {/* 7. Azioni */}
-                    <td className="px-6 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="text-[#00665E] font-bold text-xs bg-[#00665E]/10 px-3 py-1 rounded hover:bg-[#00665E] hover:text-white transition">APRI</button>
+                    <td className="px-6 py-4 text-right">
+                        <button className="text-[#00665E] font-bold text-xs bg-[#00665E]/10 px-3 py-1 rounded hover:bg-[#00665E] hover:text-white transition flex items-center gap-1 ml-auto">
+                            👁️ SCHEDA
+                        </button>
                     </td>
                     </tr>
                 ))}
@@ -308,11 +345,43 @@ export default function CRMPage() {
         </div>
       </div>
 
-      {/* MODALE DI MODIFICA (Manteniamo quello che abbiamo fatto prima, ometto per brevità ma tu lascialo nel codice se vuoi o chiedimi di rimetterlo) */}
-      {/* ... CODICE MODALE ... (Usa quello che ti ho dato nel messaggio precedente per la modale a Tabs) */}
+      {/* --- AI ADVISOR PANEL (SIDEBAR) --- */}
+      {showAiPanel && (
+          <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl z-50 border-l border-gray-100 p-6 flex flex-col animate-in slide-in-from-right duration-300">
+              <div className="flex justify-between items-center mb-8">
+                  <div className="flex items-center gap-2">
+                      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-2 rounded-lg text-white"><Sparkles size={20}/></div>
+                      <h2 className="text-xl font-black text-gray-900">AI Advisor</h2>
+                  </div>
+                  <button onClick={() => setShowAiPanel(false)} className="text-gray-400 hover:text-gray-900"><X size={20}/></button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-4">
+                  <p className="text-sm text-gray-500 mb-4">Ho analizzato i tuoi dati. Ecco le azioni consigliate per aumentare il fatturato:</p>
+                  
+                  {aiSuggestions.map((sug, i) => (
+                      <div key={i} className={`p-4 rounded-xl border-l-4 ${
+                          sug.type === 'alert' ? 'bg-red-50 border-red-500' : 
+                          sug.type === 'warning' ? 'bg-orange-50 border-orange-500' : 
+                          sug.type === 'success' ? 'bg-green-50 border-green-500' : 'bg-blue-50 border-blue-500'
+                      }`}>
+                          <h3 className={`font-bold text-sm mb-1 ${
+                              sug.type === 'alert' ? 'text-red-800' : 
+                              sug.type === 'warning' ? 'text-orange-800' : 
+                              sug.type === 'success' ? 'text-green-800' : 'text-blue-800'
+                          }`}>{sug.title}</h3>
+                          <p className="text-xs text-gray-600 mb-3">{sug.text}</p>
+                          <button className="bg-white border border-gray-200 text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-gray-50">
+                              {sug.action}
+                          </button>
+                      </div>
+                  ))}
+              </div>
+          </div>
+      )}
+
+      {/* MODALE DI MODIFICA (Uso lo stesso codice di prima per brevità, assicurati che sia incluso) */}
       {isModalOpen && (
-        /* INCOLLA QUI IL CODICE DELLA MODALE A TABS CHE TI HO DATO PRIMA */
-        /* Per sicurezza te lo rimetto compatto qui sotto */
          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
             <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl relative overflow-hidden flex flex-col max-h-[95vh]">
               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
@@ -344,7 +413,7 @@ export default function CRMPage() {
                       {activeTab === 'sales' && (
                         <>
                            <div><label className="text-xs font-bold uppercase text-gray-500">Engagement (0-100)</label><input type="number" className="w-full p-3 rounded-xl border mt-1" value={formData.marketing_engagement_score} onChange={e=>setFormData({...formData, marketing_engagement_score: e.target.value})}/></div>
-                           <div><label className="text-xs font-bold uppercase text-gray-500">Next Action</label><input className="w-full p-3 rounded-xl border mt-1" value={formData.next_action} onChange={e=>setFormData({...formData, next_action: e.target.value})}/></div>
+                           <div><label className="text-xs font-bold uppercase text-gray-500">Data Abbandono</label><input type="date" className="w-full p-3 rounded-xl border mt-1" value={formData.churn_date} onChange={e=>setFormData({...formData, churn_date: e.target.value})}/></div>
                         </>
                       )}
                       <div className="col-span-2 pt-4 flex gap-2">
@@ -355,7 +424,16 @@ export default function CRMPage() {
             </div>
          </div>
       )}
-      
+
+      {isImportInfoOpen && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+             <div className="bg-white p-6 rounded-2xl max-w-sm w-full relative">
+                <button onClick={() => setIsImportInfoOpen(false)} className="absolute top-2 right-4 text-gray-400">✕</button>
+                <h3 className="font-bold mb-4">Importa CSV</h3>
+                <button onClick={() => fileInputRef.current?.click()} className="w-full bg-[#00665E] text-white py-3 rounded-xl font-bold">Seleziona File</button>
+             </div>
+          </div>
+      )}
     </main>
   )
 }
@@ -368,7 +446,6 @@ function KpiBox({title, val, icon, bg}: any) {
             </div>
             <p className="opacity-80 text-xs font-bold uppercase relative z-10">{title}</p>
             <h3 className="text-3xl font-black mt-1 relative z-10">{val}</h3>
-            <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:blur-3xl transition"></div>
         </div>
     )
 }
