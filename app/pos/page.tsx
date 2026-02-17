@@ -3,7 +3,6 @@
 import { createClient } from '../../utils/supabase/client'
 import { useState } from 'react'
 import { Search, Zap, CheckCircle, Calculator, ArrowRight, Camera, X } from 'lucide-react'
-// NUOVA LIBRERIA SCANNER
 import { Scanner } from '@yudiel/react-qr-scanner'
 
 export default function PosTerminal() {
@@ -86,13 +85,13 @@ export default function PosTerminal() {
       setTimeout(() => { setSuccessMsg(''); setStep(2); setCustomer(null); setSearchQuery(''); setAmountEuro('') }, 3000)
   }
 
-  // NUOVA LOGICA SCANNER
+  // --- LOGICA SCANNER AGGIORNATA ---
   const handleScan = (results: any[]) => {
       if (results && results.length > 0) {
-          const code = results[0].rawValue;
+          const code = results[0].rawValue; // Estrae il valore dal QR
           setSearchQuery(code);
           setShowScanner(false);
-          // Suona un piccolo bip (opzionale)
+          // Avvia la ricerca automaticamente
           handleFindCustomer(undefined, code);
       }
   }
@@ -128,11 +127,10 @@ export default function PosTerminal() {
                    {step === 2 && (
                        <div className="bg-white p-6 rounded-3xl shadow-xl animate-in slide-in-from-bottom">
                            {showScanner ? (
-                               <div className="mb-4 bg-black rounded-2xl overflow-hidden relative h-64">
-                                   {/* COMPONENTE SCANNER NUOVO */}
+                               <div className="mb-4 bg-black rounded-2xl overflow-hidden relative h-72">
+                                   {/* SCANNER SENZA COMPONENTI EXTRA (SOLO VIDEO) */}
                                    <Scanner 
                                         onScan={handleScan} 
-                                        components={{ audio: false, finder: false }}
                                         styles={{ container: { width: '100%', height: '100%' } }}
                                    />
                                    <button onClick={() => setShowScanner(false)} className="absolute top-4 right-4 bg-white/20 p-2 rounded-full text-white z-50"><X/></button>
