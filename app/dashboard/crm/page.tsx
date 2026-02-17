@@ -64,15 +64,24 @@ export default function CRMPage() {
     e.preventDefault(); 
     setSaving(true)
     
-    // Convertiamo i numeri e gestiamo le date vuote
+    // Funzione magica: se la data è una stringa vuota "", la trasforma in NULL (che piace al database)
+    const toNullableDate = (val: string) => (val === '' ? null : val);
+
+    // Prepariamo i dati puliti
     const payload = { 
         ...formData, 
+        // Numeri: se vuoti o testo, diventano 0
         value: Number(formData.value) || 0, 
         ltv: Number(formData.ltv) || 0, 
         total_orders: Number(formData.total_orders) || 0,
         marketing_engagement_score: Number(formData.marketing_engagement_score) || 0,
-        churn_date: formData.churn_date || null,
-        next_action_date: formData.next_action_date || null
+        
+        // DATE: Qui applichiamo la pulizia
+        // Risolve l'errore "invalid input syntax for type date" su churn_date e altri
+        churn_date: toNullableDate(formData.churn_date),
+        next_action_date: toNullableDate(formData.next_action_date),
+        last_order_date: toNullableDate(formData.last_order_date),
+        customer_since: toNullableDate(formData.customer_since)
     }
 
     try {
@@ -81,7 +90,7 @@ export default function CRMPage() {
             const { error } = await supabase.from('contacts').update(payload).eq('id', editingId)
             if (error) throw error
             
-            // Aggiorna lista locale senza ricaricare tutto
+            // Aggiorna lista locale
             setContacts(contacts.map(c => c.id === editingId ? { ...c, ...payload } : c))
             setIsModalOpen(false)
         } else {
@@ -94,7 +103,7 @@ export default function CRMPage() {
             if (error) throw error
             
             if (data) {
-                setContacts([data[0], ...contacts]) // Aggiungi in cima
+                setContacts([data[0], ...contacts]) 
                 setIsModalOpen(false)
             }
         }
