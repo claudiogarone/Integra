@@ -1,6 +1,6 @@
 'use client'
 
-import { createClient } from '../../utils/supabase/client'
+import { createClient } from '@/utils/supabase/client'
 import { useEffect, useState } from 'react'
 import QRCode from "react-qr-code"
 import Link from 'next/link'

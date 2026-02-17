@@ -1,6 +1,6 @@
 'use client'
 
-import { createClient } from '../../../../utils/supabase/client'
+import { createClient } from '@/utils/supabase/client'
 import { useState } from 'react'
 import { ArrowLeft, CheckCircle, Zap } from 'lucide-react'
 import Link from 'next/link'
