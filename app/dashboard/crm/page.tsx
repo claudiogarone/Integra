@@ -8,7 +8,7 @@ import {
 } from 'recharts'
 import { 
   Users, DollarSign, TrendingUp, AlertCircle, Filter, ChevronDown, ChevronUp, 
-  Phone, Globe, FileText, Calendar, ShoppingBag, Star, Zap, Activity, Download, Bot, Sparkles, X 
+  Phone, Globe, FileText, Calendar, ShoppingBag, Star, Zap, Activity, Download, Bot, Sparkles, X, Mail 
 } from 'lucide-react'
 
 export default function CRMPage() {
@@ -16,26 +16,29 @@ export default function CRMPage() {
   const [contacts, setContacts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   
+  // Stati UI
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isImportInfoOpen, setIsImportInfoOpen] = useState(false)
   const [showAiPanel, setShowAiPanel] = useState(false)
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([])
+  const [showAnalytics, setShowAnalytics] = useState(true)
   
+  // Stati Modifica/Nuovo
   const [editingId, setEditingId] = useState<number | null>(null)
   const [activeTab, setActiveTab] = useState<'profile' | 'sales' | 'marketing'>('profile')
-  const [formData, setFormData] = useState<any>({})
   const [saving, setSaving] = useState(false)
-  const [showAnalytics, setShowAnalytics] = useState(true)
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const supabase = createClient()
-
+  // Form Data Iniziale
   const initialForm = {
     name: '', email: '', phone: '', source: '', notes: '', value: '', status: 'Nuovo',
     customer_since: new Date().toISOString().split('T')[0], churn_date: '', total_orders: 0, ltv: 0, 
     last_order_date: '', avg_days_between_orders: 0, preferred_category: '', preferred_channel: '',
     marketing_engagement_score: 50, nps_score: 0, next_action: '', next_action_date: ''
   }
+  const [formData, setFormData] = useState<any>(initialForm)
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const supabase = createClient()
 
   useEffect(() => {
     const getData = async () => {
@@ -56,6 +59,60 @@ export default function CRMPage() {
     setLoading(false)
   }
 
+  // --- LOGICA SALVATAGGIO (FIXATA) ---
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault(); 
+    setSaving(true)
+    
+    // Convertiamo i numeri e gestiamo le date vuote
+    const payload = { 
+        ...formData, 
+        value: Number(formData.value) || 0, 
+        ltv: Number(formData.ltv) || 0, 
+        total_orders: Number(formData.total_orders) || 0,
+        marketing_engagement_score: Number(formData.marketing_engagement_score) || 0,
+        churn_date: formData.churn_date || null,
+        next_action_date: formData.next_action_date || null
+    }
+
+    try {
+        if (editingId) {
+            // AGGIORNAMENTO
+            const { error } = await supabase.from('contacts').update(payload).eq('id', editingId)
+            if (error) throw error
+            
+            // Aggiorna lista locale senza ricaricare tutto
+            setContacts(contacts.map(c => c.id === editingId ? { ...c, ...payload } : c))
+            setIsModalOpen(false)
+        } else {
+            // CREAZIONE NUOVO
+            const { data, error } = await supabase.from('contacts').insert({ 
+                ...payload, 
+                user_id: user.id 
+            }).select()
+
+            if (error) throw error
+            
+            if (data) {
+                setContacts([data[0], ...contacts]) // Aggiungi in cima
+                setIsModalOpen(false)
+            }
+        }
+    } catch (error: any) {
+        alert("Errore salvataggio: " + error.message)
+    } finally {
+        setSaving(false)
+    }
+  }
+
+  const handleDelete = async (id: number) => { 
+    if(!confirm('Eliminare definitivamente questo contatto?')) return; 
+    const { error } = await supabase.from('contacts').delete().eq('id', id); 
+    if (!error) setContacts(contacts.filter(c => c.id !== id)) 
+    else alert("Errore eliminazione: " + error.message)
+  }
+
+  // --- CSV & EXPORT ---
   const handleExportCSV = () => {
       if(contacts.length === 0) return alert("Nessun dato da esportare.");
       const csv = Papa.unparse(contacts);
@@ -69,51 +126,45 @@ export default function CRMPage() {
       document.body.removeChild(link);
   }
 
-  // --- AI ADVISOR LOGIC FIXATA ---
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]; if (!file) return;
+    const fileExt = file.name.split('.').pop()?.toLowerCase()
+    if (fileExt === 'csv') {
+      Papa.parse(file, {
+        header: true, skipEmptyLines: true,
+        complete: async (results) => {
+          const rows: any[] = results.data
+          const newContacts = rows.map((row: any) => ({
+            name: row.Nome || row.Name || 'Senza Nome',
+            email: row.Email || '', phone: row.Telefono || '', source: 'Import CSV',
+            value: 0, status: 'Nuovo', user_id: user.id
+          })).filter((c: any) => c.name !== 'Senza Nome')
+          
+          if (newContacts.length === 0) return alert("Nessun contatto valido trovato.")
+
+          const { data, error } = await supabase.from('contacts').insert(newContacts).select()
+          if (!error && data) {
+             setContacts([...data, ...contacts]); alert(`Importati ${data.length} contatti!`); setIsImportInfoOpen(false)
+          } else { alert('Errore: ' + error?.message) }
+        }
+      })
+    } else { alert("Per ora supportiamo solo CSV.") }
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  // --- AI LOGIC ---
   const generateAiSuggestions = () => {
       const suggestions = [];
-      
       const churned = contacts.filter(c => c.churn_date && c.ltv > 500);
-      if(churned.length > 0) {
-          suggestions.push({
-              type: 'alert', title: '🚨 Recupero Alto Valore',
-              text: `Hai ${churned.length} clienti VIP che hanno abbandonato.`,
-              action: 'Filtra Persi', filterStatus: 'Perso'
-          });
-      }
+      if(churned.length > 0) suggestions.push({ type: 'alert', title: '🚨 Recupero Alto Valore', text: `Hai ${churned.length} clienti VIP che hanno abbandonato.`, action: 'Filtra Persi', filterStatus: 'Perso' });
 
       const dormant = contacts.filter(c => c.last_order_date && new Date(c.last_order_date) < new Date(Date.now() - 60 * 24 * 60 * 60 * 1000));
-      if(dormant.length > 0) {
-          suggestions.push({
-              type: 'warning', title: '💤 Clienti Dormienti',
-              text: `${dormant.length} clienti non acquistano da 2 mesi.`,
-              action: 'Crea Campagna', route: '/dashboard/marketing'
-          });
-      }
+      if(dormant.length > 0) suggestions.push({ type: 'warning', title: '💤 Clienti Dormienti', text: `${dormant.length} clienti non acquistano da 2 mesi.`, action: 'Crea Campagna', route: '/dashboard/marketing' });
 
-      if(suggestions.length === 0) {
-          suggestions.push({
-              type: 'info', title: '✅ Tutto sotto controllo',
-              text: 'Nessuna criticità rilevata dall\'AI al momento.',
-              action: 'Chiudi'
-          });
-      }
+      if(suggestions.length === 0) suggestions.push({ type: 'info', title: '✅ Tutto sotto controllo', text: 'Nessuna criticità rilevata dall\'AI al momento.', action: 'Chiudi' });
 
       setAiSuggestions(suggestions);
       setShowAiPanel(true);
-  }
-
-  // Gestione click bottone AI
-  const handleAiAction = (sug: any) => {
-      if (sug.action === 'Chiudi') {
-          setShowAiPanel(false);
-      } else if (sug.filterStatus) {
-          alert(`Filtro applicato: ${sug.filterStatus}`); // Qui in futuro metteremo il filtro reale
-          setShowAiPanel(false);
-      } else {
-          alert(`Azione: ${sug.action}`);
-          setShowAiPanel(false);
-      }
   }
 
   // --- ANALYTICS ---
@@ -143,59 +194,14 @@ export default function CRMPage() {
     return { totalValue, funnel, conversionRate, countChiusi, pivotData }
   }, [contacts])
 
-  // --- HELPER ---
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]; if (!file) return;
-    const fileExt = file.name.split('.').pop()?.toLowerCase()
-    if (fileExt === 'csv') {
-      Papa.parse(file, {
-        header: true, skipEmptyLines: true,
-        complete: async (results) => {
-          const rows: any[] = results.data
-          const newContacts = rows.map((row: any) => ({
-            name: row.Nome || row.Name || 'Senza Nome',
-            email: row.Email || '', phone: row.Telefono || '', source: 'Import CSV',
-            value: 0, status: 'Nuovo', user_id: user.id
-          })).filter((c: any) => c.name !== 'Senza Nome')
-          saveToDb(newContacts)
-        }
-      })
-    } else { alert("Per ora supportiamo solo CSV.") }
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
-  const saveToDb = async (newContacts: any[]) => {
-    if (newContacts.length === 0) return
-    const { data, error } = await supabase.from('contacts').insert(newContacts).select()
-    if (!error && data) {
-      setContacts([...data, ...contacts]); alert(`Importati ${data.length} contatti!`); setIsImportInfoOpen(false)
-    } else { alert('Errore: ' + error?.message) }
-  }
-
+  // --- MODAL HELPERS ---
   const openNewModal = () => { setEditingId(null); setFormData(initialForm); setActiveTab('profile'); setIsModalOpen(true) }
   const openEditModal = (contact: any) => { 
       setEditingId(contact.id); 
       setFormData({ ...initialForm, ...contact, marketing_engagement_score: contact.marketing_engagement_score || 0 }); 
       setActiveTab('profile'); setIsModalOpen(true)
   }
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault(); setSaving(true)
-    const payload = { ...formData, value: Number(formData.value), ltv: Number(formData.ltv), total_orders: Number(formData.total_orders) }
-    if (editingId) {
-      const { error } = await supabase.from('contacts').update(payload).eq('id', editingId)
-      if (!error) { fetchContacts(); setIsModalOpen(false) }
-    } else {
-      const { data, error } = await supabase.from('contacts').insert({ ...payload, user_id: user.id }).select()
-      if (!error && data) { setContacts([data[0], ...contacts]); setIsModalOpen(false) }
-    }
-    setSaving(false)
-  }
-  const handleDelete = async (id: number) => { 
-    if(!confirm('Eliminare?')) return; 
-    const { error } = await supabase.from('contacts').delete().eq('id', id); 
-    if (!error) setContacts(contacts.filter(c => c.id !== id)) 
-  }
-  const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
+  const getInitials = (name: string) => name ? name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase() : '??';
 
   if (loading) return <div className="p-10 text-[#00665E] animate-pulse">Caricamento CRM Enterprise...</div>
 
@@ -333,7 +339,7 @@ export default function CRMPage() {
         </div>
       </div>
 
-      {/* --- AI ADVISOR PANEL (SIDEBAR) FIXATA --- */}
+      {/* --- AI ADVISOR PANEL --- */}
       {showAiPanel && (
           <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl z-50 border-l border-gray-100 p-6 flex flex-col animate-in slide-in-from-right duration-300">
               <div className="flex justify-between items-center mb-8">
@@ -343,37 +349,19 @@ export default function CRMPage() {
                   </div>
                   <button onClick={() => setShowAiPanel(false)} className="text-gray-400 hover:text-gray-900"><X size={20}/></button>
               </div>
-
               <div className="flex-1 overflow-y-auto space-y-4">
-                  <p className="text-sm text-gray-500 mb-4">Ho analizzato i tuoi dati. Ecco le azioni consigliate:</p>
-                  
                   {aiSuggestions.map((sug, i) => (
-                      <div key={i} className={`p-4 rounded-xl border-l-4 ${
-                          sug.type === 'alert' ? 'bg-red-50 border-red-500' : 
-                          sug.type === 'warning' ? 'bg-orange-50 border-orange-500' : 
-                          sug.type === 'info' ? 'bg-blue-50 border-blue-500' : 'bg-green-50 border-green-500'
-                      }`}>
-                          <h3 className={`font-bold text-sm mb-1 ${
-                              sug.type === 'alert' ? 'text-red-800' : 
-                              sug.type === 'warning' ? 'text-orange-800' : 
-                              sug.type === 'info' ? 'text-blue-800' : 'text-green-800'
-                          }`}>{sug.title}</h3>
+                      <div key={i} className={`p-4 rounded-xl border-l-4 ${sug.type === 'alert' ? 'bg-red-50 border-red-500' : sug.type === 'warning' ? 'bg-orange-50 border-orange-500' : 'bg-blue-50 border-blue-500'}`}>
+                          <h3 className="font-bold text-sm mb-1">{sug.title}</h3>
                           <p className="text-xs text-gray-600 mb-3">{sug.text}</p>
-                          
-                          {/* BOTTONE FIXATO */}
-                          <button 
-                             onClick={() => handleAiAction(sug)}
-                             className="bg-white border border-gray-200 text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-gray-50 transition"
-                          >
-                              {sug.action}
-                          </button>
+                          <button onClick={() => setShowAiPanel(false)} className="bg-white border px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm">{sug.action}</button>
                       </div>
                   ))}
               </div>
           </div>
       )}
 
-      {/* MODALE DI MODIFICA (Re-inclusa per sicurezza) */}
+      {/* MODALE EDIT COMPLETA */}
       {isModalOpen && (
          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
             <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl relative overflow-hidden flex flex-col max-h-[95vh]">
@@ -400,17 +388,19 @@ export default function CRMPage() {
                                <option value="Nuovo">Nuovo</option><option value="Trattativa">Trattativa</option><option value="Chiuso">Vinto</option><option value="Perso">Perso</option>
                              </select>
                            </div>
-                           <div className="col-span-2"><label className="text-xs font-bold uppercase text-gray-500">Note</label><textarea className="w-full p-3 rounded-xl border mt-1" value={formData.notes} onChange={e=>setFormData({...formData, notes: e.target.value})}/></div>
+                           <div className="col-span-2"><label className="text-xs font-bold uppercase text-gray-500">Note</label><textarea className="w-full p-3 rounded-xl border mt-1 h-24" value={formData.notes} onChange={e=>setFormData({...formData, notes: e.target.value})}/></div>
                         </>
                       )}
                       {activeTab === 'sales' && (
                         <>
                            <div><label className="text-xs font-bold uppercase text-gray-500">Engagement (0-100)</label><input type="number" className="w-full p-3 rounded-xl border mt-1" value={formData.marketing_engagement_score} onChange={e=>setFormData({...formData, marketing_engagement_score: e.target.value})}/></div>
+                           <div><label className="text-xs font-bold uppercase text-gray-500">LTV Totale €</label><input type="number" className="w-full p-3 rounded-xl border mt-1" value={formData.ltv} onChange={e=>setFormData({...formData, ltv: e.target.value})}/></div>
                            <div><label className="text-xs font-bold uppercase text-gray-500">Data Abbandono</label><input type="date" className="w-full p-3 rounded-xl border mt-1" value={formData.churn_date} onChange={e=>setFormData({...formData, churn_date: e.target.value})}/></div>
                         </>
                       )}
                       <div className="col-span-2 pt-4 flex gap-2">
-                        <button className="bg-[#00665E] text-white font-bold py-3 px-6 rounded-xl flex-1">{saving ? '...' : 'Salva'}</button>
+                        {editingId && <button type="button" onClick={() => {handleDelete(editingId!); setIsModalOpen(false)}} className="px-4 text-red-500 font-bold border border-red-200 bg-red-50 rounded-xl hover:bg-red-100">Elimina</button>}
+                        <button className="bg-[#00665E] text-white font-bold py-3 px-6 rounded-xl flex-1 shadow-lg">{saving ? 'Salvataggio...' : 'Salva Contatto'}</button>
                       </div>
                   </form>
               </div>
@@ -423,6 +413,7 @@ export default function CRMPage() {
              <div className="bg-white p-6 rounded-2xl max-w-sm w-full relative">
                 <button onClick={() => setIsImportInfoOpen(false)} className="absolute top-2 right-4 text-gray-400">✕</button>
                 <h3 className="font-bold mb-4">Importa CSV</h3>
+                <p className="text-xs text-gray-500 mb-4">Carica un file CSV con colonne: Nome, Email, Telefono.</p>
                 <button onClick={() => fileInputRef.current?.click()} className="w-full bg-[#00665E] text-white py-3 rounded-xl font-bold">Seleziona File</button>
              </div>
           </div>
