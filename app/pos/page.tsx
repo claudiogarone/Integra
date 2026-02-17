@@ -2,7 +2,7 @@
 
 import { createClient } from '../../utils/supabase/client'
 import { useState } from 'react'
-import { Search, Zap, CheckCircle, Calculator, ArrowRight, Camera, X } from 'lucide-react'
+import { Search, Zap, CheckCircle, ArrowRight, Camera, X } from 'lucide-react'
 import { Scanner } from '@yudiel/react-qr-scanner'
 
 export default function PosTerminal() {
@@ -12,8 +12,8 @@ export default function PosTerminal() {
   const [store, setStore] = useState<any>(null)
   const [config, setConfig] = useState<any>(null)
   
-  const [searchQuery, setSearchQuery] = useState('') // Email o Code
-  const [newCustomerName, setNewCustomerName] = useState('') // Per registrazione
+  const [searchQuery, setSearchQuery] = useState('') 
+  const [newCustomerName, setNewCustomerName] = useState('') 
   const [customer, setCustomer] = useState<any>(null)
   const [amountEuro, setAmountEuro] = useState('')
   
@@ -38,35 +38,65 @@ export default function PosTerminal() {
       if(!q) return;
       
       setLoading(true)
-      // Cerca esatta corrispondenza su codice o email
-      let { data: card } = await supabase.from('loyalty_cards').select('*').or(`code.eq.${q},customer_email.eq.${q}`).single()
+      // Cerca
+      let { data: card, error } = await supabase.from('loyalty_cards').select('*').or(`code.eq.${q},customer_email.eq.${q}`).single()
 
       if (card) {
           setCustomer(card); setStep(3)
       } else {
-          // Se non trova, avvisa
-          alert("Cliente non trovato. Compila anche il NOME per registrarlo.")
+          // Se non trova e non c'è errore di rete
+          if(!error || error.code === 'PGRST116') {
+             alert("Cliente non trovato. Inserisci il NOME per registrarlo.")
+          } else {
+             alert("Errore ricerca: " + error.message)
+          }
       }
       setLoading(false)
   }
 
+  // --- FUNZIONE REGISTRAZIONE FIXATA ---
   const createNewCustomer = async () => {
-      if(!newCustomerName || !searchQuery) return alert("Inserisci Nome ed Email per registrare.")
+      // Validazione Input
+      if(!newCustomerName || !searchQuery) {
+          return alert("⚠️ Attenzione: Devi inserire sia il NOME che l'EMAIL per registrare un nuovo cliente.")
+      }
       
       setLoading(true)
       const newCode = 'CARD-' + Math.floor(100000 + Math.random() * 900000);
 
-      const { data: newCard } = await supabase.from('loyalty_cards').insert({
-          user_id: store.user_id, customer_email: searchQuery, customer_name: newCustomerName, code: newCode, points: 50, tier: 'Bronze'
+      console.log("Tentativo creazione carta:", { newCustomerName, searchQuery, newCode, storeId: store.user_id });
+
+      // 1. Crea Carta
+      const { data: newCard, error: cardError } = await supabase.from('loyalty_cards').insert({
+          user_id: store.user_id, 
+          customer_email: searchQuery, 
+          customer_name: newCustomerName, 
+          code: newCode, 
+          points: 50, 
+          tier: 'Bronze'
       }).select().single()
 
-      // Aggiungi anche al CRM
-      await supabase.from('contacts').insert({
-          user_id: store.user_id, name: newCustomerName, email: searchQuery, source: `POS: ${store.name}`, status: 'Nuovo'
-      })
+      if (cardError) {
+          setLoading(false)
+          return alert("Errore creazione Carta: " + cardError.message)
+      }
 
+      // 2. Crea Contatto nel CRM (opzionale, non blocca se fallisce)
+      const { error: contactError } = await supabase.from('contacts').insert({
+          user_id: store.user_id, 
+          name: newCustomerName, 
+          email: searchQuery, 
+          source: `POS: ${store.name}`, 
+          status: 'Nuovo'
+      })
+      
+      if(contactError) console.error("Errore CRM:", contactError.message);
+
+      // Successo
       if (newCard) {
-          setCustomer(newCard); alert(`Carta creata per ${newCustomerName}!`); setStep(3)
+          setCustomer(newCard); 
+          alert(`🎉 Carta creata con successo per ${newCustomerName}!\nCodice: ${newCode}`); 
+          setStep(3)
       }
       setLoading(false)
   }
@@ -76,11 +106,13 @@ export default function PosTerminal() {
       const euro = parseFloat(amountEuro)
       const pointsEarned = Math.floor(euro * (config.points_per_euro || 1))
       
-      await supabase.from('loyalty_cards').update({
+      const { error: updateError } = await supabase.from('loyalty_cards').update({
           points: (customer.points || 0) + pointsEarned,
           total_spent: (customer.total_spent || 0) + euro,
           last_order_date: new Date().toISOString()
       }).eq('id', customer.id)
+
+      if(updateError) return alert("Errore aggiornamento punti: " + updateError.message)
 
       await supabase.from('loyalty_transactions').insert({
           card_id: customer.id, store_id: store.id, points_change: pointsEarned, description: `Acquisto €${euro}`
@@ -150,12 +182,14 @@ export default function PosTerminal() {
                                        <input type="text" placeholder="Email o Codice Carta" className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none focus:border-[#00665E]" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                                    </div>
 
-                                   <button onClick={(e) => {
-                                       e.preventDefault();
-                                       // Logica intelligente: Se c'è il nome -> Crea. Se no -> Cerca.
-                                       if(newCustomerName && searchQuery) createNewCustomer();
-                                       else handleFindCustomer(e);
-                                   }} className="w-full bg-[#00665E] text-white py-4 rounded-xl font-bold mt-4 shadow-lg shadow-[#00665E]/20">
+                                   <button 
+                                      onClick={(e) => {
+                                          e.preventDefault();
+                                          if(newCustomerName && searchQuery) createNewCustomer();
+                                          else handleFindCustomer(e);
+                                      }} 
+                                      className={`w-full text-white py-4 rounded-xl font-bold mt-4 shadow-lg transition-all ${newCustomerName ? 'bg-green-600 hover:bg-green-700' : 'bg-[#00665E] hover:bg-[#004d46]'}`}
+                                   >
                                        {newCustomerName ? 'REGISTRA NUOVO' : 'CERCA CLIENTE'}
                                    </button>
                                </>
@@ -166,8 +200,8 @@ export default function PosTerminal() {
                    {step === 3 && customer && (
                        <div className="bg-white p-6 rounded-3xl shadow-xl animate-in slide-in-from-right">
                            <div className="flex items-center gap-4 mb-8 border-b border-gray-100 pb-6">
-                               <div className="w-14 h-14 bg-orange-500 rounded-full flex items-center justify-center text-white font-black text-xl">{customer.customer_name?.charAt(0)}</div>
-                               <div><h3 className="text-xl font-black">{customer.customer_name}</h3><p className="text-sm text-gray-500">{customer.customer_email}</p>
+                               <div className="w-14 h-14 bg-orange-500 rounded-full flex items-center justify-center text-white font-black text-xl">{customer.customer_name?.charAt(0) || '?'}</div>
+                               <div><h3 className="text-xl font-black">{customer.customer_name || 'Cliente'}</h3><p className="text-sm text-gray-500">{customer.customer_email}</p>
                                <div className="flex gap-2 mt-1"><span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold">{customer.points} Punti</span></div></div>
                            </div>
                            <form onSubmit={handleTransaction}>
