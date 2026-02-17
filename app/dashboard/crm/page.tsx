@@ -16,11 +16,10 @@ export default function CRMPage() {
   const [contacts, setContacts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   
-  // Modali e Pannelli
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isImportInfoOpen, setIsImportInfoOpen] = useState(false)
-  const [showAiPanel, setShowAiPanel] = useState(false) // NUOVO: Pannello AI
-  const [aiSuggestions, setAiSuggestions] = useState<any[]>([]) // NUOVO: Suggerimenti AI
+  const [showAiPanel, setShowAiPanel] = useState(false)
+  const [aiSuggestions, setAiSuggestions] = useState<any[]>([])
   
   const [editingId, setEditingId] = useState<number | null>(null)
   const [activeTab, setActiveTab] = useState<'profile' | 'sales' | 'marketing'>('profile')
@@ -57,7 +56,6 @@ export default function CRMPage() {
     setLoading(false)
   }
 
-  // --- LOGICA EXPORT CSV ---
   const handleExportCSV = () => {
       if(contacts.length === 0) return alert("Nessun dato da esportare.");
       const csv = Papa.unparse(contacts);
@@ -71,55 +69,51 @@ export default function CRMPage() {
       document.body.removeChild(link);
   }
 
-  // --- LOGICA AI ADVISOR (Generatore Suggerimenti) ---
+  // --- AI ADVISOR LOGIC FIXATA ---
   const generateAiSuggestions = () => {
       const suggestions = [];
       
-      // Regola 1: Clienti Persi da Recuperare
       const churned = contacts.filter(c => c.churn_date && c.ltv > 500);
       if(churned.length > 0) {
           suggestions.push({
-              type: 'alert',
-              title: '🚨 Recupero Alto Valore',
-              text: `Hai ${churned.length} clienti VIP che hanno abbandonato. Invia un coupon "Bentornato".`,
-              action: 'Filtra Persi'
+              type: 'alert', title: '🚨 Recupero Alto Valore',
+              text: `Hai ${churned.length} clienti VIP che hanno abbandonato.`,
+              action: 'Filtra Persi', filterStatus: 'Perso'
           });
       }
 
-      // Regola 2: Clienti "Dormienti" (nessun ordine da 60gg)
       const dormant = contacts.filter(c => c.last_order_date && new Date(c.last_order_date) < new Date(Date.now() - 60 * 24 * 60 * 60 * 1000));
       if(dormant.length > 0) {
           suggestions.push({
-              type: 'warning',
-              title: '💤 Clienti Dormienti',
-              text: `${dormant.length} clienti non acquistano da 2 mesi. È il momento di una newsletter.`,
-              action: 'Crea Campagna'
+              type: 'warning', title: '💤 Clienti Dormienti',
+              text: `${dormant.length} clienti non acquistano da 2 mesi.`,
+              action: 'Crea Campagna', route: '/dashboard/marketing'
           });
       }
 
-      // Regola 3: Potenziali VIP
-      const potentialVip = contacts.filter(c => c.marketing_engagement_score > 80 && c.status !== 'Chiuso');
-      if(potentialVip.length > 0) {
-           suggestions.push({
-              type: 'success',
-              title: '💎 Potenziali VIP',
-              text: `Ci sono ${potentialVip.length} lead molto interessati (Score > 80). Chiamali oggi!`,
-              action: 'Vedi Lista'
-          });
-      }
-
-      // Fallback
       if(suggestions.length === 0) {
           suggestions.push({
-              type: 'info',
-              title: '✅ Tutto sotto controllo',
-              text: 'Al momento non ci sono criticità rilevanti. Continua così!',
+              type: 'info', title: '✅ Tutto sotto controllo',
+              text: 'Nessuna criticità rilevata dall\'AI al momento.',
               action: 'Chiudi'
           });
       }
 
       setAiSuggestions(suggestions);
       setShowAiPanel(true);
+  }
+
+  // Gestione click bottone AI
+  const handleAiAction = (sug: any) => {
+      if (sug.action === 'Chiudi') {
+          setShowAiPanel(false);
+      } else if (sug.filterStatus) {
+          alert(`Filtro applicato: ${sug.filterStatus}`); // Qui in futuro metteremo il filtro reale
+          setShowAiPanel(false);
+      } else {
+          alert(`Azione: ${sug.action}`);
+          setShowAiPanel(false);
+      }
   }
 
   // --- ANALYTICS ---
@@ -137,7 +131,6 @@ export default function CRMPage() {
       { stage: 'Persi', count: countPersi, color: '#EF4444' }
     ]
     
-    // Pivot per Fonte
     const sourceStats: any = {}
     contacts.forEach(c => {
         const src = c.source || 'Sconosciuto'
@@ -146,15 +139,13 @@ export default function CRMPage() {
         sourceStats[src].value += (Number(c.value) || 0)
     })
     const pivotData = Object.values(sourceStats).sort((a:any, b:any) => b.value - a.value)
-
     const conversionRate = contacts.length > 0 ? Math.round((countChiusi / contacts.length) * 100) : 0
     return { totalValue, funnel, conversionRate, countChiusi, pivotData }
   }, [contacts])
 
-  // --- GESTIONE FILE ---
+  // --- HELPER ---
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+    const file = event.target.files?.[0]; if (!file) return;
     const fileExt = file.name.split('.').pop()?.toLowerCase()
     if (fileExt === 'csv') {
       Papa.parse(file, {
@@ -177,13 +168,10 @@ export default function CRMPage() {
     if (newContacts.length === 0) return
     const { data, error } = await supabase.from('contacts').insert(newContacts).select()
     if (!error && data) {
-      setContacts([...data, ...contacts])
-      alert(`Importati ${data.length} contatti!`)
-      setIsImportInfoOpen(false)
+      setContacts([...data, ...contacts]); alert(`Importati ${data.length} contatti!`); setIsImportInfoOpen(false)
     } else { alert('Errore: ' + error?.message) }
   }
 
-  // --- CRUD ---
   const openNewModal = () => { setEditingId(null); setFormData(initialForm); setActiveTab('profile'); setIsModalOpen(true) }
   const openEditModal = (contact: any) => { 
       setEditingId(contact.id); 
@@ -345,7 +333,7 @@ export default function CRMPage() {
         </div>
       </div>
 
-      {/* --- AI ADVISOR PANEL (SIDEBAR) --- */}
+      {/* --- AI ADVISOR PANEL (SIDEBAR) FIXATA --- */}
       {showAiPanel && (
           <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl z-50 border-l border-gray-100 p-6 flex flex-col animate-in slide-in-from-right duration-300">
               <div className="flex justify-between items-center mb-8">
@@ -357,21 +345,26 @@ export default function CRMPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto space-y-4">
-                  <p className="text-sm text-gray-500 mb-4">Ho analizzato i tuoi dati. Ecco le azioni consigliate per aumentare il fatturato:</p>
+                  <p className="text-sm text-gray-500 mb-4">Ho analizzato i tuoi dati. Ecco le azioni consigliate:</p>
                   
                   {aiSuggestions.map((sug, i) => (
                       <div key={i} className={`p-4 rounded-xl border-l-4 ${
                           sug.type === 'alert' ? 'bg-red-50 border-red-500' : 
                           sug.type === 'warning' ? 'bg-orange-50 border-orange-500' : 
-                          sug.type === 'success' ? 'bg-green-50 border-green-500' : 'bg-blue-50 border-blue-500'
+                          sug.type === 'info' ? 'bg-blue-50 border-blue-500' : 'bg-green-50 border-green-500'
                       }`}>
                           <h3 className={`font-bold text-sm mb-1 ${
                               sug.type === 'alert' ? 'text-red-800' : 
                               sug.type === 'warning' ? 'text-orange-800' : 
-                              sug.type === 'success' ? 'text-green-800' : 'text-blue-800'
+                              sug.type === 'info' ? 'text-blue-800' : 'text-green-800'
                           }`}>{sug.title}</h3>
                           <p className="text-xs text-gray-600 mb-3">{sug.text}</p>
-                          <button className="bg-white border border-gray-200 text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-gray-50">
+                          
+                          {/* BOTTONE FIXATO */}
+                          <button 
+                             onClick={() => handleAiAction(sug)}
+                             className="bg-white border border-gray-200 text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-gray-50 transition"
+                          >
                               {sug.action}
                           </button>
                       </div>
@@ -380,7 +373,7 @@ export default function CRMPage() {
           </div>
       )}
 
-      {/* MODALE DI MODIFICA (Uso lo stesso codice di prima per brevità, assicurati che sia incluso) */}
+      {/* MODALE DI MODIFICA (Re-inclusa per sicurezza) */}
       {isModalOpen && (
          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
             <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl relative overflow-hidden flex flex-col max-h-[95vh]">
@@ -446,6 +439,7 @@ function KpiBox({title, val, icon, bg}: any) {
             </div>
             <p className="opacity-80 text-xs font-bold uppercase relative z-10">{title}</p>
             <h3 className="text-3xl font-black mt-1 relative z-10">{val}</h3>
+            <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:blur-3xl transition"></div>
         </div>
     )
 }

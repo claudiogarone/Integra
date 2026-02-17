@@ -3,7 +3,6 @@
 import { createClient } from '../../utils/supabase/client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-// ECCO LA CORREZIONE: Ho aggiunto AlertCircle qui sotto 👇
 import { Lock, Mail, ArrowRight, Loader2, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
@@ -50,7 +49,7 @@ export default function LoginPage() {
           <p className="text-gray-400 text-sm">Accedi al tuo ecosistema aziendale.</p>
         </div>
 
-        {/* ERROR BOX (Ora funzionerà perché abbiamo importato AlertCircle) */}
+        {/* ERROR BOX */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-600 text-sm rounded-r-xl flex items-center gap-2 animate-in shake">
             <AlertCircle size={16} /> {error}
@@ -95,7 +94,7 @@ export default function LoginPage() {
           </div>
 
           <div className="flex justify-end">
-            <a href="#" className="text-xs font-bold text-gray-400 hover:text-[#00665E] transition">Password dimenticata?</a>
+            <a href="mailto:claudiogarone@gmail.com?subject=Reset Password Integra OS" className="text-xs font-bold text-gray-400 hover:text-[#00665E] transition">Password dimenticata?</a>
           </div>
 
           <button 
@@ -108,7 +107,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-8 text-center">
-           <p className="text-xs text-gray-400">Non hai un account? <a href="#" className="text-[#00665E] font-bold hover:underline">Contatta l'amministrazione</a></p>
+           <p className="text-xs text-gray-400">Non hai un account? <a href="mailto:claudiogarone@gmail.com?subject=Richiesta Account Integra OS" className="text-[#00665E] font-bold hover:underline">Contatta l'amministrazione</a></p>
         </div>
 
       </div>
