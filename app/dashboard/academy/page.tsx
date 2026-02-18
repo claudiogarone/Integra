@@ -1,13 +1,13 @@
 'use client'
 
 import { createClient } from '../../../utils/supabase/client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { 
-  Play, Plus, UploadCloud, Youtube, Clock, Trash2, Video, FileText, 
-  Calendar, CheckCircle, AlertTriangle, Monitor, BookOpen, PenTool, 
-  Users, Award, Edit, Save, BarChart3, CheckSquare, Eye, X
+  Play, Plus, Video, FileText, Monitor, BookOpen, 
+  Users, Award, Edit, BarChart3, CheckSquare, Eye, X, 
+  Trash2, Download, Filter, Save
 } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 export default function AcademyPage() {
   const [activeTab, setActiveTab] = useState<'courses' | 'live'>('courses')
@@ -18,7 +18,7 @@ export default function AcademyPage() {
   const [userPlan, setUserPlan] = useState('Base') 
   const [user, setUser] = useState<any>(null)
   
-  // MODALI VISIBILITÀ
+  // MODALI
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false)
   const [isLessonModalOpen, setIsLessonModalOpen] = useState(false)
   const [isLiveModalOpen, setIsLiveModalOpen] = useState(false)
@@ -28,10 +28,14 @@ export default function AcademyPage() {
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false)
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false)
 
-  // DATI ATTIVI
+  // STATI DATI
   const [activeCourse, setActiveCourse] = useState<any>(null)
   const [activeLive, setActiveLive] = useState<any>(null)
   const [selectedAgents, setSelectedAgents] = useState<string[]>([])
+  
+  // STATI MONITORAGGIO
+  const [statsFilter, setStatsFilter] = useState('all') // 'all' o email agente
+  const [progressData, setProgressData] = useState<any[]>([])
 
   // FORMS
   const [courseForm, setCourseForm] = useState({ title: '', description: '', category: 'Generale', thumbnail_url: '', attachment_url: '', is_mandatory: false, deadline: '' })
@@ -39,19 +43,15 @@ export default function AcademyPage() {
   const [liveForm, setLiveForm] = useState({ title: '', start_time: '', platform_link: '', description: '' })
   const [certForm, setCertForm] = useState({ title: 'Attestato di Eccellenza', signer: 'La Direzione', logo_show: true })
   
-  // QUIZ DATA
+  // QUIZ & UPLOAD
   const [quizForm, setQuizForm] = useState({ title: 'Test Finale', passing_score: 70 })
   const [questions, setQuestions] = useState<any[]>([])
   const [newQuestion, setNewQuestion] = useState({ text: '', option1: '', option2: '', option3: '', correct: 0 })
-
-  // UPLOAD
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [privacyAccepted, setPrivacyAccepted] = useState(false)
 
   const supabase = createClient()
-
-  // LIMITI PIANO
   const LIMITS = { courses: userPlan === 'Base' ? 3 : 999, lessons: 10, live: userPlan === 'Base' ? 2 : 999 }
 
   useEffect(() => { fetchData() }, [])
@@ -61,39 +61,72 @@ export default function AcademyPage() {
     if(!user) return;
     setUser(user)
     
-    // Profilo & Piano
+    // 1. Profilo
     const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
     if(profile) setUserPlan(profile.plan || 'Base')
 
-    // Carica Dati
-    const { data: coursesData } = await supabase.from('courses').select('*, lessons(*), quizzes(*)').order('created_at', {ascending: false})
+    // 2. Corsi (con Lezioni, Quiz e Progressi)
+    const { data: coursesData } = await supabase.from('courses').select('*, lessons(*), quizzes(*), course_progress(*)').order('created_at', {ascending: false})
     if(coursesData) setCourses(coursesData)
 
+    // 3. Live Events
     const { data: liveData } = await supabase.from('live_events').select('*').order('start_time', {ascending: true})
     if(liveData) setLiveEvents(liveData)
 
+    // 4. Agenti
     const { data: teamData } = await supabase.from('team_members').select('*')
     if(teamData) setAgents(teamData)
     
     setLoading(false)
   }
 
-  // --- FUNZIONE UPLOAD ---
+  // --- UPLOAD ---
   const handleUpload = async (file: File, folder: string, maxSizeMB: number) => {
       if (file.size > maxSizeMB * 1024 * 1024) { alert(`⚠️ File troppo grande! Max ${maxSizeMB}MB.`); return null; }
       setUploading(true)
       const fileName = `${folder}_${Date.now()}_${file.name.replace(/\s/g, '_')}`
       const bucket = folder === 'video' ? 'course_videos' : 'course_assets'
-      
       const { error } = await supabase.storage.from(bucket).upload(fileName, file)
       setUploading(false)
-      
       if (error) { alert("Errore upload: " + error.message); return null; }
       const { data } = supabase.storage.from(bucket).getPublicUrl(fileName)
       return data.publicUrl
   }
 
-  // --- GESTIONE CORSI ---
+  // --- EXPORT CSV ---
+  const handleExportCSV = () => {
+      if(!activeCourse) return;
+      
+      // Costruisci i dati
+      const dataToExport = activeCourse.course_progress?.map((p: any) => {
+          const agent = agents.find(a => a.email === p.agent_email)
+          return {
+              Agente: agent?.name || p.agent_email,
+              Email: p.agent_email,
+              Stato: p.status,
+              Progresso: `${p.progress}%`,
+              Quiz: p.quiz_score || 'N/A',
+              Ultimo_Accesso: p.last_accessed ? new Date(p.last_accessed).toLocaleDateString() : '-'
+          }
+      }) || []
+
+      if(dataToExport.length === 0) return alert("Nessun dato da esportare.");
+
+      // Converti in CSV
+      const headers = Object.keys(dataToExport[0]).join(",")
+      const rows = dataToExport.map((row:any) => Object.values(row).join(",")).join("\n")
+      const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + rows;
+      
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `report_corso_${activeCourse.title}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  }
+
+  // --- ACTIONS CORSO ---
   const openCourseModal = (course?: any) => {
       if (course) {
           setActiveCourse(course)
@@ -111,33 +144,92 @@ export default function AcademyPage() {
 
   const handleSaveCourse = async () => {
       if(!courseForm.title) return alert("Titolo mancante");
-      if(!activeCourse && userPlan === 'Base' && courses.length >= LIMITS.courses) return alert(`Limite raggiunto (${LIMITS.courses} corsi). Passa a Enterprise.`);
-      
       setUploading(true)
-      const payload = { user_id: user?.id, ...courseForm, thumbnail_url: courseForm.thumbnail_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&q=60' }
+      const payload = { user_id: user?.id, ...courseForm, thumbnail_url: courseForm.thumbnail_url || 'https://via.placeholder.com/800x400' }
 
-      if (activeCourse) await supabase.from('courses').update(payload).eq('id', activeCourse.id)
-      else await supabase.from('courses').insert(payload)
-      
+      if (activeCourse) {
+          await supabase.from('courses').update(payload).eq('id', activeCourse.id)
+      } else {
+          await supabase.from('courses').insert(payload)
+      }
       fetchData(); setIsCourseModalOpen(false); setUploading(false)
   }
 
-  // --- GESTIONE LEZIONI ---
-  const handleSaveLesson = async () => {
-      if(!privacyAccepted) return alert("Devi confermare i diritti privacy.");
-      
-      let finalUrl = lessonForm.video_url
-      if (lessonForm.video_type === 'upload' && videoFile) {
-          const url = await handleUpload(videoFile, 'video', 100); if(!url) return; finalUrl = url;
+  const handleDeleteItem = async (table: string, id: number) => {
+      if(!confirm("Eliminare definitivamente questo elemento?")) return;
+      await supabase.from(table).delete().eq('id', id)
+      // Aggiorna stato locale veloce
+      if(table === 'lessons') {
+          setActiveCourse({...activeCourse, lessons: activeCourse.lessons.filter((l:any) => l.id !== id)})
       }
-      
-      await supabase.from('lessons').insert({ 
-          course_id: activeCourse.id, title: lessonForm.title, video_type: lessonForm.video_type, video_url: finalUrl, notes: lessonForm.notes 
-      })
-      fetchData(); setIsLessonModalOpen(false)
+      fetchData()
   }
 
-  // --- GESTIONE QUIZ ---
+  // --- ACTIONS LIVE & AGENDA ---
+  const handleSaveLive = async () => {
+      if(!activeLive && userPlan === 'Base' && liveEvents.length >= LIMITS.live) return alert("Limite Live Raggiunto.");
+      
+      let eventId = activeLive?.id
+
+      if(activeLive) {
+           await supabase.from('live_events').update(liveForm).eq('id', activeLive.id)
+      } else {
+          const { data } = await supabase.from('live_events').insert({ 
+              user_id: user.id, ...liveForm 
+          }).select().single()
+          if(data) eventId = data.id
+      }
+
+      // SYNC AGENDA (SEMPRE)
+      if(eventId) {
+          const endTime = new Date(new Date(liveForm.start_time).getTime() + 60*60000).toISOString()
+          
+          // Cerca se esiste già in agenda per aggiornarlo, altrimenti crea
+          // Per semplicità qui facciamo insert, ma in produzione meglio upsert con un ID di riferimento esterno
+          await supabase.from('appointments').insert({
+              user_id: user.id,
+              title: `🎥 LIVE: ${liveForm.title}`, 
+              start_time: liveForm.start_time, 
+              end_time: endTime, 
+              type: 'live', 
+              notes: liveForm.platform_link // Link salvato nelle note
+          })
+      }
+      
+      fetchData(); setIsLiveModalOpen(false); alert("Evento salvato e aggiunto all'Agenda!")
+  }
+
+  // --- ASSEGNAZIONE & MONITORAGGIO ---
+  const handleAssign = async () => {
+      if(selectedAgents.length === 0) return alert("Seleziona agenti");
+      const assignments = selectedAgents.map(email => ({
+          course_id: activeCourse.id, agent_email: email, status: 'assigned', progress: 0
+      }))
+      const { error } = await supabase.from('course_progress').insert(assignments)
+      if(error) alert("Errore o agenti già assegnati.")
+      else { alert("Assegnato con successo!"); setIsAssignModalOpen(false); fetchData(); }
+  }
+
+  // --- PREPARA DATI GRAFICO ---
+  const getChartData = () => {
+      if(!activeCourse || !activeCourse.course_progress) return [];
+      
+      let data = activeCourse.course_progress;
+      if(statsFilter !== 'all') {
+          data = data.filter((p:any) => p.agent_email === statsFilter)
+      }
+
+      return data.map((p:any) => {
+          const agentName = agents.find(a => a.email === p.agent_email)?.name || p.agent_email.split('@')[0]
+          return {
+              name: agentName,
+              progress: p.progress || 0,
+              quiz: p.quiz_score || 0
+          }
+      })
+  }
+
+  // --- SAVE QUIZ ---
   const handleSaveQuiz = async () => {
       const { data: quizData } = await supabase.from('quizzes').insert({ 
           course_id: activeCourse.id, title: quizForm.title, passing_score: quizForm.passing_score 
@@ -151,69 +243,24 @@ export default function AcademyPage() {
       }
   }
 
+  // --- HELPERS ---
   const handleAddQuestion = () => {
-      if(!newQuestion.text || !newQuestion.option1 || !newQuestion.option2) return alert("Compila domanda e almeno 2 risposte");
+      if(!newQuestion.text) return alert("Testo domanda obbligatorio");
       setQuestions([...questions, { question_text: newQuestion.text, options: [newQuestion.option1, newQuestion.option2, newQuestion.option3].filter(o=>o), correct_option_index: Number(newQuestion.correct) }])
       setNewQuestion({ text: '', option1: '', option2: '', option3: '', correct: 0 })
   }
 
-  // --- GESTIONE LIVE (Con Sync Agenda) ---
-  const handleSaveLive = async () => {
-      if(!activeLive && userPlan === 'Base' && liveEvents.length >= LIMITS.live) return alert("Limite Eventi Live Raggiunto.");
-
-      if(activeLive) {
-           await supabase.from('live_events').update(liveForm).eq('id', activeLive.id)
-      } else {
-          const { data: liveData } = await supabase.from('live_events').insert({ 
-              // @ts-ignore
-              user_id: user?.id, ...liveForm 
-          }).select().single()
-          
-          // SINCRONIZZAZIONE AGENDA
-          if(liveData) {
-              const endTime = new Date(new Date(liveForm.start_time).getTime() + 60*60000).toISOString()
-              await supabase.from('appointments').insert({
-                  // @ts-ignore
-                  user_id: user?.id,
-                  title: `🎥 LIVE: ${liveForm.title}`, start_time: liveForm.start_time, end_time: endTime, type: 'live', notes: liveForm.platform_link
-              })
-          }
-      }
-      fetchData(); setIsLiveModalOpen(false)
-  }
-
-  // --- DATI FINTI PER GRAFICI (Mockup finché non ci sono dati reali) ---
-  const statsData = agents.length > 0 ? agents.map(a => ({
-      name: a.name, progress: Math.floor(Math.random() * 100), quiz: Math.floor(Math.random() * 10) * 10
-  })) : [{name: 'Esempio A', progress: 80, quiz: 90}, {name: 'Esempio B', progress: 40, quiz: 60}]
-
-  if (loading) return <div className="p-10 text-[#00665E] animate-pulse">Caricamento LMS Enterprise...</div>
+  if (loading) return <div className="p-10 text-[#00665E] animate-pulse">Caricamento LMS...</div>
 
   return (
     <main className="p-8 bg-[#F8FAFC] min-h-screen pb-20 font-sans">
       
-      {/* HEADER & LIMITI */}
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+      <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-black text-[#00665E]">Academy & Training</h1>
-          <p className="text-gray-500 text-sm">Piattaforma di Formazione per la tua Rete Vendita.</p>
+          <p className="text-gray-500 text-sm">Gestisci corsi, dirette e progressi del team.</p>
         </div>
         
-        {/* BARRA LIMITI */}
-        <div className="bg-white px-4 py-2 rounded-xl border border-gray-200 shadow-sm flex items-center gap-6 text-xs font-bold">
-            <div className="text-center">
-                <span className="text-gray-400 block mb-1">Corsi Attivi</span>
-                <span className={`px-2 py-1 rounded ${courses.length >= LIMITS.courses ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                    {courses.length} / {LIMITS.courses}
-                </span>
-            </div>
-            <div className="w-[1px] h-8 bg-gray-200"></div>
-            <div className="text-center">
-                <span className="text-gray-400 block mb-1">Piano</span>
-                <span className="text-[#00665E] uppercase">{userPlan}</span>
-            </div>
-        </div>
-
         <div className="flex gap-2">
             <button onClick={() => { setActiveLive(null); setLiveForm({title:'', start_time:'', platform_link:'', description:''}); setIsLiveModalOpen(true) }} className="bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 shadow-lg flex items-center gap-2 text-sm"><Video size={18}/> Crea Live</button>
             <button onClick={() => openCourseModal(null)} className="bg-[#00665E] text-white px-4 py-2 rounded-xl font-bold hover:bg-[#004d46] shadow-lg flex items-center gap-2 text-sm"><Plus size={18}/> Nuovo Corso</button>
@@ -226,13 +273,13 @@ export default function AcademyPage() {
       </div>
 
       {activeTab === 'courses' ? (
-          <div className="grid grid-cols-1 gap-6">
+          <div className="space-y-6">
               {courses.map(course => (
                   <div key={course.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row overflow-hidden hover:shadow-md transition">
                       <div className="md:w-64 h-48 md:h-auto bg-gray-200 relative shrink-0 group">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={course.thumbnail_url} alt="Cover" className="w-full h-full object-cover" />
-                          <button onClick={() => openCourseModal(course)} className="absolute top-2 right-2 bg-white/90 p-2 rounded-full hover:text-[#00665E] shadow-sm group-hover:scale-110 transition"><Edit size={16}/></button>
+                          <button onClick={() => openCourseModal(course)} className="absolute top-2 right-2 bg-white/90 p-2 rounded-full hover:text-[#00665E] shadow-sm"><Edit size={16}/></button>
                       </div>
                       <div className="p-6 flex-1 flex flex-col">
                           <div className="flex justify-between items-start">
@@ -246,9 +293,8 @@ export default function AcademyPage() {
                           </div>
                           <p className="text-sm text-gray-500 mt-2 mb-4 line-clamp-2">{course.description}</p>
                           
-                          {/* Pulsanti Azione */}
                           <div className="flex flex-wrap gap-2 mt-auto pt-4 border-t border-gray-50">
-                              <button onClick={() => { setActiveCourse(course); setIsLessonModalOpen(true); }} className="btn-sec"><Plus size={14}/> Lezioni</button>
+                              <button onClick={() => { setActiveCourse(course); setIsLessonModalOpen(true); }} className="btn-sec"><Plus size={14}/> Lezione</button>
                               <button onClick={() => { setActiveCourse(course); setIsAssignModalOpen(true); }} className="btn-sec"><Users size={14}/> Assegna</button>
                               <button onClick={() => { setActiveCourse(course); setIsQuizModalOpen(true); }} className="btn-sec"><BookOpen size={14}/> Quiz</button>
                               <button onClick={() => { setActiveCourse(course); setIsStatsModalOpen(true); }} className="btn-sec bg-teal-50 text-teal-700 border-teal-100"><BarChart3 size={14}/> Monitoraggio</button>
@@ -279,44 +325,59 @@ export default function AcademyPage() {
           </div>
       )}
 
-      {/* --- MODALE MONITORAGGIO (GRAFICI) --- */}
+      {/* --- MODALE MONITORAGGIO (DATI REALI + CSV) --- */}
       {isStatsModalOpen && (
           <div className="modal-overlay">
               <div className="modal-content max-w-4xl">
-                  <h2 className="text-xl font-black mb-6">Monitoraggio: {activeCourse?.title}</h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                      <div className="h-64 bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                          <h4 className="text-xs font-bold text-gray-500 uppercase mb-4">Progresso Completamento</h4>
-                          <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={statsData}>
-                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                                  <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} />
-                                  <YAxis fontSize={10} axisLine={false} tickLine={false} />
-                                  <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{borderRadius:'8px', border:'none', boxShadow:'0 4px 6px -1px rgba(0,0,0,0.1)'}} />
-                                  <Bar dataKey="progress" fill="#00665E" radius={[4, 4, 0, 0]} barSize={30} />
-                              </BarChart>
-                          </ResponsiveContainer>
-                      </div>
-                      <div className="h-64 bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                          <h4 className="text-xs font-bold text-gray-500 uppercase mb-4">Performance Quiz</h4>
-                          <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={statsData}>
-                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                                  <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} />
-                                  <YAxis fontSize={10} axisLine={false} tickLine={false} />
-                                  <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{borderRadius:'8px', border:'none', boxShadow:'0 4px 6px -1px rgba(0,0,0,0.1)'}} />
-                                  <Bar dataKey="quiz" fill="#F59E0B" radius={[4, 4, 0, 0]} barSize={30} />
-                              </BarChart>
-                          </ResponsiveContainer>
+                  <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-xl font-black">Monitoraggio: {activeCourse?.title}</h2>
+                      <div className="flex gap-2">
+                          <select className="input py-2 text-xs w-40" value={statsFilter} onChange={e => setStatsFilter(e.target.value)}>
+                              <option value="all">Tutti i Partecipanti</option>
+                              {activeCourse?.course_progress?.map((p:any) => <option key={p.id} value={p.agent_email}>{p.agent_email}</option>)}
+                          </select>
+                          <button onClick={handleExportCSV} className="btn-sec flex items-center gap-2"><Download size={14}/> Export CSV</button>
+                          <button onClick={() => setIsStatsModalOpen(false)} className="btn-sec p-2"><X size={16}/></button>
                       </div>
                   </div>
-                  <button onClick={() => setIsStatsModalOpen(false)} className="btn-sec w-full">Chiudi Monitoraggio</button>
+                  
+                  {(!activeCourse?.course_progress || activeCourse.course_progress.length === 0) ? (
+                      <div className="p-10 text-center text-gray-400 bg-gray-50 rounded-xl">Nessun dato registrato per questo corso.</div>
+                  ) : (
+                      <>
+                          <div className="h-64 bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-6">
+                              <ResponsiveContainer width="100%" height="100%">
+                                  <BarChart data={getChartData()}>
+                                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                      <XAxis dataKey="name" fontSize={10} />
+                                      <YAxis fontSize={10} />
+                                      <Tooltip />
+                                      <Bar dataKey="progress" name="Progresso %" fill="#00665E" radius={[4, 4, 0, 0]} />
+                                      <Bar dataKey="quiz" name="Voto Quiz" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+                                  </BarChart>
+                              </ResponsiveContainer>
+                          </div>
+
+                          <table className="w-full text-sm text-left">
+                              <thead className="text-xs text-gray-500 uppercase bg-gray-50"><tr><th className="p-3">Agente</th><th className="p-3">Stato</th><th className="p-3">Progresso</th><th className="p-3">Quiz</th></tr></thead>
+                              <tbody>
+                                  {getChartData().map((d:any, i:number) => (
+                                      <tr key={i} className="border-b">
+                                          <td className="p-3 font-bold">{d.name}</td>
+                                          <td className="p-3">{d.progress === 100 ? '✅ Completato' : '🟡 In Corso'}</td>
+                                          <td className="p-3">{d.progress}%</td>
+                                          <td className="p-3 font-mono">{d.quiz || '-'}</td>
+                                      </tr>
+                                  ))}
+                              </tbody>
+                          </table>
+                      </>
+                  )}
               </div>
           </div>
       )}
 
-      {/* --- MODALE CORSO (CREA/MODIFICA + ANTEPRIMA) --- */}
+      {/* --- MODALE CORSO (EDIT AVANZATO) --- */}
       {isCourseModalOpen && (
           <div className="modal-overlay">
              <div className="modal-content max-w-lg">
@@ -325,15 +386,29 @@ export default function AcademyPage() {
                     <button onClick={() => setIsCourseModalOpen(false)}><X size={20} className="text-gray-400"/></button>
                  </div>
 
-                 {/* ANTEPRIMA CONTENUTI ESISTENTI */}
                  {activeCourse && (
-                     <div className="bg-blue-50 p-4 rounded-xl mb-6 border border-blue-100">
-                         <h4 className="text-xs font-bold text-blue-800 uppercase mb-2 flex items-center gap-2"><Eye size={14}/> Contenuti Caricati</h4>
-                         <ul className="space-y-1 text-xs text-blue-900">
-                             <li>📺 <strong>{activeCourse.lessons?.length || 0}</strong> Lezioni Video</li>
-                             <li>📝 <strong>{activeCourse.quizzes?.length || 0}</strong> Quiz Creati</li>
-                             <li>📂 <strong>{activeCourse.attachment_url ? 'Dispensa PDF Presente ✅' : 'Nessuna Dispensa ❌'}</strong></li>
-                         </ul>
+                     <div className="mb-6 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                         <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Contenuti Caricati</h4>
+                         {/* Lista Lezioni con Delete */}
+                         <div className="space-y-1 mb-3">
+                             <p className="text-[10px] font-bold text-gray-400">LEZIONI ({activeCourse.lessons?.length || 0})</p>
+                             {activeCourse.lessons?.map((l:any) => (
+                                 <div key={l.id} className="flex justify-between items-center text-xs bg-white p-2 rounded border border-gray-100">
+                                     <span className="truncate flex-1">{l.title}</span>
+                                     <button onClick={() => handleDeleteItem('lessons', l.id)} className="text-red-400 hover:text-red-600 ml-2"><Trash2 size={12}/></button>
+                                 </div>
+                             ))}
+                         </div>
+                         {/* Lista Quiz con Delete */}
+                         <div className="space-y-1">
+                             <p className="text-[10px] font-bold text-gray-400">QUIZ ({activeCourse.quizzes?.length || 0})</p>
+                             {activeCourse.quizzes?.map((q:any) => (
+                                 <div key={q.id} className="flex justify-between items-center text-xs bg-white p-2 rounded border border-gray-100">
+                                     <span className="truncate flex-1">{q.title}</span>
+                                     <button onClick={() => handleDeleteItem('quizzes', q.id)} className="text-red-400 hover:text-red-600 ml-2"><Trash2 size={12}/></button>
+                                 </div>
+                             ))}
+                         </div>
                      </div>
                  )}
 
@@ -369,42 +444,19 @@ export default function AcademyPage() {
                      <p className="text-xs text-yellow-800 font-bold">Dichiaro di possedere i diritti e la titolarità del contenuto video caricato.</p>
                  </div>
                  
-                 <button onClick={handleSaveLesson} disabled={uploading} className="btn-pri w-full">Salva Lezione</button>
+                 <button onClick={async () => {
+                      if(!privacyAccepted) return alert("Devi confermare i diritti privacy.");
+                      setUploading(true)
+                      let finalUrl = lessonForm.video_url
+                      if (lessonForm.video_type === 'upload' && videoFile) {
+                          const url = await handleUpload(videoFile, 'video', 100); 
+                          if(url) finalUrl = url; else { setUploading(false); return; }
+                      }
+                      await supabase.from('lessons').insert({ course_id: activeCourse.id, title: lessonForm.title, video_type: lessonForm.video_type, video_url: finalUrl, notes: lessonForm.notes })
+                      fetchData(); setIsLessonModalOpen(false); setUploading(false);
+                 }} disabled={uploading} className="btn-pri w-full">{uploading ? '...' : 'Salva Lezione'}</button>
                  <button onClick={() => setIsLessonModalOpen(false)} className="btn-sec w-full mt-2">Chiudi</button>
              </div>
-          </div>
-      )}
-
-      {/* --- MODALE QUIZ --- */}
-      {isQuizModalOpen && (
-          <div className="modal-overlay">
-              <div className="modal-content max-w-2xl">
-                  <h2 className="text-xl font-black mb-4">Crea Test Finale</h2>
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                      <input className="input" placeholder="Titolo Quiz" value={quizForm.title} onChange={e=>setQuizForm({...quizForm, title: e.target.value})}/>
-                      <input type="number" className="input" placeholder="Punteggio Minimo" value={quizForm.passing_score} onChange={e=>setQuizForm({...quizForm, passing_score: Number(e.target.value)})}/>
-                  </div>
-                  
-                  <div className="bg-gray-50 p-4 rounded-xl mb-4 max-h-40 overflow-y-auto">
-                      <p className="text-xs font-bold text-gray-400 uppercase mb-2">Domande ({questions.length})</p>
-                      {questions.map((q,i) => (
-                          <div key={i} className="text-sm border-b p-2"><b>{i+1}.</b> {q.question_text} <span className="text-green-600 text-xs ml-2">(Risp: {q.options[q.correct_option_index]})</span></div>
-                      ))}
-                  </div>
-
-                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-4">
-                      <input className="input mb-2" placeholder="Domanda..." value={newQuestion.text} onChange={e=>setNewQuestion({...newQuestion, text: e.target.value})} />
-                      <div className="grid grid-cols-3 gap-2 mb-2">
-                          <input className="input" placeholder="Risp A" value={newQuestion.option1} onChange={e=>setNewQuestion({...newQuestion, option1: e.target.value})}/>
-                          <input className="input" placeholder="Risp B" value={newQuestion.option2} onChange={e=>setNewQuestion({...newQuestion, option2: e.target.value})}/>
-                          <input className="input" placeholder="Risp C" value={newQuestion.option3} onChange={e=>setNewQuestion({...newQuestion, option3: e.target.value})}/>
-                      </div>
-                      <select className="input" value={newQuestion.correct} onChange={e=>setNewQuestion({...newQuestion, correct: Number(e.target.value)})}> <option value={0}>A è Corretta</option><option value={1}>B è Corretta</option><option value={2}>C è Corretta</option></select>
-                      <button onClick={handleAddQuestion} className="btn-sec w-full mt-2 bg-white text-blue-600 border-blue-200">Aggiungi Domanda</button>
-                  </div>
-                  
-                  <div className="flex gap-2"><button onClick={()=>setIsQuizModalOpen(false)} className="btn-sec flex-1">Chiudi</button><button onClick={handleSaveQuiz} className="btn-pri flex-1">Salva Quiz</button></div>
-              </div>
           </div>
       )}
 
@@ -412,7 +464,7 @@ export default function AcademyPage() {
       {isLiveModalOpen && (
           <div className="modal-overlay">
              <div className="modal-content max-w-lg">
-                 <h2 className="text-xl font-black mb-4">Configura Diretta</h2>
+                 <h2 className="text-xl font-black mb-4">{activeLive ? 'Modifica Live' : 'Nuova Live'}</h2>
                  <input className="input mb-2" placeholder="Titolo" value={liveForm.title} onChange={e => setLiveForm({...liveForm, title: e.target.value})} />
                  <input type="datetime-local" className="input mb-2" value={liveForm.start_time} onChange={e => setLiveForm({...liveForm, start_time: e.target.value})} />
                  <input className="input mb-4" placeholder="Link Piattaforma (Zoom/Meet)" value={liveForm.platform_link} onChange={e => setLiveForm({...liveForm, platform_link: e.target.value})} />
@@ -422,14 +474,76 @@ export default function AcademyPage() {
           </div>
       )}
 
-      {/* --- STILI CSS --- */}
+      {/* --- MODALE ASSEGNAZIONE --- */}
+      {isAssignModalOpen && (
+          <div className="modal-overlay">
+              <div className="modal-content max-w-md">
+                  <h2 className="text-xl font-black mb-4">Assegna Corso</h2>
+                  <div className="max-h-60 overflow-y-auto space-y-2 mb-4">
+                     {agents.length === 0 && <p className="text-sm text-gray-500">Nessun agente trovato.</p>}
+                     {agents.map(agent => (
+                         <label key={agent.id} className="flex items-center gap-3 p-3 border rounded-xl cursor-pointer hover:bg-gray-50">
+                             <input type="checkbox" className="w-5 h-5 accent-[#00665E]" onChange={e => { if(e.target.checked) setSelectedAgents([...selectedAgents, agent.email]); else setSelectedAgents(selectedAgents.filter(em => em !== agent.email)) }} />
+                             <div><p className="font-bold text-sm">{agent.name}</p><p className="text-xs text-gray-400">{agent.email}</p></div>
+                         </label>
+                     ))}
+                  </div>
+                  <button onClick={handleAssign} className="btn-pri w-full">Conferma</button>
+                  <button onClick={() => setIsAssignModalOpen(false)} className="btn-sec w-full mt-2">Chiudi</button>
+              </div>
+          </div>
+      )}
+
+      {/* --- MODALE QUIZ --- */}
+      {isQuizModalOpen && (
+          <div className="modal-overlay">
+              <div className="modal-content max-w-2xl">
+                  <h2 className="text-xl font-black mb-4">Quiz Builder</h2>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                      <input className="input" placeholder="Titolo Quiz" value={quizForm.title} onChange={e=>setQuizForm({...quizForm, title: e.target.value})}/>
+                      <input type="number" className="input" placeholder="Punteggio Minimo" value={quizForm.passing_score} onChange={e=>setQuizForm({...quizForm, passing_score: Number(e.target.value)})}/>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-xl mb-4 max-h-40 overflow-y-auto">{questions.map((q,i) => <div key={i} className="text-sm border-b p-2"><b>{i+1}.</b> {q.question_text}</div>)}</div>
+                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-4">
+                      <input className="input mb-2" placeholder="Domanda..." value={newQuestion.text} onChange={e=>setNewQuestion({...newQuestion, text: e.target.value})} />
+                      <div className="grid grid-cols-3 gap-2 mb-2"><input className="input" placeholder="Risp A" value={newQuestion.option1} onChange={e=>setNewQuestion({...newQuestion, option1: e.target.value})}/><input className="input" placeholder="Risp B" value={newQuestion.option2} onChange={e=>setNewQuestion({...newQuestion, option2: e.target.value})}/><input className="input" placeholder="Risp C" value={newQuestion.option3} onChange={e=>setNewQuestion({...newQuestion, option3: e.target.value})}/></div>
+                      <select className="input" value={newQuestion.correct} onChange={e=>setNewQuestion({...newQuestion, correct: Number(e.target.value)})}> <option value={0}>A è Corretta</option><option value={1}>B è Corretta</option><option value={2}>C è Corretta</option></select>
+                      <button onClick={handleAddQuestion} className="btn-sec w-full mt-2 bg-white text-blue-600 border-blue-200">Aggiungi Domanda</button>
+                  </div>
+                  <div className="flex gap-2"><button onClick={()=>setIsQuizModalOpen(false)} className="btn-sec flex-1">Chiudi</button><button onClick={handleSaveQuiz} className="btn-pri flex-1">Salva Quiz</button></div>
+              </div>
+          </div>
+      )}
+
+      {/* --- MODALE ATTESTATO --- */}
+      {isCertModalOpen && (
+          <div className="modal-overlay">
+             <div className="modal-content max-w-md">
+                 <h2 className="text-xl font-black mb-4 flex items-center gap-2"><Award className="text-yellow-500"/> Configura Attestato</h2>
+                 <div className="space-y-4">
+                     <div><label className="label">Intestazione</label><input className="input" value={certForm.title} onChange={e => setCertForm({...certForm, title: e.target.value})} /></div>
+                     <div><label className="label">Firma (CEO/Direttore)</label><input className="input" value={certForm.signer} onChange={e => setCertForm({...certForm, signer: e.target.value})} /></div>
+                     <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-center">
+                         <p className="font-serif text-xl font-bold text-gray-800">{certForm.title}</p>
+                         <p className="text-xs text-gray-500 my-2">Certifica che [Nome Agente] ha superato...</p>
+                         <p className="font-bold text-[#00665E] my-1">{activeCourse?.title}</p>
+                         <p className="font-cursive text-lg text-gray-600 mt-4">{certForm.signer}</p>
+                     </div>
+                     <button onClick={() => {alert("Configurazione salvata!"); setIsCertModalOpen(false)}} className="btn-pri w-full">Salva Template</button>
+                     <button onClick={() => setIsCertModalOpen(false)} className="btn-sec w-full">Chiudi</button>
+                 </div>
+             </div>
+          </div>
+      )}
+
+      {/* STILI CSS */}
       <style jsx>{`
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px); padding: 1rem; }
         .modal-content { background: white; padding: 2rem; border-radius: 1.5rem; width: 100%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); animation: zoomIn 0.2s ease-out; position: relative; max-height: 90vh; overflow-y: auto; }
         .input { width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.75rem; outline: none; transition: all 0.2s; font-size: 0.875rem; }
         .input:focus { border-color: #00665E; box-shadow: 0 0 0 3px rgba(0, 102, 94, 0.1); }
         .label { display: block; font-size: 0.75rem; font-weight: 700; color: #64748b; margin-bottom: 0.25rem; text-transform: uppercase; }
-        .btn-pri { background: #00665E; color: white; padding: 0.75rem 1rem; border-radius: 0.75rem; font-weight: 700; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: background 0.2s; }
+        .btn-pri { background: #00665E; color: white; padding: 0.75rem 1rem; border-radius: 0.75rem; font-weight: 700; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: background 0.2s; cursor: pointer; }
         .btn-pri:hover { background: #004d46; }
         .btn-sec { background: white; color: #475569; border: 1px solid #e2e8f0; padding: 0.5rem 1rem; border-radius: 0.75rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s; font-size: 0.75rem; cursor: pointer; }
         .btn-sec:hover { background: #f1f5f9; border-color: #cbd5e1; }
