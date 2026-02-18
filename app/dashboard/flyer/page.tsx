@@ -4,7 +4,7 @@ import { createClient } from '../../../utils/supabase/client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 // CORREZIONE IMPORT: Usiamo ../../ per puntare a app/actions
-import { generateMarketingContent } from '../../actions/generate-marketing' 
+import { generateMarketingContent } from '../../actions/generate-marketing'
 
 export default function MarketingPages() {
   const [activeTab, setActiveTab] = useState<'landing' | 'flyer'>('landing')

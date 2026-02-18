@@ -8,8 +8,6 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'integrations'>('profile')
-  
-  // URL Dinamico
   const [publicBaseUrl, setPublicBaseUrl] = useState('')
 
   const [formData, setFormData] = useState({
@@ -17,22 +15,28 @@ export default function SettingsPage() {
     address: '', logo_url: '', plan: 'Base'
   })
 
+  // Dati Simulati dei consumi (In futuro li leggeremo dal DB facendo un count sulle tabelle)
+  const usage = {
+      agents: 2, maxAgents: 5,
+      flyers: 4, maxFlyers: 10,
+      landing: 1, maxLanding: 3,
+      courses: 1, maxCourses: 3,
+      fidelity: 120, maxFidelity: 500, // Card emesse
+      storage: 150, maxStorage: 500, // MB
+      ai: 12, maxAi: 50
+  }
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
-    // Calcola l'URL base automaticamente dal browser
-    if (typeof window !== 'undefined') {
-        setPublicBaseUrl(window.location.origin)
-    }
-
+    if (typeof window !== 'undefined') setPublicBaseUrl(window.location.origin)
     const getData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUser(user)
         const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-        
         if (data) {
           setFormData({
             company_name: data.company_name || '',
@@ -70,128 +74,87 @@ export default function SettingsPage() {
         whatsapp_number: formData.whatsapp_number, p_iva: formData.p_iva,
         address: formData.address, logo_url: formData.logo_url
     }).eq('id', user.id)
-    
     if (!error) alert('✅ Impostazioni salvate!')
     else alert('Errore: ' + error.message)
     setSaving(false)
   }
 
-  if (loading) return <div className="p-10 text-[#00665E] animate-pulse">Caricamento impostazioni...</div>
+  if (loading) return <div className="p-10 text-[#00665E] animate-pulse">Caricamento...</div>
 
   return (
     <main className="flex-1 p-8 overflow-auto bg-[#F8FAFC] text-gray-900 font-sans">
       <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-black text-[#00665E]">Impostazioni</h1>
-            <p className="text-gray-500 text-sm mt-1">Gestisci profilo e abbonamento.</p>
-          </div>
-          <div className={`px-4 py-2 rounded-xl font-bold text-sm border ${formData.plan === 'Base' ? 'bg-gray-100 text-gray-500 border-gray-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-              Piano {formData.plan}
-          </div>
+          <div><h1 className="text-3xl font-black text-[#00665E]">Impostazioni</h1><p className="text-gray-500 text-sm mt-1">Profilo e Abbonamento.</p></div>
+          <div className={`px-4 py-2 rounded-xl font-bold text-sm border ${formData.plan === 'Base' ? 'bg-gray-100' : 'bg-amber-50 text-amber-700'}`}>Piano {formData.plan}</div>
       </div>
 
-      <div className="flex gap-1 bg-white p-1 rounded-xl border border-gray-200 w-fit mb-8 shadow-sm">
-          <button onClick={() => setActiveTab('profile')} className={`px-6 py-2 rounded-lg text-sm font-bold transition ${activeTab === 'profile' ? 'bg-[#00665E] text-white shadow' : 'text-gray-500 hover:bg-gray-50'}`}>🏢 Profilo Azienda</button>
-          <button onClick={() => setActiveTab('billing')} className={`px-6 py-2 rounded-lg text-sm font-bold transition ${activeTab === 'billing' ? 'bg-[#00665E] text-white shadow' : 'text-gray-500 hover:bg-gray-50'}`}>💳 Piano & Limiti</button>
+      <div className="flex gap-1 bg-white p-1 rounded-xl border w-fit mb-8 shadow-sm">
+          <button onClick={() => setActiveTab('profile')} className={`px-6 py-2 rounded-lg text-sm font-bold transition ${activeTab === 'profile' ? 'bg-[#00665E] text-white shadow' : 'text-gray-500 hover:bg-gray-50'}`}>🏢 Profilo</button>
+          <button onClick={() => setActiveTab('billing')} className={`px-6 py-2 rounded-lg text-sm font-bold transition ${activeTab === 'billing' ? 'bg-[#00665E] text-white shadow' : 'text-gray-500 hover:bg-gray-50'}`}>💳 Limiti & Piano</button>
           <button onClick={() => setActiveTab('integrations')} className={`px-6 py-2 rounded-lg text-sm font-bold transition ${activeTab === 'integrations' ? 'bg-[#00665E] text-white shadow' : 'text-gray-500 hover:bg-gray-50'}`}>🔌 Integrazioni</button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* COLONNA SINISTRA */}
         <div className="lg:col-span-2 space-y-6">
-          
           {activeTab === 'profile' && (
-              <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Dati Attività</h2>
+              <div className="bg-white p-8 rounded-3xl border shadow-sm">
+                <h2 className="text-xl font-bold mb-6">Dati Attività</h2>
                 <form onSubmit={handleSave} className="space-y-6">
                     <div className="flex items-center gap-6">
-                        <div onClick={() => fileInputRef.current?.click()} className="w-24 h-24 rounded-2xl border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-[#00665E] bg-gray-50 overflow-hidden">
-                            {logoPreview ? <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" /> : <span className="text-xs text-gray-400">Carica Logo</span>}
+                        <div onClick={() => fileInputRef.current?.click()} className="w-24 h-24 rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer hover:border-[#00665E] bg-gray-50 overflow-hidden">
+                            {logoPreview ? <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" /> : <span className="text-xs text-gray-400">Logo</span>}
                         </div>
-                        <div>
-                            <p className="font-bold text-gray-700">Logo Aziendale</p>
-                            <button type="button" onClick={() => fileInputRef.current?.click()} className="text-[#00665E] text-sm font-bold hover:underline">Scegli file...</button>
-                            <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
-                        </div>
+                        <div><p className="font-bold">Logo Aziendale</p><button type="button" onClick={() => fileInputRef.current?.click()} className="text-[#00665E] text-sm font-bold hover:underline">Carica...</button><input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" /></div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div><label className="text-xs font-bold text-gray-500 uppercase">Nome Azienda</label><input className="w-full bg-gray-50 border p-3 rounded-xl mt-1" value={formData.company_name} onChange={e => setFormData({...formData, company_name: e.target.value})} /></div>
-                        <div><label className="text-xs font-bold text-gray-500 uppercase">Email Pubblica</label><input type="email" className="w-full bg-gray-50 border p-3 rounded-xl mt-1" value={formData.company_email} onChange={e => setFormData({...formData, company_email: e.target.value})} /></div>
+                        <div><label className="text-xs font-bold text-gray-500 uppercase">Email</label><input type="email" className="w-full bg-gray-50 border p-3 rounded-xl mt-1" value={formData.company_email} onChange={e => setFormData({...formData, company_email: e.target.value})} /></div>
                         <div><label className="text-xs font-bold text-gray-500 uppercase">WhatsApp</label><input className="w-full bg-gray-50 border p-3 rounded-xl mt-1" value={formData.whatsapp_number} onChange={e => setFormData({...formData, whatsapp_number: e.target.value})} /></div>
                         <div><label className="text-xs font-bold text-gray-500 uppercase">P.IVA</label><input className="w-full bg-gray-50 border p-3 rounded-xl mt-1" value={formData.p_iva} onChange={e => setFormData({...formData, p_iva: e.target.value})} /></div>
                         <div className="md:col-span-2"><label className="text-xs font-bold text-gray-500 uppercase">Indirizzo</label><input className="w-full bg-gray-50 border p-3 rounded-xl mt-1" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} /></div>
                     </div>
-                    <button type="submit" disabled={saving} className="bg-[#00665E] text-white font-bold py-3 px-8 rounded-xl w-full md:w-auto">{saving ? 'Salvataggio...' : 'Salva Modifiche'}</button>
+                    <button type="submit" disabled={saving} className="bg-[#00665E] text-white font-bold py-3 px-8 rounded-xl">{saving ? '...' : 'Salva'}</button>
                 </form>
               </div>
           )}
 
           {activeTab === 'billing' && (
-              <div className="space-y-6">
-                  <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm relative overflow-hidden">
-                      <div className="absolute top-0 right-0 p-4 opacity-10 text-9xl">💎</div>
-                      <h3 className="text-lg font-bold text-gray-900">Il tuo piano: <span className="text-[#00665E]">{formData.plan}</span></h3>
-                      <p className="text-gray-500 text-sm mb-6">Ecco cosa include il tuo abbonamento.</p>
-
-                      <div className="space-y-6 max-w-lg">
-                          <LimitBar label="Prodotti Vetrina" used={3} max={10} color="bg-[#00665E]" />
-                          <LimitBar label="Email Marketing / Mese" used={120} max={3000} color="bg-blue-600" />
-                          <LimitBar label="Spazio Archiviazione (MB)" used={50} max={500} color="bg-orange-500" />
-                          <LimitBar label="Crediti AI / Mese" used={5} max={50} color="bg-purple-600" />
-                      </div>
-                      
-                      <div className="mt-8 pt-6 border-t border-gray-100">
-                          <p className="text-xs text-gray-400 mb-2">Vuoi di più? Passa a Enterprise.</p>
-                          <button className="text-[#00665E] font-bold text-sm border border-[#00665E] px-4 py-2 rounded-lg hover:bg-[#00665E] hover:text-white transition">Fai Upgrade</button>
-                      </div>
+              <div className="bg-white p-8 rounded-3xl border shadow-sm relative overflow-hidden">
+                  <h3 className="text-lg font-bold mb-6">Stato Abbonamento: <span className="text-[#00665E]">{formData.plan}</span></h3>
+                  <div className="space-y-6 max-w-lg">
+                      <LimitBar label="Agenti & Team" used={usage.agents} max={usage.maxAgents} color="bg-blue-500" />
+                      <LimitBar label="Fidelity Card Emesse" used={usage.fidelity} max={usage.maxFidelity} color="bg-orange-500" />
+                      <LimitBar label="Volantini Digitali" used={usage.flyers} max={usage.maxFlyers} color="bg-purple-500" />
+                      <LimitBar label="Landing Pages" used={usage.landing} max={usage.maxLanding} color="bg-pink-500" />
+                      <LimitBar label="Corsi Academy" used={usage.courses} max={usage.maxCourses} color="bg-indigo-500" />
+                      <LimitBar label="Spazio (Video/File)" used={usage.storage} max={usage.maxStorage} unit="MB" color="bg-red-500" />
+                      <LimitBar label="Crediti AI Mensili" used={usage.ai} max={usage.maxAi} color="bg-emerald-500" />
                   </div>
               </div>
           )}
-
-          {/* TAB INTEGRATIONS: Mantieni quello che hai, va bene */}
         </div>
-
-        {/* COLONNA DESTRA (Link Pubblici) */}
+        
+        {/* LINK PUBBLICI */}
         <div className="space-y-6">
-            <div className="bg-white p-6 rounded-2xl border border-gray-200">
-                <h3 className="font-bold text-gray-900 mb-4 text-sm">I Tuoi Link Pubblici</h3>
-                <div className="space-y-4">
-                    <div className="text-xs">
-                        <span className="block text-gray-400 uppercase font-bold text-[10px] mb-1">🛒 Vetrina Digitale</span>
-                        <div className="bg-gray-50 p-2 rounded border border-gray-200 break-all">
-                             <a href={`${publicBaseUrl}/shop/${user?.id}`} target="_blank" className="text-blue-600 hover:underline font-mono">
-                                {publicBaseUrl}/shop/{user?.id?.slice(0,5)}...
-                             </a>
-                        </div>
-                    </div>
-                    <div className="text-xs">
-                        <span className="block text-gray-400 uppercase font-bold text-[10px] mb-1">📅 Prenotazioni Online</span>
-                        <div className="bg-gray-50 p-2 rounded border border-gray-200 break-all">
-                             <a href={`${publicBaseUrl}/book/${user?.id}`} target="_blank" className="text-blue-600 hover:underline font-mono">
-                                {publicBaseUrl}/book/{user?.id?.slice(0,5)}...
-                             </a>
-                        </div>
-                    </div>
+            <div className="bg-white p-6 rounded-2xl border">
+                <h3 className="font-bold text-sm mb-4">Link Pubblici</h3>
+                <div className="space-y-3 text-xs">
+                    <div><span className="block font-bold text-gray-400 mb-1">🛒 Vetrina</span><a href={`${publicBaseUrl}/shop/${user?.id}`} target="_blank" className="text-blue-600 hover:underline bg-blue-50 p-2 rounded block truncate">{publicBaseUrl}/shop/{user?.id}</a></div>
+                    <div><span className="block font-bold text-gray-400 mb-1">📅 Prenotazioni</span><a href={`${publicBaseUrl}/book/${user?.id}`} target="_blank" className="text-blue-600 hover:underline bg-blue-50 p-2 rounded block truncate">{publicBaseUrl}/book/{user?.id}</a></div>
                 </div>
             </div>
         </div>
-
       </div>
     </main>
   )
 }
 
-function LimitBar({label, used, max, color}: any) {
+function LimitBar({label, used, max, color, unit}: any) {
     const perc = Math.min((used/max)*100, 100);
     return (
         <div>
-            <div className="flex justify-between text-xs font-bold text-gray-500 mb-1">
-                <span>{label}</span> <span>{used} / {max}</span>
-            </div>
-            <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{width: `${perc}%`}}></div>
-            </div>
+            <div className="flex justify-between text-xs font-bold text-gray-500 mb-1"><span>{label}</span> <span>{used} / {max} {unit}</span></div>
+            <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden"><div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{width: `${perc}%`}}></div></div>
         </div>
     )
 }
