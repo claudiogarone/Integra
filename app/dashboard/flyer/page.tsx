@@ -3,7 +3,8 @@
 import { createClient } from '../../../utils/supabase/client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { generateMarketingContent } from '../../actions/generate-marketing' // Assicurati che questo file esista
+// CORREZIONE IMPORT: Usiamo ../../ per puntare a app/actions
+import { generateMarketingContent } from '../../actions/generate-marketing' 
 
 export default function MarketingPages() {
   const [activeTab, setActiveTab] = useState<'landing' | 'flyer'>('landing')
@@ -25,7 +26,6 @@ export default function MarketingPages() {
   const supabase = createClient()
 
   // --- STATI DATI ---
-  // Definiamo i valori iniziali per poter fare il RESET facile
   const initialSections = [
     { title: '', text: '', media: '' },
     { title: '', text: '', media: '' },
@@ -34,7 +34,7 @@ export default function MarketingPages() {
   const initialSocials = { facebook: '', instagram: '', tiktok: '', linkedin: '', youtube: '', email: '', website: '' }
   const initialStyle = { theme: 'modern', font: 'sans', titleColor: '#000000', textColor: '#4B5563' }
   const initialForm = {
-    title: '', slug: '', description: '', // description usata per il volantino o sottotitolo
+    title: '', slug: '', description: '', 
     company_logo: '',
     show_appointments: false, show_products: false,
     cta_text: 'Contattaci', cta_link: '', slides: [] as string[]
@@ -67,10 +67,10 @@ export default function MarketingPages() {
       return
     }
 
-    // RESET COMPLETO (Per evitare che compaiano dati vecchi)
+    // RESET COMPLETO
     setEditingId(null)
     setFormData(initialForm)
-    setSections([{...initialSections[0]}, {...initialSections[1]}, {...initialSections[2]}]) // Clona oggetti nuovi
+    setSections([{...initialSections[0]}, {...initialSections[1]}, {...initialSections[2]}]) 
     setClientSocials({...initialSocials})
     setStyleConfig({...initialStyle})
     setAiResponse('')
@@ -81,7 +81,7 @@ export default function MarketingPages() {
   // --- LOGICA MODIFICA ---
   const handleEdit = (page: any) => {
     setEditingId(page.id)
-    setActiveTab(page.type) // Assicura che il tab sia giusto
+    setActiveTab(page.type) 
     
     setFormData({
       title: page.title, slug: page.slug, description: page.subheadline || '',
@@ -93,7 +93,6 @@ export default function MarketingPages() {
       slides: page.slides || []
     })
     
-    // Se le sezioni mancano o sono vecchie, rigenerale
     const loadedSections = page.sections && page.sections.length === 3 ? page.sections : initialSections
     setSections(loadedSections)
     
@@ -118,6 +117,8 @@ export default function MarketingPages() {
         const newSecs = sections.map((sec, i) => i === index ? { ...sec, media: data.publicUrl } : sec)
         setSections(newSecs)
       }
+    } else {
+        alert("Errore upload: " + error.message)
     }
     setUploading(false)
   }
@@ -127,15 +128,30 @@ export default function MarketingPages() {
     setSections(newSecs)
   }
 
+  // --- FUNZIONE AI CORRETTA E ROBUSTA ---
   const askAI = async () => {
-    if (!aiPrompt.trim()) return
+    if (!aiPrompt.trim()) return alert("Inserisci una richiesta per l'AI (es. 'Volantino per pizzeria').")
+    
     setAiLoading(true)
-    // Prompt diverso in base al tipo
-    const typeContext = activeTab === 'landing' ? "una sezione di Landing Page" : "una descrizione introduttiva per un Volantino Digitale"
-    const res = await generateMarketingContent(`Contesto cliente: ${aiPrompt}. Scrivi un titolo accattivante e un testo persuasivo per ${typeContext}.`)
-    if (res.text) setAiResponse(res.text)
-    else alert(res.error || 'Errore AI')
-    setAiLoading(false)
+    try {
+        const typeContext = activeTab === 'landing' ? "una sezione di Landing Page" : "una descrizione introduttiva per un Volantino Digitale"
+        
+        // Chiamata Server Action
+        const res = await generateMarketingContent(`Contesto cliente: ${aiPrompt}. Scrivi un titolo accattivante e un testo persuasivo per ${typeContext}.`)
+        
+        if (res.error) {
+            alert("Errore AI: " + res.error)
+        } else if (res.text) {
+            setAiResponse(res.text)
+        } else {
+            alert("L'AI non ha restituito testo. Riprova.")
+        }
+    } catch (err: any) {
+        console.error("Errore chiamata AI:", err)
+        alert("Errore di connessione. Controlla la console.")
+    } finally {
+        setAiLoading(false)
+    }
   }
 
   const handleSave = async (e: React.FormEvent) => {
@@ -169,6 +185,8 @@ export default function MarketingPages() {
     await supabase.from('marketing_pages').delete().eq('id', id)
     fetchPages()
   }
+
+  if (loading) return <div className="p-10 text-[#00665E] animate-pulse">Caricamento Volantini...</div>
 
   return (
     <main className="flex-1 p-8 overflow-auto bg-[#F8FAFC] text-gray-900 font-sans">
@@ -215,7 +233,7 @@ export default function MarketingPages() {
                  <input type="text" value={formData.slug} onChange={e => setFormData({...formData, slug: e.target.value})} className="bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:border-[#00665E]" placeholder="Link Pubblico (es. promo-estate)" />
               </div>
 
-              {/* AI CHATBOT (Per entrambi) */}
+              {/* AI CHATBOT FIXATO */}
               <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 shadow-sm">
                  <div className="flex justify-between items-center mb-2">
                     <h3 className="text-xs font-bold text-purple-700 uppercase">✨ Assistente AI</h3>
@@ -223,12 +241,14 @@ export default function MarketingPages() {
                  </div>
                  <div className="flex gap-2">
                     <input value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} type="text" placeholder="Es: Descrivi un ristorante di sushi elegante..." className="flex-1 bg-white border border-purple-200 text-sm rounded-lg p-2 outline-none focus:border-purple-500" />
-                    <button type="button" onClick={askAI} disabled={aiLoading} className="bg-purple-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-purple-700 disabled:opacity-50">{aiLoading ? '...' : 'Chiedi all\'AI'}</button>
+                    <button type="button" onClick={askAI} disabled={aiLoading} className="bg-purple-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        {aiLoading ? 'Pensando...' : 'Chiedi all\'AI'}
+                    </button>
                  </div>
-                 {aiResponse && <div className="mt-3 bg-white p-3 rounded-lg text-sm text-gray-700 border border-purple-100 leading-relaxed shadow-inner">{aiResponse}</div>}
+                 {aiResponse && <div className="mt-3 bg-white p-3 rounded-lg text-sm text-gray-700 border border-purple-100 leading-relaxed shadow-inner whitespace-pre-wrap">{aiResponse}</div>}
               </div>
 
-              {/* STILE E LOGO (Per entrambi) */}
+              {/* STILE E LOGO */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  {/* Logo */}
                  <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
@@ -276,8 +296,8 @@ export default function MarketingPages() {
                 <div className="space-y-4">
                   <h3 className="font-bold text-[#00665E] border-b border-gray-200 pb-2">Configurazione Volantino</h3>
                   <div className="bg-white border border-gray-200 p-5 rounded-2xl shadow-sm">
-                     <label className="block text-xs font-bold text-gray-500 mb-1">Descrizione / Intro (Opzionale)</label>
-                     <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm h-24 outline-none focus:border-[#00665E]" placeholder="Scrivi qui un testo introduttivo per i tuoi clienti..." />
+                      <label className="block text-xs font-bold text-gray-500 mb-1">Descrizione / Intro (Opzionale)</label>
+                      <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm h-24 outline-none focus:border-[#00665E]" placeholder="Scrivi qui un testo introduttivo per i tuoi clienti..." />
                   </div>
                   <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200 border-dashed">
                     <label className="w-full cursor-pointer bg-white border border-gray-300 h-24 rounded-xl flex flex-col items-center justify-center font-bold text-[#00665E] hover:bg-teal-50 transition shadow-sm">
@@ -310,7 +330,7 @@ export default function MarketingPages() {
                  <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-lg border border-gray-200 shadow-sm"><input type="checkbox" checked={formData.show_products} onChange={e => setFormData({...formData, show_products: e.target.checked})} className="accent-[#00665E]" /><span className="text-sm font-medium">Vedi Vetrina Prodotti</span></label>
               </div>
 
-              {/* SOCIAL & FOOTER (Completo) */}
+              {/* SOCIAL & FOOTER */}
               <div className="bg-purple-50/50 p-5 rounded-2xl border border-purple-100">
                 <h3 className="font-bold text-purple-800 mb-4 text-sm uppercase">🔗 Link Social & Contatti (Footer)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
