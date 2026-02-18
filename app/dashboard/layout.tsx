@@ -4,9 +4,11 @@ import { createClient } from '../../utils/supabase/client'
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
+// UNICO IMPORT PULITO DI TUTTE LE ICONE
 import { 
   LayoutDashboard, Users, ShoppingBag, Calendar, MessageSquare, FileText, 
-  Send, Rocket, Bot, Award, Settings, LogOut, CreditCard 
+  Send, Rocket, Bot, Award, Settings, LogOut, CreditCard, 
+  GraduationCap, UserCog, Printer, Map
 } from 'lucide-react'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -86,9 +88,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
 
-          {/* SEZIONE 3: COMUNICAZIONE */}
+          {/* SEZIONE 3: MARKETING & FORMAZIONE (Nuova Academy qui) */}
           <div>
-            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 pl-4">Comunicazione</h3>
+            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 pl-4">Crescita</h3>
             <div className="space-y-1">
               <Link href="/dashboard/inbox" className={getLinkClass('/dashboard/inbox')}>
                  <MessageSquare size={18} /> Inbox Unificata
@@ -99,10 +101,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link href="/dashboard/launchpad" className={getLinkClass('/dashboard/launchpad')}>
                  <Rocket size={18} /> Launchpad Social
               </Link>
+              {/* NUOVO LINK ACADEMY */}
+              <Link href="/dashboard/academy" className={getLinkClass('/dashboard/academy')}>
+                 <GraduationCap size={18} /> Academy <span className="ml-auto text-[9px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-bold">NEW</span>
+              </Link>
             </div>
           </div>
 
-          {/* SEZIONE 4: ENTERPRISE & AI */}
+          {/* SEZIONE 4: STRUMENTI AZIENDALI (Nuovi Link qui) */}
+          <div>
+            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 pl-4">Strumenti</h3>
+            <div className="space-y-1">
+                <Link href="/dashboard/agents" className={getLinkClass('/dashboard/agents')}>
+                    <UserCog size={18} /> Agenti & Team
+                </Link>
+                <Link href="/dashboard/flyer" className={getLinkClass('/dashboard/flyer')}>
+                    <Printer size={18} /> Crea Volantino
+                </Link>
+                <Link href="/dashboard/settings" className={getLinkClass('/dashboard/settings')}>
+                    <Settings size={18} /> Configurazione
+                </Link>
+            </div>
+          </div>
+
+          {/* SEZIONE 5: ENTERPRISE & AI */}
           <div className="bg-gradient-to-b from-teal-50/50 to-transparent p-3 rounded-xl border border-teal-50 mx-1">
             <h3 className="text-[10px] font-black text-[#00665E] uppercase tracking-widest mb-2 flex items-center gap-2">
                ✨ Enterprise AI
@@ -110,9 +132,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="space-y-1">
                <Link href="/dashboard/ai-agent" className={getLinkClass('/dashboard/ai-agent')}>
                  <Bot size={18} /> Agente AI
-               </Link>
-               <Link href="/dashboard/enterprise" className={getLinkClass('/dashboard/enterprise')}>
-                 <span className="text-lg">⭐</span> Funzioni Pro
                </Link>
             </div>
           </div>
@@ -156,14 +175,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* FOOTER */}
           <footer className="bg-white border-t border-gray-200 py-6 px-8 mt-10 text-center md:text-left">
-             <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-400">
-               <p>© 2024 Integra OS. All rights reserved.</p>
-               <div className="flex gap-4">
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-400">
+                <p>© 2024 Integra OS. All rights reserved.</p>
+                <div className="flex gap-4">
                   <span>Partner: Concept ADV</span>
                   <span>•</span>
                   <span>Partner: Enestar</span>
-               </div>
-             </div>
+                </div>
+              </div>
           </footer>
         </div>
 
