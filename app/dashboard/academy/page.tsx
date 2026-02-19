@@ -5,7 +5,7 @@ import { useEffect, useState, useRef } from 'react'
 import { 
   Play, Plus, Video, FileText, Monitor, BookOpen, PenTool, 
   Users, Award, Edit, BarChart3, CheckSquare, Eye, X, 
-  Trash2, Download, Save, Palette, StickyNote, Filter, UploadCloud
+  Trash2, Download, Palette, StickyNote
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
@@ -16,7 +16,7 @@ export default function AcademyPage() {
   const [agents, setAgents] = useState<any[]>([]) 
   const [loading, setLoading] = useState(true)
   const [userPlan, setUserPlan] = useState('Base') 
-  const [companyLogo, setCompanyLogo] = useState<string | null>(null) // LOGO AZIENDALE
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null)
   const [user, setUser] = useState<any>(null)
   
   // MODALI
@@ -33,7 +33,7 @@ export default function AcademyPage() {
   // DATI
   const [activeCourse, setActiveCourse] = useState<any>(null)
   const [activeLive, setActiveLive] = useState<any>(null)
-  const [selectedAgents, setSelectedAgents] = useState<string[]>([])
+  const [selectedAgents, setSelectedAgents] = useState<any[]>([]) // Ora salva oggetti complessi per le presenze
   const [statsFilter, setStatsFilter] = useState('all') 
   
   // STRUMENTI AULA
@@ -45,7 +45,7 @@ export default function AcademyPage() {
   const [courseForm, setCourseForm] = useState({ title: '', description: '', category: 'Generale', thumbnail_url: '', attachment_url: '', is_mandatory: false, deadline: '' })
   const [lessonForm, setLessonForm] = useState({ title: '', video_type: 'youtube', video_url: '', notes: '' })
   const [liveForm, setLiveForm] = useState({ title: '', start_time: '', platform_link: '', description: '' })
-  const [certForm, setCertForm] = useState({ title: 'Attestato di Eccellenza', signer: 'La Direzione', logo_show: true })
+  const [certForm, setCertForm] = useState({ title: 'Attestato di Partecipazione', signer: 'La Direzione', logo_show: true })
   
   // QUIZ
   const [quizForm, setQuizForm] = useState({ title: 'Test Finale', passing_score: 70 })
@@ -67,11 +67,11 @@ export default function AcademyPage() {
     if(!user) return;
     setUser(user)
     
-    // FETCH PROFILO (Ora prende anche il LOGO_URL)
+    // FETCH PROFILO (Per il LOGO)
     const { data: profile } = await supabase.from('profiles').select('plan, logo_url').eq('id', user.id).single()
     if(profile) {
         setUserPlan(profile.plan || 'Base')
-        setCompanyLogo(profile.logo_url) // Salva il logo per l'attestato
+        setCompanyLogo(profile.logo_url)
     }
 
     const { data: coursesData } = await supabase.from('courses').select('*, lessons(*), quizzes(*), course_progress(*)').order('created_at', {ascending: false})
@@ -175,21 +175,33 @@ export default function AcademyPage() {
       fetchData(); setIsLessonModalOpen(false)
   }
 
-  // --- LIVE & AGENDA SYNC ---
+  // --- LIVE & AGENDA SYNC (FIXED: Date Format) ---
+  const openLiveModal = (event?: any) => {
+      if (event) {
+          setActiveLive(event)
+          // Il formato datetime-local vuole YYYY-MM-DDThh:mm
+          const formattedDate = new Date(event.start_time).toISOString().slice(0, 16);
+          setLiveForm({ title: event.title, start_time: formattedDate, platform_link: event.platform_link, description: event.description || '' })
+      } else {
+          setActiveLive(null)
+          setLiveForm({ title: '', start_time: '', platform_link: '', description: '' })
+      }
+      setIsLiveModalOpen(true)
+  }
+
   const handleSaveLive = async () => {
-      if(!activeLive && userPlan === 'Base' && liveEvents.length >= LIMITS.live) return alert("Limite Live Raggiunto.");
+      if(!liveForm.title || !liveForm.start_time) return alert("Titolo e Data sono obbligatori");
       
       let eventId = activeLive?.id
-      let liveData = null
 
       if(activeLive) {
            await supabase.from('live_events').update(liveForm).eq('id', activeLive.id)
-           eventId = activeLive.id
       } else {
           const { data } = await supabase.from('live_events').insert({ user_id: user.id, ...liveForm }).select().single()
-          if(data) { eventId = data.id; liveData = data; }
+          if(data) eventId = data.id
       }
 
+      // SALVA IN AGENDA VERAMENTE
       if(eventId) {
           const endTime = new Date(new Date(liveForm.start_time).getTime() + 60*60000).toISOString()
           await supabase.from('appointments').insert({
@@ -224,39 +236,57 @@ export default function AcademyPage() {
       setNewQuestion({ text: '', option1: '', option2: '', option3: '', correct: 0 })
   }
 
-  // --- ATTESTATO "PREMIUM" ---
-  const openCertModal = (course: any) => {
-      setActiveCourse(course)
-      if(course.certificate_template) {
-          setCertForm(course.certificate_template)
+  // --- ATTESTATO PREMIUM (Ripristinato) ---
+  const openCertModal = (item: any) => {
+      // Funziona sia per Corsi che per Live
+      setActiveCourse(item)
+      if(item.certificate_template) {
+          setCertForm(item.certificate_template)
       } else {
-          setCertForm({ title: 'Attestato di Eccellenza', signer: 'La Direzione', logo_show: true })
+          setCertForm({ title: 'Attestato di Partecipazione', signer: 'La Direzione', logo_show: true })
       }
       setIsCertModalOpen(true)
   }
   
   const handleSaveCert = async () => {
-      await supabase.from('courses').update({ certificate_template: certForm }).eq('id', activeCourse.id)
+      // Determina se stiamo salvando per un corso o una live
+      const table = activeTab === 'courses' ? 'courses' : 'live_events'
+      await supabase.from(table).update({ certificate_template: certForm }).eq('id', activeCourse.id)
       alert("Template Attestato Salvato!"); setIsCertModalOpen(false); fetchData();
   }
 
-  // --- ASSEGNAZIONE & MONITORAGGIO ---
+  // --- ASSEGNAZIONE AGENTI ---
   const handleAssign = async () => {
       if(selectedAgents.length === 0) return alert("Seleziona agenti.");
+      // Qui selectedAgents è un array di email
       const assignments = selectedAgents.map(email => ({
           course_id: activeCourse.id, agent_email: email, progress: 0, status: 'assigned'
       }))
       const { error } = await supabase.from('course_progress').insert(assignments)
       if(!error) { alert("Assegnato!"); setIsAssignModalOpen(false); fetchData(); setSelectedAgents([]); }
-      else alert("Errore: Possibile che sia già assegnato a questi agenti.")
+      else alert("Errore: Possibile che sia già assegnato.")
+  }
+
+  // --- REGISTRO PRESENZE LIVE (Avanzato) ---
+  const apriRegistro = (event: any) => {
+      setActiveLive(event)
+      // Carica i dati di default (tutti assenti)
+      const defaultState = agents.map(a => ({ email: a.email, name: a.name, present: false, notes: '' }))
+      setSelectedAgents(defaultState)
+      setIsAttendanceModalOpen(true)
   }
 
   const handleSaveAttendance = async () => {
-      const attendance = selectedAgents.map(email => ({
-          live_event_id: activeLive.id, agent_email: email, present: true, notes: 'Presente confermato'
+      // selectedAgents qui è un array di oggetti con i dati avanzati
+      const attendance = selectedAgents.filter(a => a.present).map(a => ({
+          live_event_id: activeLive.id, agent_email: a.email, present: true, notes: a.notes || 'Presente'
       }))
-      await supabase.from('live_attendance').insert(attendance)
-      alert("Presenze registrate!"); setIsAttendanceModalOpen(false); setSelectedAgents([]);
+      
+      if(attendance.length > 0) {
+          await supabase.from('live_attendance').insert(attendance)
+          alert("Presenze registrate con successo!"); 
+      }
+      setIsAttendanceModalOpen(false); setSelectedAgents([]); fetchData();
   }
 
   const getChartData = () => {
@@ -272,27 +302,24 @@ export default function AcademyPage() {
       })
   }
 
-  // --- STRUMENTI AULA (NOTE E LAVAGNA) ---
+  // --- STRUMENTI AULA (NOTE E LAVAGNA) FIXED ---
   const openTools = async (item: any) => {
+      // Funziona per Corsi e Live
       setActiveCourse(item) 
-      const { data } = await supabase.from('course_materials').select('*').eq('course_id', item.id).eq('type', 'notes').single()
+      const { data } = await supabase.from('course_materials').select('*').eq('course_id', item.id).eq('type', 'shared_note').single()
       if(data) setNotesContent(data.content || '')
       else setNotesContent('')
       setIsToolsModalOpen(true)
   }
 
   const saveNotes = async () => {
-      const { data: existing } = await supabase.from('course_materials').select('id').eq('course_id', activeCourse.id).eq('type', 'notes').single()
-      
-      if(existing) {
-          const { error } = await supabase.from('course_materials').update({ content: notesContent }).eq('id', existing.id)
-          if(!error) alert("Note Aggiornate!")
-          else alert("Errore: " + error.message)
-      } else {
-          const { error } = await supabase.from('course_materials').insert({ course_id: activeCourse.id, type: 'notes', content: notesContent })
-          if(!error) alert("Note Create!")
-          else alert("Errore: " + error.message)
-      }
+      // Usiamo type = 'shared_note' per evitare errori di constraint
+      const { error } = await supabase.from('course_materials').upsert(
+          { course_id: activeCourse.id, type: 'shared_note', content: notesContent }, 
+          { onConflict: 'course_id, type' }
+      )
+      if(!error) alert("Note Salvate con Successo!")
+      else alert("Errore: " + error.message)
   }
   
   // Canvas Logic
@@ -312,24 +339,24 @@ export default function AcademyPage() {
            <p className="text-gray-500 text-sm">Gestisci corsi, dirette e progressi.</p>
         </div>
         
-        {/* INDICATORI PIANO */}
-        <div className="bg-white px-4 py-2 rounded-xl border border-gray-200 shadow-sm flex items-center gap-6 text-xs font-bold">
+        {/* INDICATORI LIMITI (Richiesti) */}
+        <div className="bg-white px-5 py-2.5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-6 text-xs font-bold mr-4">
             <div className="text-center">
-                <span className="text-gray-400 block mb-1">Corsi Attivi</span>
-                <span className={`px-2 py-1 rounded ${courses.length >= LIMITS.courses ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                <span className="text-gray-400 block mb-1 uppercase text-[10px]">Corsi Usati</span>
+                <span className={`px-2 py-1 rounded ${courses.length >= LIMITS.courses ? 'bg-red-100 text-red-600' : 'bg-[#00665E]/10 text-[#00665E]'}`}>
                     {courses.length} / {LIMITS.courses}
                 </span>
             </div>
             <div className="w-[1px] h-8 bg-gray-200"></div>
             <div className="text-center">
-                <span className="text-gray-400 block mb-1">Piano</span>
-                <span className="text-[#00665E] uppercase">{userPlan}</span>
+                <span className="text-gray-400 block mb-1 uppercase text-[10px]">Max Lezioni</span>
+                <span className="text-gray-700">{LIMITS.lessons} per corso</span>
             </div>
         </div>
 
         <div className="flex gap-2">
-            <button onClick={() => { setActiveLive(null); setLiveForm({title:'', start_time:'', platform_link:'', description:''}); setIsLiveModalOpen(true) }} className="bg-red-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 text-sm"><Video size={18}/> Crea Live</button>
-            <button onClick={() => openCourseModal(null)} className="bg-[#00665E] text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 text-sm shadow-lg"><Plus size={18}/> Nuovo Corso</button>
+            <button onClick={() => openLiveModal()} className="bg-red-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 text-sm hover:bg-red-700 shadow-lg"><Video size={18}/> Crea Live</button>
+            <button onClick={() => openCourseModal(null)} className="bg-[#00665E] text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 text-sm hover:bg-[#004d46] shadow-lg"><Plus size={18}/> Nuovo Corso</button>
         </div>
       </div>
 
@@ -377,11 +404,12 @@ export default function AcademyPage() {
                               {event.platform_link && <a href={event.platform_link} target="_blank" className="text-xs text-blue-500 underline mt-1 block">Link Partecipazione</a>}
                           </div>
                       </div>
-                      <div className="flex gap-2">
-                          <button onClick={() => openTools(event)} className="btn-sec text-purple-600"><PenTool size={14}/> Note</button>
+                      <div className="flex flex-wrap gap-2">
+                          <button onClick={() => openTools(event)} className="btn-sec text-purple-600 bg-purple-50 border-purple-200"><PenTool size={14}/> Strumenti</button>
                           <button onClick={() => { setActiveLive(event); setIsStatsModalOpen(true); }} className="btn-sec bg-teal-50 text-teal-700 border-teal-100"><BarChart3 size={14}/> Monitoraggio</button>
-                          <button onClick={() => { setActiveLive(event); setLiveForm(event); setIsLiveModalOpen(true); }} className="btn-sec"><Edit size={14}/> Modifica</button>
-                          <button onClick={() => { setActiveLive(event); setIsAttendanceModalOpen(true); }} className="btn-pri bg-green-600 hover:bg-green-700 border-none text-white"><CheckSquare size={14}/> Registro</button>
+                          <button onClick={() => openCertModal(event)} className="btn-sec bg-yellow-50 text-yellow-700 border-yellow-100"><Award size={14}/> Attestato</button>
+                          <button onClick={() => openLiveModal(event)} className="btn-sec"><Edit size={14}/> Modifica</button>
+                          <button onClick={() => apriRegistro(event)} className="btn-pri bg-green-600 hover:bg-green-700 border-none text-white"><CheckSquare size={14}/> Registro Presenze</button>
                       </div>
                   </div>
               ))}
@@ -407,7 +435,7 @@ export default function AcademyPage() {
                   </div>
                   
                   {getChartData().length === 0 ? (
-                      <div className="p-10 text-center text-gray-400 bg-gray-50 rounded-xl">Nessun dato. Assegna il corso/live agli agenti.</div>
+                      <div className="p-10 text-center text-gray-400 bg-gray-50 rounded-xl">Nessun dato registrato.</div>
                   ) : (
                       <>
                           <div className="h-64 bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-6">
@@ -417,13 +445,13 @@ export default function AcademyPage() {
                                       <XAxis dataKey="name" fontSize={10} />
                                       <YAxis fontSize={10} />
                                       <Tooltip />
-                                      <Bar dataKey="progress" name="Progresso %" fill="#00665E" radius={[4, 4, 0, 0]} />
+                                      <Bar dataKey="progress" name="Progresso/Presenza" fill="#00665E" radius={[4, 4, 0, 0]} />
                                       <Bar dataKey="quiz" name="Voto Quiz" fill="#F59E0B" radius={[4, 4, 0, 0]} />
                                   </BarChart>
                               </ResponsiveContainer>
                           </div>
                           <table className="w-full text-sm text-left">
-                              <thead className="text-xs text-gray-500 uppercase bg-gray-50"><tr><th className="p-3">Agente</th><th className="p-3">Stato</th><th className="p-3">Progresso</th><th className="p-3">Quiz</th></tr></thead>
+                              <thead className="text-xs text-gray-500 uppercase bg-gray-50"><tr><th className="p-3">Agente</th><th className="p-3">Stato</th><th className="p-3">Dato</th><th className="p-3">Quiz</th></tr></thead>
                               <tbody>
                                   {getChartData().map((d:any, i:number) => (
                                       <tr key={i} className="border-b">
@@ -441,7 +469,7 @@ export default function AcademyPage() {
           </div>
       )}
 
-      {/* 2. CREA/EDIT CORSO (CON ANTEPRIMA LEZIONI/QUIZ) */}
+      {/* 2. CREA/EDIT CORSO (CON ANTEPRIMA LEZIONI/QUIZ/PDF) */}
       {isCourseModalOpen && (
           <div className="modal-overlay">
              <div className="modal-content max-w-lg">
@@ -500,7 +528,10 @@ export default function AcademyPage() {
                      {agents.length === 0 && <p className="text-sm text-gray-500">Nessun agente trovato nella sezione Team.</p>}
                      {agents.map(agent => (
                          <label key={agent.id} className="flex items-center gap-3 p-3 border rounded-xl cursor-pointer hover:bg-gray-50">
-                             <input type="checkbox" className="w-5 h-5 accent-[#00665E]" onChange={e => { if(e.target.checked) setSelectedAgents([...selectedAgents, agent.email]); else setSelectedAgents(selectedAgents.filter(em => em !== agent.email)) }} />
+                             <input type="checkbox" className="w-5 h-5 accent-[#00665E]" onChange={e => { 
+                                 if(e.target.checked) setSelectedAgents([...selectedAgents, agent.email]); 
+                                 else setSelectedAgents(selectedAgents.filter(em => em !== agent.email)) 
+                             }} />
                              <div><p className="font-bold text-sm">{agent.name}</p><p className="text-xs text-gray-400">{agent.email}</p></div>
                          </label>
                      ))}
@@ -511,7 +542,7 @@ export default function AcademyPage() {
           </div>
       )}
 
-      {/* 4. STRUMENTI AULA */}
+      {/* 4. STRUMENTI AULA (NOTE E LAVAGNA) */}
       {isToolsModalOpen && (
           <div className="modal-overlay">
               <div className="modal-content max-w-4xl h-[80vh] flex flex-col">
@@ -526,26 +557,39 @@ export default function AcademyPage() {
                       </div>
                       <div className="flex flex-col">
                           <div className="flex justify-between items-center mb-2"><span className="text-xs font-bold uppercase text-gray-500 flex items-center gap-1"><StickyNote size={14}/> Note Condivise</span><button onClick={saveNotes} className="text-xs bg-purple-600 text-white px-3 py-1 rounded">Salva Note</button></div>
-                          <textarea className="w-full flex-1 p-4 border rounded-xl resize-none outline-none focus:border-purple-500 text-sm" placeholder="Appunti del corso..." value={notesContent} onChange={e => setNotesContent(e.target.value)}/>
+                          <textarea className="w-full flex-1 p-4 border rounded-xl resize-none outline-none focus:border-purple-500 text-sm" placeholder="Appunti condivisi..." value={notesContent} onChange={e => setNotesContent(e.target.value)}/>
                       </div>
                   </div>
               </div>
           </div>
       )}
 
-      {/* 5. REGISTRO PRESENZE */}
+      {/* 5. REGISTRO PRESENZE LIVE (Avanzato) */}
       {isAttendanceModalOpen && (
           <div className="modal-overlay">
               <div className="modal-content max-w-md">
                   <h2 className="text-xl font-black mb-2">Registro Presenze</h2>
                   <p className="text-xs text-gray-500 mb-4">{activeLive?.title}</p>
-                  <div className="max-h-60 overflow-y-auto space-y-2 mb-4">
-                      {agents.length === 0 && <p className="text-sm text-gray-400">Nessun agente registrato.</p>}
-                      {agents.map(agent => (
-                          <label key={agent.id} className="flex items-center gap-3 p-3 border rounded-xl cursor-pointer hover:bg-green-50 transition">
-                              <input type="checkbox" className="w-5 h-5 accent-green-600" onChange={e => { if(e.target.checked) setSelectedAgents([...selectedAgents, agent.email]); else setSelectedAgents(selectedAgents.filter(em => em !== agent.email)) }} />
-                              <span className="font-bold text-sm">{agent.name}</span>
-                          </label>
+                  
+                  <div className="max-h-60 overflow-y-auto space-y-2 mb-4 pr-2">
+                      {selectedAgents.map((agent, index) => (
+                          <div key={index} className="flex flex-col gap-2 p-3 border rounded-xl bg-gray-50">
+                              <label className="flex items-center gap-3 cursor-pointer">
+                                  <input type="checkbox" className="w-5 h-5 accent-green-600" checked={agent.present} onChange={e => {
+                                      const updated = [...selectedAgents]
+                                      updated[index].present = e.target.checked
+                                      setSelectedAgents(updated)
+                                  }} />
+                                  <span className="font-bold text-sm">{agent.name}</span>
+                              </label>
+                              {agent.present && (
+                                  <input type="text" placeholder="Note sulla partecipazione..." className="text-xs p-1.5 border rounded outline-none" value={agent.notes} onChange={e => {
+                                      const updated = [...selectedAgents]
+                                      updated[index].notes = e.target.value
+                                      setSelectedAgents(updated)
+                                  }} />
+                              )}
+                          </div>
                       ))}
                   </div>
                   <button onClick={handleSaveAttendance} className="btn-pri w-full bg-green-600">Salva Presenze</button>
@@ -554,43 +598,45 @@ export default function AcademyPage() {
           </div>
       )}
 
-      {/* 6. ATTESTATO "PREMIUM" (CON LOGO) */}
+      {/* 6. ATTESTATO "PREMIUM" (CON LOGO REALE) */}
       {isCertModalOpen && (
           <div className="modal-overlay">
-             <div className="modal-content max-w-2xl bg-slate-50">
+             <div className="modal-content max-w-3xl bg-slate-50">
                  <h2 className="text-xl font-black mb-4 flex items-center gap-2"><Award className="text-yellow-500"/> Designer Attestato</h2>
                  
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                      <div className="space-y-4">
                          <div><label className="label">Intestazione</label><input className="input" value={certForm.title} onChange={e => setCertForm({...certForm, title: e.target.value})} /></div>
                          <div><label className="label">Firma (Nome/Azienda)</label><input className="input" value={certForm.signer} onChange={e => setCertForm({...certForm, signer: e.target.value})} /></div>
-                         <div className="flex items-center gap-2"><input type="checkbox" checked={certForm.logo_show} onChange={e => setCertForm({...certForm, logo_show: e.target.checked})}/> <span className="text-sm">Mostra Logo Aziendale</span></div>
+                         <div className="flex items-center gap-2"><input type="checkbox" className="accent-[#00665E] w-4 h-4" checked={certForm.logo_show} onChange={e => setCertForm({...certForm, logo_show: e.target.checked})}/> <span className="text-sm font-bold">Mostra Logo Aziendale</span></div>
                          <button onClick={handleSaveCert} className="btn-pri w-full mt-4">Salva Template</button>
                          <button onClick={() => setIsCertModalOpen(false)} className="btn-sec w-full mt-2">Chiudi</button>
                      </div>
                      
                      {/* ANTEPRIMA VISIVA ATTESTATO */}
-                     <div className="bg-white border-8 border-double border-gray-300 p-8 text-center shadow-lg relative flex flex-col justify-center items-center h-full min-h-[300px]">
+                     <div className="bg-white border-8 border-double border-gray-300 p-8 text-center shadow-lg relative flex flex-col justify-center items-center h-full min-h-[350px]">
                          <div className="absolute top-4 left-4 text-3xl opacity-20">📜</div>
                          
-                         {/* MOSTRA LOGO AZIENDA REALE SE ESISTE E SE SPUNTATO */}
+                         {/* LOGO AZIENDA REALE */}
                          {certForm.logo_show && (
                              companyLogo ? (
                                  // eslint-disable-next-line @next/next/no-img-element
-                                 <img src={companyLogo} alt="Logo" className="h-16 object-contain mb-4 mx-auto" />
+                                 <img src={companyLogo} alt="Logo Azienda" className="h-16 object-contain mb-4 mx-auto" />
                              ) : (
-                                 <div className="w-12 h-12 bg-gray-100 rounded-full mb-4 mx-auto border flex items-center justify-center text-xs">LOGO</div>
+                                 <div className="w-16 h-16 bg-gray-100 rounded-full mb-4 mx-auto border flex items-center justify-center text-xs text-gray-400">Logo</div>
                              )
                          )}
 
-                         <h3 className="font-serif text-2xl font-black text-gray-800 tracking-widest leading-tight">{certForm.title}</h3>
-                         <p className="text-xs text-gray-500 mt-4 italic">Si certifica che</p>
-                         <p className="font-bold text-lg border-b border-gray-300 pb-1 px-4 mt-2">[ NOME DELL'AGENTE ]</p>
-                         <p className="text-xs text-gray-500 mt-2">ha completato con successo il corso:</p>
-                         <p className="font-bold text-[#00665E] mt-1">{activeCourse?.title || "Nome Corso"}</p>
+                         <h3 className="font-serif text-2xl font-black text-gray-800 tracking-widest leading-tight uppercase">{certForm.title}</h3>
+                         <p className="text-xs text-gray-500 mt-6 italic">Si certifica che</p>
+                         <p className="font-bold text-xl border-b-2 border-gray-300 pb-1 px-8 mt-2">[ NOME AGENTE ]</p>
+                         <p className="text-xs text-gray-500 mt-4">ha completato con successo il programma formativo:</p>
+                         <p className="font-black text-[#00665E] text-lg mt-1 uppercase">{activeCourse?.title || "Titolo del Corso"}</p>
                          
-                         <div className="mt-8 border-t border-gray-300 pt-2 w-32 mx-auto">
-                             <p className="font-cursive text-xl text-gray-700">{certForm.signer}</p>
+                         <div className="mt-8 pt-2 w-40 mx-auto text-center">
+                             <p className="font-cursive text-2xl text-gray-700 leading-none">{certForm.signer}</p>
+                             <div className="border-t border-gray-400 w-full mt-1"></div>
+                             <p className="text-[10px] text-gray-400 mt-1 uppercase">Firma Autorizzata</p>
                          </div>
                      </div>
                  </div>
@@ -613,21 +659,43 @@ export default function AcademyPage() {
           </div>
       )}
 
+      {isLiveModalOpen && (
+          <div className="modal-overlay">
+             <div className="modal-content max-w-lg">
+                 <h2 className="text-xl font-black mb-4">Configura Diretta</h2>
+                 <input className="input mb-2" placeholder="Titolo" value={liveForm.title} onChange={e => setLiveForm({...liveForm, title: e.target.value})} />
+                 <input type="datetime-local" className="input mb-2" value={liveForm.start_time} onChange={e => setLiveForm({...liveForm, start_time: e.target.value})} />
+                 <input className="input mb-4" placeholder="Link Piattaforma (Zoom/Meet)" value={liveForm.platform_link} onChange={e => setLiveForm({...liveForm, platform_link: e.target.value})} />
+                 <button onClick={handleSaveLive} className="btn-pri w-full">Salva e Sincronizza in Agenda</button>
+                 <button onClick={() => setIsLiveModalOpen(false)} className="btn-sec w-full mt-2">Annulla</button>
+             </div>
+          </div>
+      )}
+
       {isQuizModalOpen && (
           <div className="modal-overlay">
               <div className="modal-content max-w-2xl">
                   <h2 className="text-xl font-black mb-4">Quiz Builder</h2>
                   <div className="grid grid-cols-2 gap-4 mb-4">
-                      <input className="input" placeholder="Titolo" value={quizForm.title} onChange={e=>setQuizForm({...quizForm, title: e.target.value})}/>
+                      <input className="input" placeholder="Titolo Quiz" value={quizForm.title} onChange={e=>setQuizForm({...quizForm, title: e.target.value})}/>
                       <input type="number" className="input" placeholder="Soglia %" value={quizForm.passing_score} onChange={e=>setQuizForm({...quizForm, passing_score: Number(e.target.value)})}/>
                   </div>
-                  <div className="bg-blue-50 p-4 rounded-xl mb-4">
-                      <input className="input mb-2" placeholder="Nuova Domanda..." value={newQuestion.text} onChange={e=>setNewQuestion({...newQuestion, text: e.target.value})} />
+                  <div className="bg-gray-50 p-4 rounded-xl mb-4 max-h-40 overflow-y-auto space-y-2">
+                      {questions.length === 0 && <p className="text-xs text-gray-400 italic">Nessuna domanda inserita.</p>}
+                      {questions.map((q,i) => (
+                          <div key={i} className="text-sm border-b p-2 flex justify-between bg-white rounded border-gray-100 shadow-sm">
+                              <span><b>{i+1}.</b> {q.question_text} <span className="text-xs text-green-600 ml-2">(Risp: {q.options[q.correct_option_index]})</span></span>
+                              <button onClick={() => setQuestions(questions.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
+                          </div>
+                      ))}
+                  </div>
+                  <div className="bg-blue-50 p-4 rounded-xl mb-4 border border-blue-100">
+                      <input className="input mb-2" placeholder="Domanda..." value={newQuestion.text} onChange={e=>setNewQuestion({...newQuestion, text: e.target.value})} />
                       <div className="grid grid-cols-3 gap-2 mb-2"><input className="input" placeholder="Opz A" value={newQuestion.option1} onChange={e=>setNewQuestion({...newQuestion, option1: e.target.value})}/><input className="input" placeholder="Opz B" value={newQuestion.option2} onChange={e=>setNewQuestion({...newQuestion, option2: e.target.value})}/><input className="input" placeholder="Opz C" value={newQuestion.option3} onChange={e=>setNewQuestion({...newQuestion, option3: e.target.value})}/></div>
                       <select className="input" value={newQuestion.correct} onChange={e=>setNewQuestion({...newQuestion, correct: Number(e.target.value)})}> <option value={0}>A è Corretta</option><option value={1}>B è Corretta</option><option value={2}>C è Corretta</option></select>
-                      <button onClick={handleAddQuestion} className="btn-sec w-full mt-2">Aggiungi in coda</button>
+                      <button onClick={handleAddQuestion} className="btn-sec w-full mt-2 bg-white text-blue-600 border-blue-200">Aggiungi Domanda</button>
                   </div>
-                  <div className="flex gap-2"><button onClick={()=>setIsQuizModalOpen(false)} className="btn-sec flex-1">Chiudi</button><button onClick={handleSaveQuiz} className="btn-pri flex-1">Salva tutto</button></div>
+                  <div className="flex gap-2"><button onClick={()=>setIsQuizModalOpen(false)} className="btn-sec flex-1">Chiudi</button><button onClick={handleSaveQuiz} className="btn-pri flex-1">Salva Intero Quiz</button></div>
               </div>
           </div>
       )}
@@ -638,10 +706,11 @@ export default function AcademyPage() {
         .input { width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.75rem; outline: none; transition: all 0.2s; font-size: 0.875rem; }
         .input:focus { border-color: #00665E; box-shadow: 0 0 0 3px rgba(0, 102, 94, 0.1); }
         .label { display: block; font-size: 0.75rem; font-weight: 700; color: #64748b; margin-bottom: 0.25rem; text-transform: uppercase; }
-        .btn-pri { background: #00665E; color: white; padding: 0.75rem 1rem; border-radius: 0.75rem; font-weight: 700; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: background 0.2s; cursor: pointer; }
+        .btn-pri { background: #00665E; color: white; padding: 0.75rem 1rem; border-radius: 0.75rem; font-weight: 700; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: background 0.2s; cursor: pointer; border: none; }
         .btn-pri:hover { background: #004d46; }
         .btn-sec { background: white; color: #475569; border: 1px solid #e2e8f0; padding: 0.5rem 1rem; border-radius: 0.75rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s; font-size: 0.75rem; cursor: pointer; }
         .btn-sec:hover { background: #f1f5f9; border-color: #cbd5e1; }
+        .font-cursive { font-family: 'Brush Script MT', cursive, sans-serif; }
         @keyframes zoomIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
       `}</style>
     </main>
