@@ -2,17 +2,14 @@
 
 import { createClient } from '../../../utils/supabase/client'
 import { useEffect, useState, useRef } from 'react'
-// IMPORT COMPLETI DI TUTTE LE ICONE NECESSARIE
 import { 
   Play, Plus, Video, FileText, Monitor, BookOpen, PenTool, 
   Users, Award, Edit, BarChart3, CheckSquare, Eye, X, 
-  Trash2, Download, Save, Palette, StickyNote, Filter, UploadCloud, Youtube, Clock, Calendar
+  Trash2, Download, Save, Palette, StickyNote, Filter, UploadCloud
 } from 'lucide-react'
-// IMPORT RECHARTS PER I GRAFICI
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 export default function AcademyPage() {
-  // --- STATI PRINCIPALI ---
   const [activeTab, setActiveTab] = useState<'courses' | 'live'>('courses')
   const [courses, setCourses] = useState<any[]>([])
   const [liveEvents, setLiveEvents] = useState<any[]>([])
@@ -21,7 +18,7 @@ export default function AcademyPage() {
   const [userPlan, setUserPlan] = useState('Base') 
   const [user, setUser] = useState<any>(null)
   
-  // --- GESTIONE MODALI ---
+  // MODALI
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false)
   const [isLessonModalOpen, setIsLessonModalOpen] = useState(false)
   const [isLiveModalOpen, setIsLiveModalOpen] = useState(false)
@@ -32,28 +29,29 @@ export default function AcademyPage() {
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false)
   const [isToolsModalOpen, setIsToolsModalOpen] = useState(false)
 
-  // --- DATI SELEZIONATI ---
+  // DATI
   const [activeCourse, setActiveCourse] = useState<any>(null)
   const [activeLive, setActiveLive] = useState<any>(null)
   const [selectedAgents, setSelectedAgents] = useState<string[]>([])
-  
-  // --- FILTRI E NOTE ---
   const [statsFilter, setStatsFilter] = useState('all') 
+  
+  // STRUMENTI AULA
   const [notesContent, setNotesContent] = useState('')
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
 
-  // --- FORMS ---
+  // FORMS
   const [courseForm, setCourseForm] = useState({ title: '', description: '', category: 'Generale', thumbnail_url: '', attachment_url: '', is_mandatory: false, deadline: '' })
   const [lessonForm, setLessonForm] = useState({ title: '', video_type: 'youtube', video_url: '', notes: '' })
   const [liveForm, setLiveForm] = useState({ title: '', start_time: '', platform_link: '', description: '' })
   const [certForm, setCertForm] = useState({ title: 'Attestato di Eccellenza', signer: 'La Direzione', logo_show: true })
   
-  // --- QUIZ & UPLOAD ---
+  // QUIZ
   const [quizForm, setQuizForm] = useState({ title: 'Test Finale', passing_score: 70 })
   const [questions, setQuestions] = useState<any[]>([])
   const [newQuestion, setNewQuestion] = useState({ text: '', option1: '', option2: '', option3: '', correct: 0 })
   
+  // UPLOAD
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [privacyAccepted, setPrivacyAccepted] = useState(false)
@@ -71,11 +69,10 @@ export default function AcademyPage() {
     const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
     if(profile) setUserPlan(profile.plan || 'Base')
 
-    // Carica Corsi con tutto (lezioni, quiz, progressi)
     const { data: coursesData } = await supabase.from('courses').select('*, lessons(*), quizzes(*), course_progress(*)').order('created_at', {ascending: false})
     if(coursesData) setCourses(coursesData)
 
-    const { data: liveData } = await supabase.from('live_events').select('*').order('start_time', {ascending: true})
+    const { data: liveData } = await supabase.from('live_events').select('*, live_attendance(*)').order('start_time', {ascending: true})
     if(liveData) setLiveEvents(liveData)
 
     const { data: teamData } = await supabase.from('team_members').select('*')
@@ -84,7 +81,7 @@ export default function AcademyPage() {
     setLoading(false)
   }
 
-  // --- UPLOAD FUNZIONE ---
+  // --- UPLOAD ---
   const handleUpload = async (file: File, folder: string, maxSizeMB: number) => {
       if (file.size > maxSizeMB * 1024 * 1024) { alert(`⚠️ File troppo grande! Max ${maxSizeMB}MB.`); return null; }
       setUploading(true)
@@ -99,33 +96,34 @@ export default function AcademyPage() {
 
   // --- EXPORT CSV ---
   const handleExportCSV = () => {
-      if(!activeCourse) return;
-      const dataToExport = activeCourse.course_progress?.map((p: any) => {
+      const target = activeCourse || activeLive
+      if(!target) return;
+      
+      const dataToExport = (target.course_progress || target.live_attendance)?.map((p: any) => {
           const agent = agents.find(a => a.email === p.agent_email)
           return {
               Agente: agent?.name || p.agent_email,
               Email: p.agent_email,
-              Stato: p.progress === 100 ? 'Completato' : 'In Corso',
-              Progresso: `${p.progress}%`,
-              Voto_Quiz: p.quiz_score || 0
+              Stato: p.progress === 100 ? 'Completato' : (p.present ? 'Presente' : 'Non Iniziato'),
+              Dato: p.progress ? `${p.progress}%` : (p.present ? 'Si' : 'No')
           }
       }) || []
 
-      if(dataToExport.length === 0) return alert("Nessun dato da esportare.");
-
+      if(dataToExport.length === 0) return alert("Nessun dato.");
+      
       const headers = Object.keys(dataToExport[0]).join(",")
       const rows = dataToExport.map((row:any) => Object.values(row).join(",")).join("\n")
       const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + rows;
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `report_${activeCourse.title}.csv`);
+      link.setAttribute("download", `report_${target.title}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
   }
 
-  // --- GESTIONE CORSI ---
+  // --- CRUD CORSI ---
   const openCourseModal = (course?: any) => {
       if (course) {
           setActiveCourse(course)
@@ -156,16 +154,14 @@ export default function AcademyPage() {
       if(!confirm("Eliminare definitivamente?")) return;
       await supabase.from(table).delete().eq('id', id)
       fetchData()
-      if(table === 'lessons' && activeCourse) {
-          // Aggiorna vista locale per reattività
-          const updatedLessons = activeCourse.lessons.filter((l:any) => l.id !== id)
-          setActiveCourse({...activeCourse, lessons: updatedLessons})
+      if(table === 'quiz_questions') {
+          setQuestions(questions.filter((_, i) => i !== id)) // Aggiorna solo stato locale per domande non salvate
       }
   }
 
-  // --- GESTIONE LEZIONI ---
+  // --- CRUD LEZIONI ---
   const handleSaveLesson = async () => {
-      if(!privacyAccepted) return alert("Devi accettare la privacy sui contenuti.");
+      if(!privacyAccepted) return alert("Conferma privacy.");
       let finalUrl = lessonForm.video_url
       if (lessonForm.video_type === 'upload' && videoFile) {
           const url = await handleUpload(videoFile, 'video', 100); if(!url) return; finalUrl = url;
@@ -174,21 +170,24 @@ export default function AcademyPage() {
       fetchData(); setIsLessonModalOpen(false)
   }
 
-  // --- GESTIONE LIVE (Con Sync Agenda) ---
+  // --- LIVE & AGENDA SYNC ---
   const handleSaveLive = async () => {
       if(!activeLive && userPlan === 'Base' && liveEvents.length >= LIMITS.live) return alert("Limite Live Raggiunto.");
       
       let eventId = activeLive?.id
+      let liveData = null
+
       if(activeLive) {
            await supabase.from('live_events').update(liveForm).eq('id', activeLive.id)
+           eventId = activeLive.id
       } else {
           const { data } = await supabase.from('live_events').insert({ user_id: user.id, ...liveForm }).select().single()
-          if(data) eventId = data.id
+          if(data) { eventId = data.id; liveData = data; }
       }
 
-      // Sync Agenda (Tabella appointments con colonne corrette)
       if(eventId) {
           const endTime = new Date(new Date(liveForm.start_time).getTime() + 60*60000).toISOString()
+          // Controlla se esiste già in agenda per evitare duplicati (opzionale: ricerca per titolo/data)
           await supabase.from('appointments').insert({
               user_id: user.id,
               title: `🎥 LIVE: ${liveForm.title}`, 
@@ -201,7 +200,7 @@ export default function AcademyPage() {
       fetchData(); setIsLiveModalOpen(false); alert("Evento salvato e aggiunto in Agenda!")
   }
 
-  // --- GESTIONE QUIZ ---
+  // --- QUIZ MANAGER (FIXED: VEDI E CANCELLI) ---
   const handleSaveQuiz = async () => {
       const { data: quizData } = await supabase.from('quizzes').insert({ 
           course_id: activeCourse.id, title: quizForm.title, passing_score: quizForm.passing_score 
@@ -216,23 +215,34 @@ export default function AcademyPage() {
   }
 
   const handleAddQuestion = () => {
-      if(!newQuestion.text || !newQuestion.option1) return alert("Inserisci domanda e opzioni");
+      if(!newQuestion.text) return alert("Domanda vuota");
       setQuestions([...questions, { question_text: newQuestion.text, options: [newQuestion.option1, newQuestion.option2, newQuestion.option3].filter(o=>o), correct_option_index: Number(newQuestion.correct) }])
       setNewQuestion({ text: '', option1: '', option2: '', option3: '', correct: 0 })
   }
 
-  // --- ASSEGNAZIONE AGENTI ---
+  // --- ATTESTATO (FIXED: RICARICA DATI) ---
+  const openCertModal = (course: any) => {
+      setActiveCourse(course)
+      if(course.certificate_template) setCertForm(course.certificate_template) // Carica salvataggio
+      setIsCertModalOpen(true)
+  }
+  
+  const handleSaveCert = async () => {
+      await supabase.from('courses').update({ certificate_template: certForm }).eq('id', activeCourse.id)
+      alert("Template Attestato Salvato!"); setIsCertModalOpen(false); fetchData();
+  }
+
+  // --- ASSEGNAZIONE & MONITORAGGIO ---
   const handleAssign = async () => {
       if(selectedAgents.length === 0) return alert("Seleziona agenti.");
       const assignments = selectedAgents.map(email => ({
           course_id: activeCourse.id, agent_email: email, progress: 0, status: 'assigned'
       }))
       const { error } = await supabase.from('course_progress').insert(assignments)
-      if(!error) { alert("Corso Assegnato!"); setIsAssignModalOpen(false); fetchData(); setSelectedAgents([]); }
-      else alert("Errore: Probabilmente già assegnato.")
+      if(!error) { alert("Assegnato!"); setIsAssignModalOpen(false); fetchData(); setSelectedAgents([]); }
+      else alert("Errore: " + error.message)
   }
 
-  // --- REGISTRO PRESENZE LIVE ---
   const handleSaveAttendance = async () => {
       const attendance = selectedAgents.map(email => ({
           live_event_id: activeLive.id, agent_email: email, present: true, notes: 'Confermato da Admin'
@@ -241,30 +251,36 @@ export default function AcademyPage() {
       alert("Presenze registrate!"); setIsAttendanceModalOpen(false); setSelectedAgents([]);
   }
 
-  // --- DATI PER GRAFICI ---
   const getChartData = () => {
-      if(!activeCourse?.course_progress) return [];
-      let data = activeCourse.course_progress;
-      if(statsFilter !== 'all') data = data.filter((p:any) => p.agent_email === statsFilter);
+      // Supporta sia corsi che live
+      const data = activeTab === 'courses' ? activeCourse?.course_progress : activeLive?.live_attendance;
+      if(!data) return [];
       
-      return data.map((p:any) => {
+      let filtered = data;
+      if(statsFilter !== 'all') filtered = data.filter((p:any) => p.agent_email === statsFilter);
+      
+      return filtered.map((p:any) => {
           const name = agents.find(a => a.email === p.agent_email)?.name || p.agent_email.split('@')[0]
-          return { name, progress: p.progress || 0, quiz: p.quiz_score || 0 }
+          return { name, progress: p.progress || (p.present ? 100 : 0), quiz: p.quiz_score || 0 }
       })
   }
 
-  // --- STRUMENTI AULA ---
-  const openTools = async (course: any) => {
-      setActiveCourse(course)
-      const { data } = await supabase.from('course_materials').select('content').eq('course_id', course.id).eq('type', 'notes').single()
+  // --- STRUMENTI AULA (FIXED: SAVE ID) ---
+  const openTools = async (item: any) => {
+      setActiveCourse(item) // Può essere course o live
+      // Cerca note per QUESTO ID
+      const { data } = await supabase.from('course_materials').select('content').eq('course_id', item.id).eq('type', 'notes').single()
       setNotesContent(data?.content || '')
       setIsToolsModalOpen(true)
   }
   const saveNotes = async () => {
-      await supabase.from('course_materials').upsert({ course_id: activeCourse.id, type: 'notes', content: notesContent }, { onConflict: 'course_id, type' })
-      alert("Note salvate!")
+      // Upsert basato su course_id (usiamo course_id anche per live events per semplicità, oppure aggiungi colonna live_event_id)
+      // Per ora usiamo course_id come "resource_id" generico
+      const { error } = await supabase.from('course_materials').upsert({ course_id: activeCourse.id, type: 'notes', content: notesContent }, { onConflict: 'course_id, type' })
+      if(!error) alert("Note salvate nel database!")
+      else alert("Errore salvataggio note: " + error.message)
   }
-  // Canvas Logic
+  
   const startDrawing = (e: any) => { const ctx = canvasRef.current?.getContext('2d'); if(ctx) { ctx.beginPath(); ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); setIsDrawing(true); }}
   const draw = (e: any) => { if(!isDrawing) return; const ctx = canvasRef.current?.getContext('2d'); if(ctx) { ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); ctx.stroke(); }}
   const stopDrawing = () => setIsDrawing(false)
@@ -289,7 +305,7 @@ export default function AcademyPage() {
       </div>
 
       {activeTab === 'courses' ? (
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-6">
               {courses.map(course => (
                   <div key={course.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row overflow-hidden hover:shadow-md transition">
                       <div className="md:w-64 h-48 md:h-auto bg-gray-200 relative shrink-0 group">
@@ -299,11 +315,8 @@ export default function AcademyPage() {
                       </div>
                       <div className="p-6 flex-1 flex flex-col">
                           <div className="flex justify-between items-start">
-                             <div>
-                                <h3 className="font-bold text-xl text-gray-900">{course.title}</h3>
-                                {course.is_mandatory && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded font-bold uppercase mt-1 inline-block">Obbligatorio</span>}
-                             </div>
-                             <div className="text-right"><span className="text-xs bg-gray-100 px-2 py-1 rounded font-bold text-gray-600">{course.lessons?.length} Lez.</span></div>
+                             <h3 className="font-bold text-xl text-gray-900">{course.title}</h3>
+                             <span className="text-xs bg-gray-100 px-2 py-1 rounded font-bold text-gray-600">{course.lessons?.length} Lez.</span>
                           </div>
                           <p className="text-sm text-gray-500 mt-2 mb-4 line-clamp-2">{course.description}</p>
                           <div className="flex flex-wrap gap-2 mt-auto pt-4 border-t border-gray-50">
@@ -312,7 +325,7 @@ export default function AcademyPage() {
                               <button onClick={() => { setActiveCourse(course); setIsQuizModalOpen(true); }} className="btn-sec"><BookOpen size={14}/> Quiz</button>
                               <button onClick={() => openTools(course)} className="btn-sec text-purple-600 bg-purple-50 border-purple-200"><PenTool size={14}/> Strumenti</button>
                               <button onClick={() => { setActiveCourse(course); setIsStatsModalOpen(true); }} className="btn-sec bg-teal-50 text-teal-700 border-teal-100"><BarChart3 size={14}/> Monitoraggio</button>
-                              <button onClick={() => { setActiveCourse(course); setIsCertModalOpen(true); }} className="btn-sec bg-yellow-50 text-yellow-700 border-yellow-100"><Award size={14}/> Attestato</button>
+                              <button onClick={() => openCertModal(course)} className="btn-sec bg-yellow-50 text-yellow-700 border-yellow-100"><Award size={14}/> Attestato</button>
                           </div>
                       </div>
                   </div>
@@ -331,6 +344,8 @@ export default function AcademyPage() {
                           </div>
                       </div>
                       <div className="flex gap-2">
+                          <button onClick={() => openTools(event)} className="btn-sec text-purple-600"><PenTool size={14}/> Note</button>
+                          <button onClick={() => { setActiveLive(event); setIsStatsModalOpen(true); }} className="btn-sec bg-teal-50 text-teal-700 border-teal-100"><BarChart3 size={14}/> Monitoraggio</button>
                           <button onClick={() => { setActiveLive(event); setLiveForm(event); setIsLiveModalOpen(true); }} className="btn-sec"><Edit size={14}/> Modifica</button>
                           <button onClick={() => { setActiveLive(event); setIsAttendanceModalOpen(true); }} className="btn-pri bg-green-600 hover:bg-green-700 border-none text-white"><CheckSquare size={14}/> Registro</button>
                       </div>
@@ -346,11 +361,11 @@ export default function AcademyPage() {
           <div className="modal-overlay">
               <div className="modal-content max-w-4xl">
                   <div className="flex justify-between items-center mb-6">
-                      <h2 className="text-xl font-black">📊 Monitoraggio: {activeCourse?.title}</h2>
+                      <h2 className="text-xl font-black">📊 Monitoraggio: {activeCourse?.title || activeLive?.title}</h2>
                       <div className="flex gap-2">
                           <select className="input py-2 text-xs w-40" value={statsFilter} onChange={e => setStatsFilter(e.target.value)}>
                               <option value="all">Tutti</option>
-                              {activeCourse?.course_progress?.map((p:any) => <option key={p.id} value={p.agent_email}>{p.agent_email}</option>)}
+                              {agents.map(a => <option key={a.id} value={a.email}>{a.name}</option>)}
                           </select>
                           <button onClick={handleExportCSV} className="btn-sec flex items-center gap-2 bg-green-50 text-green-700 border-green-200"><Download size={14}/> Export CSV</button>
                           <button onClick={() => setIsStatsModalOpen(false)}><X size={20} className="text-gray-400"/></button>
@@ -358,7 +373,7 @@ export default function AcademyPage() {
                   </div>
                   
                   {getChartData().length === 0 ? (
-                      <div className="p-10 text-center text-gray-400 bg-gray-50 rounded-xl">Nessun dato. Assegna il corso agli agenti.</div>
+                      <div className="p-10 text-center text-gray-400 bg-gray-50 rounded-xl">Nessun dato. Assegna il corso/live agli agenti.</div>
                   ) : (
                       <>
                           <div className="h-64 bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-6">
@@ -369,7 +384,6 @@ export default function AcademyPage() {
                                       <YAxis fontSize={10} />
                                       <Tooltip />
                                       <Bar dataKey="progress" name="Progresso %" fill="#00665E" radius={[4, 4, 0, 0]} />
-                                      <Bar dataKey="quiz" name="Voto Quiz" fill="#F59E0B" radius={[4, 4, 0, 0]} />
                                   </BarChart>
                               </ResponsiveContainer>
                           </div>
@@ -379,7 +393,7 @@ export default function AcademyPage() {
                                   {getChartData().map((d:any, i:number) => (
                                       <tr key={i} className="border-b">
                                           <td className="p-3 font-bold">{d.name}</td>
-                                          <td className="p-3">{d.progress === 100 ? '✅ Completato' : '🟡 In Corso'}</td>
+                                          <td className="p-3">{d.progress >= 100 ? '✅ Completato' : '🟡 In Corso'}</td>
                                           <td className="p-3"><div className="w-20 bg-gray-200 h-1.5 rounded-full"><div className="bg-[#00665E] h-1.5 rounded-full" style={{width:`${d.progress}%`}}></div></div></td>
                                           <td className="p-3 font-mono">{d.quiz || '-'}</td>
                                       </tr>
@@ -401,7 +415,6 @@ export default function AcademyPage() {
                     <button onClick={() => setIsCourseModalOpen(false)}><X size={20} className="text-gray-400"/></button>
                  </div>
 
-                 {/* ANTEPRIMA CONTENUTI */}
                  {activeCourse && (
                      <div className="bg-gray-50 p-4 rounded-xl mb-6 border border-gray-200">
                          <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-2"><Eye size={12}/> Contenuti Caricati</h4>
@@ -497,12 +510,41 @@ export default function AcademyPage() {
           </div>
       )}
 
-      {/* ALTRE MODALI (LESSON, QUIZ, LIVE, CERT) SONO RIMASTE INVARIATE PER BREVITÀ MA SONO PRESENTI NELLA LOGICA */}
+      {/* 6. QUIZ BUILDER (Con lista modificabile) */}
+      {isQuizModalOpen && (
+          <div className="modal-overlay">
+              <div className="modal-content max-w-2xl">
+                  <h2 className="text-xl font-black mb-4">Quiz Builder</h2>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                      <input className="input" placeholder="Titolo" value={quizForm.title} onChange={e=>setQuizForm({...quizForm, title: e.target.value})}/>
+                      <input type="number" className="input" placeholder="Soglia %" value={quizForm.passing_score} onChange={e=>setQuizForm({...quizForm, passing_score: Number(e.target.value)})}/>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-xl mb-4 max-h-40 overflow-y-auto space-y-2">
+                      {questions.length === 0 && <p className="text-xs text-gray-400">Nessuna domanda.</p>}
+                      {questions.map((q,i) => (
+                          <div key={i} className="text-sm border-b p-2 flex justify-between bg-white rounded border-gray-100">
+                              <span><b>{i+1}.</b> {q.question_text}</span>
+                              <button onClick={() => setQuestions(questions.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-600"><Trash2 size={12}/></button>
+                          </div>
+                      ))}
+                  </div>
+                  <div className="bg-blue-50 p-4 rounded-xl mb-4">
+                      <input className="input mb-2" placeholder="Domanda..." value={newQuestion.text} onChange={e=>setNewQuestion({...newQuestion, text: e.target.value})} />
+                      <div className="grid grid-cols-3 gap-2 mb-2"><input className="input" placeholder="Opz A" value={newQuestion.option1} onChange={e=>setNewQuestion({...newQuestion, option1: e.target.value})}/><input className="input" placeholder="Opz B" value={newQuestion.option2} onChange={e=>setNewQuestion({...newQuestion, option2: e.target.value})}/><input className="input" placeholder="Opz C" value={newQuestion.option3} onChange={e=>setNewQuestion({...newQuestion, option3: e.target.value})}/></div>
+                      <select className="input" value={newQuestion.correct} onChange={e=>setNewQuestion({...newQuestion, correct: Number(e.target.value)})}> <option value={0}>A</option><option value={1}>B</option><option value={2}>C</option></select>
+                      <button onClick={handleAddQuestion} className="btn-sec w-full mt-2">Aggiungi</button>
+                  </div>
+                  <div className="flex gap-2"><button onClick={()=>setIsQuizModalOpen(false)} className="btn-sec flex-1">Chiudi</button><button onClick={handleSaveQuiz} className="btn-pri flex-1">Salva</button></div>
+              </div>
+          </div>
+      )}
+
+      {/* ALTRI MODALI STANDARD (Lezione, Live, Cert) */}
       {isLessonModalOpen && (
           <div className="modal-overlay">
              <div className="modal-content max-w-lg">
                  <h2 className="text-xl font-black mb-4">Aggiungi Lezione</h2>
-                 <input className="input mb-4" placeholder="Titolo" value={lessonForm.title} onChange={e => setLessonForm({...lessonForm, title: e.target.value})} />
+                 <input className="input mb-4" placeholder="Titolo Lezione" value={lessonForm.title} onChange={e => setLessonForm({...lessonForm, title: e.target.value})} />
                  <div className="flex gap-4 mb-4"><button onClick={() => setLessonForm({...lessonForm, video_type: 'youtube'})} className="flex-1 p-2 border rounded-lg text-sm font-bold bg-red-50 text-red-600">YouTube</button><button onClick={() => setLessonForm({...lessonForm, video_type: 'upload'})} className="flex-1 p-2 border rounded-lg text-sm font-bold bg-blue-50 text-blue-600">Upload</button></div>
                  {lessonForm.video_type === 'youtube' ? <input className="input mb-4" placeholder="Link YouTube" value={lessonForm.video_url} onChange={e => setLessonForm({...lessonForm, video_url: e.target.value})} /> : <div className="mb-4 bg-gray-50 p-3 rounded-xl border border-dashed"><input type="file" accept="video/*" onChange={e => setVideoFile(e.target.files?.[0] || null)} /></div>}
                  <div className="flex items-center gap-2 mb-6"><input type="checkbox" checked={privacyAccepted} onChange={e => setPrivacyAccepted(e.target.checked)} /><p className="text-xs">Confermo diritti.</p></div>
@@ -531,33 +573,12 @@ export default function AcademyPage() {
                  <h2 className="text-xl font-black mb-4">Configura Attestato</h2>
                  <input className="input mb-2" value={certForm.title} onChange={e => setCertForm({...certForm, title: e.target.value})} />
                  <input className="input mb-4" value={certForm.signer} onChange={e => setCertForm({...certForm, signer: e.target.value})} />
-                 <button onClick={() => {alert("Configurazione salvata!"); setIsCertModalOpen(false)}} className="btn-pri w-full">Salva</button>
+                 <button onClick={handleSaveCert} className="btn-pri w-full">Salva</button>
                  <button onClick={() => setIsCertModalOpen(false)} className="btn-sec w-full mt-2">Chiudi</button>
              </div>
           </div>
       )}
 
-      {isQuizModalOpen && (
-          <div className="modal-overlay">
-              <div className="modal-content max-w-2xl">
-                  <h2 className="text-xl font-black mb-4">Quiz Builder</h2>
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                      <input className="input" placeholder="Titolo" value={quizForm.title} onChange={e=>setQuizForm({...quizForm, title: e.target.value})}/>
-                      <input type="number" className="input" placeholder="Soglia %" value={quizForm.passing_score} onChange={e=>setQuizForm({...quizForm, passing_score: Number(e.target.value)})}/>
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded-xl mb-4 max-h-40 overflow-y-auto">{questions.map((q,i) => <div key={i} className="text-sm border-b p-2"><b>{i+1}.</b> {q.question_text}</div>)}</div>
-                  <div className="bg-blue-50 p-4 rounded-xl mb-4">
-                      <input className="input mb-2" placeholder="Domanda..." value={newQuestion.text} onChange={e=>setNewQuestion({...newQuestion, text: e.target.value})} />
-                      <div className="grid grid-cols-3 gap-2 mb-2"><input className="input" placeholder="Opz A" value={newQuestion.option1} onChange={e=>setNewQuestion({...newQuestion, option1: e.target.value})}/><input className="input" placeholder="Opz B" value={newQuestion.option2} onChange={e=>setNewQuestion({...newQuestion, option2: e.target.value})}/><input className="input" placeholder="Opz C" value={newQuestion.option3} onChange={e=>setNewQuestion({...newQuestion, option3: e.target.value})}/></div>
-                      <select className="input" value={newQuestion.correct} onChange={e=>setNewQuestion({...newQuestion, correct: Number(e.target.value)})}> <option value={0}>A</option><option value={1}>B</option><option value={2}>C</option></select>
-                      <button onClick={handleAddQuestion} className="btn-sec w-full mt-2">Aggiungi</button>
-                  </div>
-                  <div className="flex gap-2"><button onClick={()=>setIsQuizModalOpen(false)} className="btn-sec flex-1">Chiudi</button><button onClick={handleSaveQuiz} className="btn-pri flex-1">Salva</button></div>
-              </div>
-          </div>
-      )}
-
-      {/* STILI CSS */}
       <style jsx>{`
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px); padding: 1rem; }
         .modal-content { background: white; padding: 2rem; border-radius: 1.5rem; width: 100%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); animation: zoomIn 0.2s ease-out; position: relative; max-height: 90vh; overflow-y: auto; }
