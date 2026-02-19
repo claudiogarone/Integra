@@ -16,6 +16,7 @@ export default function AcademyPage() {
   const [agents, setAgents] = useState<any[]>([]) 
   const [loading, setLoading] = useState(true)
   const [userPlan, setUserPlan] = useState('Base') 
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null) // LOGO AZIENDALE
   const [user, setUser] = useState<any>(null)
   
   // MODALI
@@ -35,7 +36,7 @@ export default function AcademyPage() {
   const [selectedAgents, setSelectedAgents] = useState<string[]>([])
   const [statsFilter, setStatsFilter] = useState('all') 
   
-  // STRUMENTI AULA (Lavagna e Note)
+  // STRUMENTI AULA
   const [notesContent, setNotesContent] = useState('')
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
@@ -66,8 +67,12 @@ export default function AcademyPage() {
     if(!user) return;
     setUser(user)
     
-    const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
-    if(profile) setUserPlan(profile.plan || 'Base')
+    // FETCH PROFILO (Ora prende anche il LOGO_URL)
+    const { data: profile } = await supabase.from('profiles').select('plan, logo_url').eq('id', user.id).single()
+    if(profile) {
+        setUserPlan(profile.plan || 'Base')
+        setCompanyLogo(profile.logo_url) // Salva il logo per l'attestato
+    }
 
     const { data: coursesData } = await supabase.from('courses').select('*, lessons(*), quizzes(*), course_progress(*)').order('created_at', {ascending: false})
     if(coursesData) setCourses(coursesData)
@@ -81,7 +86,7 @@ export default function AcademyPage() {
     setLoading(false)
   }
 
-  // --- UPLOAD FUNZIONE ---
+  // --- UPLOAD ---
   const handleUpload = async (file: File, folder: string, maxSizeMB: number) => {
       if (file.size > maxSizeMB * 1024 * 1024) { alert(`⚠️ File troppo grande! Max ${maxSizeMB}MB.`); return null; }
       setUploading(true)
@@ -109,7 +114,7 @@ export default function AcademyPage() {
           }
       }) || []
 
-      if(dataToExport.length === 0) return alert("Nessun dato da esportare.");
+      if(dataToExport.length === 0) return alert("Nessun dato.");
       
       const headers = Object.keys(dataToExport[0]).join(",")
       const rows = dataToExport.map((row:any) => Object.values(row).join(",")).join("\n")
@@ -175,14 +180,16 @@ export default function AcademyPage() {
       if(!activeLive && userPlan === 'Base' && liveEvents.length >= LIMITS.live) return alert("Limite Live Raggiunto.");
       
       let eventId = activeLive?.id
+      let liveData = null
+
       if(activeLive) {
            await supabase.from('live_events').update(liveForm).eq('id', activeLive.id)
+           eventId = activeLive.id
       } else {
           const { data } = await supabase.from('live_events').insert({ user_id: user.id, ...liveForm }).select().single()
-          if(data) eventId = data.id
+          if(data) { eventId = data.id; liveData = data; }
       }
 
-      // Sync Agenda (Controlla che start_time e end_time siano supportati dal DB)
       if(eventId) {
           const endTime = new Date(new Date(liveForm.start_time).getTime() + 60*60000).toISOString()
           await supabase.from('appointments').insert({
@@ -233,14 +240,14 @@ export default function AcademyPage() {
       alert("Template Attestato Salvato!"); setIsCertModalOpen(false); fetchData();
   }
 
-  // --- ASSEGNAZIONE AGENTI ---
+  // --- ASSEGNAZIONE & MONITORAGGIO ---
   const handleAssign = async () => {
       if(selectedAgents.length === 0) return alert("Seleziona agenti.");
       const assignments = selectedAgents.map(email => ({
           course_id: activeCourse.id, agent_email: email, progress: 0, status: 'assigned'
       }))
       const { error } = await supabase.from('course_progress').insert(assignments)
-      if(!error) { alert("Corso Assegnato!"); setIsAssignModalOpen(false); fetchData(); setSelectedAgents([]); }
+      if(!error) { alert("Assegnato!"); setIsAssignModalOpen(false); fetchData(); setSelectedAgents([]); }
       else alert("Errore: Possibile che sia già assegnato a questi agenti.")
   }
 
@@ -265,10 +272,9 @@ export default function AcademyPage() {
       })
   }
 
-  // --- STRUMENTI AULA (FIX NOTE) ---
+  // --- STRUMENTI AULA (NOTE E LAVAGNA) ---
   const openTools = async (item: any) => {
       setActiveCourse(item) 
-      // Cerchiamo le note
       const { data } = await supabase.from('course_materials').select('*').eq('course_id', item.id).eq('type', 'notes').single()
       if(data) setNotesContent(data.content || '')
       else setNotesContent('')
@@ -276,23 +282,20 @@ export default function AcademyPage() {
   }
 
   const saveNotes = async () => {
-      // 1. Cerca se esiste già la nota
       const { data: existing } = await supabase.from('course_materials').select('id').eq('course_id', activeCourse.id).eq('type', 'notes').single()
       
       if(existing) {
-          // UPDATE
           const { error } = await supabase.from('course_materials').update({ content: notesContent }).eq('id', existing.id)
           if(!error) alert("Note Aggiornate!")
           else alert("Errore: " + error.message)
       } else {
-          // INSERT
           const { error } = await supabase.from('course_materials').insert({ course_id: activeCourse.id, type: 'notes', content: notesContent })
           if(!error) alert("Note Create!")
           else alert("Errore: " + error.message)
       }
   }
   
-  // Canvas Logic (Lavagna)
+  // Canvas Logic
   const startDrawing = (e: any) => { const ctx = canvasRef.current?.getContext('2d'); if(ctx) { ctx.beginPath(); ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); setIsDrawing(true); }}
   const draw = (e: any) => { if(!isDrawing) return; const ctx = canvasRef.current?.getContext('2d'); if(ctx) { ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); ctx.stroke(); }}
   const stopDrawing = () => setIsDrawing(false)
@@ -303,8 +306,7 @@ export default function AcademyPage() {
   return (
     <main className="p-8 bg-[#F8FAFC] min-h-screen pb-20 font-sans">
       
-      {/* HEADER E LIMITI */}
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+      <div className="flex justify-between items-center mb-6">
         <div>
            <h1 className="text-3xl font-black text-[#00665E]">Academy & Training</h1>
            <p className="text-gray-500 text-sm">Gestisci corsi, dirette e progressi.</p>
@@ -336,7 +338,6 @@ export default function AcademyPage() {
         <button onClick={() => setActiveTab('live')} className={`pb-3 px-2 text-sm font-bold border-b-2 transition ${activeTab === 'live' ? 'border-[#00665E] text-[#00665E]' : 'border-transparent text-gray-400'}`}>Dirette ({liveEvents.length})</button>
       </div>
 
-      {/* --- LISTA CORSI --- */}
       {activeTab === 'courses' ? (
           <div className="grid grid-cols-1 gap-6">
               {courses.map(course => (
@@ -416,18 +417,18 @@ export default function AcademyPage() {
                                       <XAxis dataKey="name" fontSize={10} />
                                       <YAxis fontSize={10} />
                                       <Tooltip />
-                                      <Bar dataKey="progress" name="Progresso % / Presenza" fill="#00665E" radius={[4, 4, 0, 0]} />
+                                      <Bar dataKey="progress" name="Progresso %" fill="#00665E" radius={[4, 4, 0, 0]} />
                                       <Bar dataKey="quiz" name="Voto Quiz" fill="#F59E0B" radius={[4, 4, 0, 0]} />
                                   </BarChart>
                               </ResponsiveContainer>
                           </div>
                           <table className="w-full text-sm text-left">
-                              <thead className="text-xs text-gray-500 uppercase bg-gray-50"><tr><th className="p-3">Agente</th><th className="p-3">Stato</th><th className="p-3">Dato</th><th className="p-3">Quiz</th></tr></thead>
+                              <thead className="text-xs text-gray-500 uppercase bg-gray-50"><tr><th className="p-3">Agente</th><th className="p-3">Stato</th><th className="p-3">Progresso</th><th className="p-3">Quiz</th></tr></thead>
                               <tbody>
                                   {getChartData().map((d:any, i:number) => (
                                       <tr key={i} className="border-b">
                                           <td className="p-3 font-bold">{d.name}</td>
-                                          <td className="p-3">{d.progress >= 100 ? '✅ OK' : '🟡 In Corso'}</td>
+                                          <td className="p-3">{d.progress >= 100 ? '✅ Completato' : '🟡 In Corso'}</td>
                                           <td className="p-3"><div className="w-20 bg-gray-200 h-1.5 rounded-full"><div className="bg-[#00665E] h-1.5 rounded-full" style={{width:`${d.progress}%`}}></div></div></td>
                                           <td className="p-3 font-mono">{d.quiz || '-'}</td>
                                       </tr>
@@ -440,7 +441,7 @@ export default function AcademyPage() {
           </div>
       )}
 
-      {/* 2. CREA/EDIT CORSO (CON ANTEPRIMA) */}
+      {/* 2. CREA/EDIT CORSO (CON ANTEPRIMA LEZIONI/QUIZ) */}
       {isCourseModalOpen && (
           <div className="modal-overlay">
              <div className="modal-content max-w-lg">
@@ -553,7 +554,7 @@ export default function AcademyPage() {
           </div>
       )}
 
-      {/* 6. ATTESTATO "PREMIUM" */}
+      {/* 6. ATTESTATO "PREMIUM" (CON LOGO) */}
       {isCertModalOpen && (
           <div className="modal-overlay">
              <div className="modal-content max-w-2xl bg-slate-50">
@@ -563,7 +564,7 @@ export default function AcademyPage() {
                      <div className="space-y-4">
                          <div><label className="label">Intestazione</label><input className="input" value={certForm.title} onChange={e => setCertForm({...certForm, title: e.target.value})} /></div>
                          <div><label className="label">Firma (Nome/Azienda)</label><input className="input" value={certForm.signer} onChange={e => setCertForm({...certForm, signer: e.target.value})} /></div>
-                         <div className="flex items-center gap-2"><input type="checkbox" checked={certForm.logo_show} onChange={e => setCertForm({...certForm, logo_show: e.target.checked})}/> <span className="text-sm">Mostra Logo</span></div>
+                         <div className="flex items-center gap-2"><input type="checkbox" checked={certForm.logo_show} onChange={e => setCertForm({...certForm, logo_show: e.target.checked})}/> <span className="text-sm">Mostra Logo Aziendale</span></div>
                          <button onClick={handleSaveCert} className="btn-pri w-full mt-4">Salva Template</button>
                          <button onClick={() => setIsCertModalOpen(false)} className="btn-sec w-full mt-2">Chiudi</button>
                      </div>
@@ -571,12 +572,22 @@ export default function AcademyPage() {
                      {/* ANTEPRIMA VISIVA ATTESTATO */}
                      <div className="bg-white border-8 border-double border-gray-300 p-8 text-center shadow-lg relative flex flex-col justify-center items-center h-full min-h-[300px]">
                          <div className="absolute top-4 left-4 text-3xl opacity-20">📜</div>
-                         {certForm.logo_show && <div className="w-12 h-12 bg-gray-100 rounded-full mb-4 mx-auto border flex items-center justify-center text-xs">LOGO</div>}
-                         <h3 className="font-serif text-2xl font-black text-gray-800 tracking-widest">{certForm.title}</h3>
+                         
+                         {/* MOSTRA LOGO AZIENDA REALE SE ESISTE E SE SPUNTATO */}
+                         {certForm.logo_show && (
+                             companyLogo ? (
+                                 // eslint-disable-next-line @next/next/no-img-element
+                                 <img src={companyLogo} alt="Logo" className="h-16 object-contain mb-4 mx-auto" />
+                             ) : (
+                                 <div className="w-12 h-12 bg-gray-100 rounded-full mb-4 mx-auto border flex items-center justify-center text-xs">LOGO</div>
+                             )
+                         )}
+
+                         <h3 className="font-serif text-2xl font-black text-gray-800 tracking-widest leading-tight">{certForm.title}</h3>
                          <p className="text-xs text-gray-500 mt-4 italic">Si certifica che</p>
                          <p className="font-bold text-lg border-b border-gray-300 pb-1 px-4 mt-2">[ NOME DELL'AGENTE ]</p>
                          <p className="text-xs text-gray-500 mt-2">ha completato con successo il corso:</p>
-                         <p className="font-bold text-[#00665E] mt-1">{activeCourse?.title}</p>
+                         <p className="font-bold text-[#00665E] mt-1">{activeCourse?.title || "Nome Corso"}</p>
                          
                          <div className="mt-8 border-t border-gray-300 pt-2 w-32 mx-auto">
                              <p className="font-cursive text-xl text-gray-700">{certForm.signer}</p>
