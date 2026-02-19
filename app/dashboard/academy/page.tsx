@@ -35,7 +35,7 @@ export default function AcademyPage() {
   const [selectedAgents, setSelectedAgents] = useState<string[]>([])
   const [statsFilter, setStatsFilter] = useState('all') 
   
-  // STRUMENTI AULA
+  // STRUMENTI AULA (Lavagna e Note)
   const [notesContent, setNotesContent] = useState('')
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
@@ -81,7 +81,7 @@ export default function AcademyPage() {
     setLoading(false)
   }
 
-  // --- UPLOAD ---
+  // --- UPLOAD FUNZIONE ---
   const handleUpload = async (file: File, folder: string, maxSizeMB: number) => {
       if (file.size > maxSizeMB * 1024 * 1024) { alert(`⚠️ File troppo grande! Max ${maxSizeMB}MB.`); return null; }
       setUploading(true)
@@ -109,7 +109,7 @@ export default function AcademyPage() {
           }
       }) || []
 
-      if(dataToExport.length === 0) return alert("Nessun dato.");
+      if(dataToExport.length === 0) return alert("Nessun dato da esportare.");
       
       const headers = Object.keys(dataToExport[0]).join(",")
       const rows = dataToExport.map((row:any) => Object.values(row).join(",")).join("\n")
@@ -155,13 +155,13 @@ export default function AcademyPage() {
       await supabase.from(table).delete().eq('id', id)
       fetchData()
       if(table === 'quiz_questions') {
-          setQuestions(questions.filter((_, i) => i !== id)) // Aggiorna solo stato locale per domande non salvate
+          setQuestions(questions.filter((_, i) => i !== id))
       }
   }
 
   // --- CRUD LEZIONI ---
   const handleSaveLesson = async () => {
-      if(!privacyAccepted) return alert("Conferma privacy.");
+      if(!privacyAccepted) return alert("Devi accettare la privacy sui contenuti.");
       let finalUrl = lessonForm.video_url
       if (lessonForm.video_type === 'upload' && videoFile) {
           const url = await handleUpload(videoFile, 'video', 100); if(!url) return; finalUrl = url;
@@ -175,19 +175,16 @@ export default function AcademyPage() {
       if(!activeLive && userPlan === 'Base' && liveEvents.length >= LIMITS.live) return alert("Limite Live Raggiunto.");
       
       let eventId = activeLive?.id
-      let liveData = null
-
       if(activeLive) {
            await supabase.from('live_events').update(liveForm).eq('id', activeLive.id)
-           eventId = activeLive.id
       } else {
           const { data } = await supabase.from('live_events').insert({ user_id: user.id, ...liveForm }).select().single()
-          if(data) { eventId = data.id; liveData = data; }
+          if(data) eventId = data.id
       }
 
+      // Sync Agenda (Controlla che start_time e end_time siano supportati dal DB)
       if(eventId) {
           const endTime = new Date(new Date(liveForm.start_time).getTime() + 60*60000).toISOString()
-          // Controlla se esiste già in agenda per evitare duplicati (opzionale: ricerca per titolo/data)
           await supabase.from('appointments').insert({
               user_id: user.id,
               title: `🎥 LIVE: ${liveForm.title}`, 
@@ -200,7 +197,7 @@ export default function AcademyPage() {
       fetchData(); setIsLiveModalOpen(false); alert("Evento salvato e aggiunto in Agenda!")
   }
 
-  // --- QUIZ MANAGER (FIXED: VEDI E CANCELLI) ---
+  // --- QUIZ MANAGER ---
   const handleSaveQuiz = async () => {
       const { data: quizData } = await supabase.from('quizzes').insert({ 
           course_id: activeCourse.id, title: quizForm.title, passing_score: quizForm.passing_score 
@@ -215,15 +212,19 @@ export default function AcademyPage() {
   }
 
   const handleAddQuestion = () => {
-      if(!newQuestion.text) return alert("Domanda vuota");
+      if(!newQuestion.text || !newQuestion.option1) return alert("Inserisci domanda e opzioni");
       setQuestions([...questions, { question_text: newQuestion.text, options: [newQuestion.option1, newQuestion.option2, newQuestion.option3].filter(o=>o), correct_option_index: Number(newQuestion.correct) }])
       setNewQuestion({ text: '', option1: '', option2: '', option3: '', correct: 0 })
   }
 
-  // --- ATTESTATO (FIXED: RICARICA DATI) ---
+  // --- ATTESTATO "PREMIUM" ---
   const openCertModal = (course: any) => {
       setActiveCourse(course)
-      if(course.certificate_template) setCertForm(course.certificate_template) // Carica salvataggio
+      if(course.certificate_template) {
+          setCertForm(course.certificate_template)
+      } else {
+          setCertForm({ title: 'Attestato di Eccellenza', signer: 'La Direzione', logo_show: true })
+      }
       setIsCertModalOpen(true)
   }
   
@@ -232,27 +233,26 @@ export default function AcademyPage() {
       alert("Template Attestato Salvato!"); setIsCertModalOpen(false); fetchData();
   }
 
-  // --- ASSEGNAZIONE & MONITORAGGIO ---
+  // --- ASSEGNAZIONE AGENTI ---
   const handleAssign = async () => {
       if(selectedAgents.length === 0) return alert("Seleziona agenti.");
       const assignments = selectedAgents.map(email => ({
           course_id: activeCourse.id, agent_email: email, progress: 0, status: 'assigned'
       }))
       const { error } = await supabase.from('course_progress').insert(assignments)
-      if(!error) { alert("Assegnato!"); setIsAssignModalOpen(false); fetchData(); setSelectedAgents([]); }
-      else alert("Errore: " + error.message)
+      if(!error) { alert("Corso Assegnato!"); setIsAssignModalOpen(false); fetchData(); setSelectedAgents([]); }
+      else alert("Errore: Possibile che sia già assegnato a questi agenti.")
   }
 
   const handleSaveAttendance = async () => {
       const attendance = selectedAgents.map(email => ({
-          live_event_id: activeLive.id, agent_email: email, present: true, notes: 'Confermato da Admin'
+          live_event_id: activeLive.id, agent_email: email, present: true, notes: 'Presente confermato'
       }))
       await supabase.from('live_attendance').insert(attendance)
       alert("Presenze registrate!"); setIsAttendanceModalOpen(false); setSelectedAgents([]);
   }
 
   const getChartData = () => {
-      // Supporta sia corsi che live
       const data = activeTab === 'courses' ? activeCourse?.course_progress : activeLive?.live_attendance;
       if(!data) return [];
       
@@ -265,22 +265,34 @@ export default function AcademyPage() {
       })
   }
 
-  // --- STRUMENTI AULA (FIXED: SAVE ID) ---
+  // --- STRUMENTI AULA (FIX NOTE) ---
   const openTools = async (item: any) => {
-      setActiveCourse(item) // Può essere course o live
-      // Cerca note per QUESTO ID
-      const { data } = await supabase.from('course_materials').select('content').eq('course_id', item.id).eq('type', 'notes').single()
-      setNotesContent(data?.content || '')
+      setActiveCourse(item) 
+      // Cerchiamo le note
+      const { data } = await supabase.from('course_materials').select('*').eq('course_id', item.id).eq('type', 'notes').single()
+      if(data) setNotesContent(data.content || '')
+      else setNotesContent('')
       setIsToolsModalOpen(true)
   }
+
   const saveNotes = async () => {
-      // Upsert basato su course_id (usiamo course_id anche per live events per semplicità, oppure aggiungi colonna live_event_id)
-      // Per ora usiamo course_id come "resource_id" generico
-      const { error } = await supabase.from('course_materials').upsert({ course_id: activeCourse.id, type: 'notes', content: notesContent }, { onConflict: 'course_id, type' })
-      if(!error) alert("Note salvate nel database!")
-      else alert("Errore salvataggio note: " + error.message)
+      // 1. Cerca se esiste già la nota
+      const { data: existing } = await supabase.from('course_materials').select('id').eq('course_id', activeCourse.id).eq('type', 'notes').single()
+      
+      if(existing) {
+          // UPDATE
+          const { error } = await supabase.from('course_materials').update({ content: notesContent }).eq('id', existing.id)
+          if(!error) alert("Note Aggiornate!")
+          else alert("Errore: " + error.message)
+      } else {
+          // INSERT
+          const { error } = await supabase.from('course_materials').insert({ course_id: activeCourse.id, type: 'notes', content: notesContent })
+          if(!error) alert("Note Create!")
+          else alert("Errore: " + error.message)
+      }
   }
   
+  // Canvas Logic (Lavagna)
   const startDrawing = (e: any) => { const ctx = canvasRef.current?.getContext('2d'); if(ctx) { ctx.beginPath(); ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); setIsDrawing(true); }}
   const draw = (e: any) => { if(!isDrawing) return; const ctx = canvasRef.current?.getContext('2d'); if(ctx) { ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); ctx.stroke(); }}
   const stopDrawing = () => setIsDrawing(false)
@@ -291,8 +303,28 @@ export default function AcademyPage() {
   return (
     <main className="p-8 bg-[#F8FAFC] min-h-screen pb-20 font-sans">
       
-      <div className="flex justify-between items-center mb-6">
-        <div><h1 className="text-3xl font-black text-[#00665E]">Academy & Training</h1><p className="text-gray-500 text-sm">Gestisci corsi, dirette e progressi.</p></div>
+      {/* HEADER E LIMITI */}
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <div>
+           <h1 className="text-3xl font-black text-[#00665E]">Academy & Training</h1>
+           <p className="text-gray-500 text-sm">Gestisci corsi, dirette e progressi.</p>
+        </div>
+        
+        {/* INDICATORI PIANO */}
+        <div className="bg-white px-4 py-2 rounded-xl border border-gray-200 shadow-sm flex items-center gap-6 text-xs font-bold">
+            <div className="text-center">
+                <span className="text-gray-400 block mb-1">Corsi Attivi</span>
+                <span className={`px-2 py-1 rounded ${courses.length >= LIMITS.courses ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                    {courses.length} / {LIMITS.courses}
+                </span>
+            </div>
+            <div className="w-[1px] h-8 bg-gray-200"></div>
+            <div className="text-center">
+                <span className="text-gray-400 block mb-1">Piano</span>
+                <span className="text-[#00665E] uppercase">{userPlan}</span>
+            </div>
+        </div>
+
         <div className="flex gap-2">
             <button onClick={() => { setActiveLive(null); setLiveForm({title:'', start_time:'', platform_link:'', description:''}); setIsLiveModalOpen(true) }} className="bg-red-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 text-sm"><Video size={18}/> Crea Live</button>
             <button onClick={() => openCourseModal(null)} className="bg-[#00665E] text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 text-sm shadow-lg"><Plus size={18}/> Nuovo Corso</button>
@@ -304,6 +336,7 @@ export default function AcademyPage() {
         <button onClick={() => setActiveTab('live')} className={`pb-3 px-2 text-sm font-bold border-b-2 transition ${activeTab === 'live' ? 'border-[#00665E] text-[#00665E]' : 'border-transparent text-gray-400'}`}>Dirette ({liveEvents.length})</button>
       </div>
 
+      {/* --- LISTA CORSI --- */}
       {activeTab === 'courses' ? (
           <div className="grid grid-cols-1 gap-6">
               {courses.map(course => (
@@ -383,17 +416,18 @@ export default function AcademyPage() {
                                       <XAxis dataKey="name" fontSize={10} />
                                       <YAxis fontSize={10} />
                                       <Tooltip />
-                                      <Bar dataKey="progress" name="Progresso %" fill="#00665E" radius={[4, 4, 0, 0]} />
+                                      <Bar dataKey="progress" name="Progresso % / Presenza" fill="#00665E" radius={[4, 4, 0, 0]} />
+                                      <Bar dataKey="quiz" name="Voto Quiz" fill="#F59E0B" radius={[4, 4, 0, 0]} />
                                   </BarChart>
                               </ResponsiveContainer>
                           </div>
                           <table className="w-full text-sm text-left">
-                              <thead className="text-xs text-gray-500 uppercase bg-gray-50"><tr><th className="p-3">Agente</th><th className="p-3">Stato</th><th className="p-3">Progresso</th><th className="p-3">Quiz</th></tr></thead>
+                              <thead className="text-xs text-gray-500 uppercase bg-gray-50"><tr><th className="p-3">Agente</th><th className="p-3">Stato</th><th className="p-3">Dato</th><th className="p-3">Quiz</th></tr></thead>
                               <tbody>
                                   {getChartData().map((d:any, i:number) => (
                                       <tr key={i} className="border-b">
                                           <td className="p-3 font-bold">{d.name}</td>
-                                          <td className="p-3">{d.progress >= 100 ? '✅ Completato' : '🟡 In Corso'}</td>
+                                          <td className="p-3">{d.progress >= 100 ? '✅ OK' : '🟡 In Corso'}</td>
                                           <td className="p-3"><div className="w-20 bg-gray-200 h-1.5 rounded-full"><div className="bg-[#00665E] h-1.5 rounded-full" style={{width:`${d.progress}%`}}></div></div></td>
                                           <td className="p-3 font-mono">{d.quiz || '-'}</td>
                                       </tr>
@@ -415,6 +449,7 @@ export default function AcademyPage() {
                     <button onClick={() => setIsCourseModalOpen(false)}><X size={20} className="text-gray-400"/></button>
                  </div>
 
+                 {/* ANTEPRIMA CONTENUTI ESISTENTI */}
                  {activeCourse && (
                      <div className="bg-gray-50 p-4 rounded-xl mb-6 border border-gray-200">
                          <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-2"><Eye size={12}/> Contenuti Caricati</h4>
@@ -426,8 +461,16 @@ export default function AcademyPage() {
                                      <button onClick={() => handleDeleteItem('lessons', l.id)} className="text-red-400 hover:text-red-600"><Trash2 size={10}/></button>
                                  </div>
                              ))}
-                             <div className="text-xs flex justify-between mt-2"><span>📝 Quiz:</span> <b>{activeCourse.quizzes?.length || 0}</b></div>
-                             <div className="text-xs flex justify-between mt-2"><span>📂 Dispensa:</span> <b>{activeCourse.attachment_url ? 'Presente ✅' : 'Assente ❌'}</b></div>
+                             
+                             <div className="text-xs flex justify-between mt-4"><span>📝 Quiz:</span> <b>{activeCourse.quizzes?.length || 0}</b></div>
+                             {activeCourse.quizzes?.map((q:any) => (
+                                 <div key={q.id} className="flex justify-between items-center text-[10px] pl-4 text-gray-500 border-l-2 border-gray-200 ml-1">
+                                     <span>{q.title}</span>
+                                     <button onClick={() => handleDeleteItem('quizzes', q.id)} className="text-red-400 hover:text-red-600"><Trash2 size={10}/></button>
+                                 </div>
+                             ))}
+
+                             <div className="text-xs flex justify-between mt-4 border-t pt-2"><span>📂 Dispensa PDF:</span> <b>{activeCourse.attachment_url ? 'Presente ✅' : 'Assente ❌'}</b></div>
                          </div>
                      </div>
                  )}
@@ -481,7 +524,7 @@ export default function AcademyPage() {
                           <canvas ref={canvasRef} width={400} height={300} className="bg-white rounded-lg shadow-sm border border-gray-200 w-full flex-1 cursor-crosshair" onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}/>
                       </div>
                       <div className="flex flex-col">
-                          <div className="flex justify-between items-center mb-2"><span className="text-xs font-bold uppercase text-gray-500 flex items-center gap-1"><StickyNote size={14}/> Note Condivise</span><button onClick={saveNotes} className="text-xs bg-purple-600 text-white px-3 py-1 rounded">Salva</button></div>
+                          <div className="flex justify-between items-center mb-2"><span className="text-xs font-bold uppercase text-gray-500 flex items-center gap-1"><StickyNote size={14}/> Note Condivise</span><button onClick={saveNotes} className="text-xs bg-purple-600 text-white px-3 py-1 rounded">Salva Note</button></div>
                           <textarea className="w-full flex-1 p-4 border rounded-xl resize-none outline-none focus:border-purple-500 text-sm" placeholder="Appunti del corso..." value={notesContent} onChange={e => setNotesContent(e.target.value)}/>
                       </div>
                   </div>
@@ -496,7 +539,7 @@ export default function AcademyPage() {
                   <h2 className="text-xl font-black mb-2">Registro Presenze</h2>
                   <p className="text-xs text-gray-500 mb-4">{activeLive?.title}</p>
                   <div className="max-h-60 overflow-y-auto space-y-2 mb-4">
-                      {agents.length === 0 && <p className="text-sm text-gray-400">Nessun agente.</p>}
+                      {agents.length === 0 && <p className="text-sm text-gray-400">Nessun agente registrato.</p>}
                       {agents.map(agent => (
                           <label key={agent.id} className="flex items-center gap-3 p-3 border rounded-xl cursor-pointer hover:bg-green-50 transition">
                               <input type="checkbox" className="w-5 h-5 accent-green-600" onChange={e => { if(e.target.checked) setSelectedAgents([...selectedAgents, agent.email]); else setSelectedAgents(selectedAgents.filter(em => em !== agent.email)) }} />
@@ -510,42 +553,47 @@ export default function AcademyPage() {
           </div>
       )}
 
-      {/* 6. QUIZ BUILDER (Con lista modificabile) */}
-      {isQuizModalOpen && (
+      {/* 6. ATTESTATO "PREMIUM" */}
+      {isCertModalOpen && (
           <div className="modal-overlay">
-              <div className="modal-content max-w-2xl">
-                  <h2 className="text-xl font-black mb-4">Quiz Builder</h2>
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                      <input className="input" placeholder="Titolo" value={quizForm.title} onChange={e=>setQuizForm({...quizForm, title: e.target.value})}/>
-                      <input type="number" className="input" placeholder="Soglia %" value={quizForm.passing_score} onChange={e=>setQuizForm({...quizForm, passing_score: Number(e.target.value)})}/>
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded-xl mb-4 max-h-40 overflow-y-auto space-y-2">
-                      {questions.length === 0 && <p className="text-xs text-gray-400">Nessuna domanda.</p>}
-                      {questions.map((q,i) => (
-                          <div key={i} className="text-sm border-b p-2 flex justify-between bg-white rounded border-gray-100">
-                              <span><b>{i+1}.</b> {q.question_text}</span>
-                              <button onClick={() => setQuestions(questions.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-600"><Trash2 size={12}/></button>
-                          </div>
-                      ))}
-                  </div>
-                  <div className="bg-blue-50 p-4 rounded-xl mb-4">
-                      <input className="input mb-2" placeholder="Domanda..." value={newQuestion.text} onChange={e=>setNewQuestion({...newQuestion, text: e.target.value})} />
-                      <div className="grid grid-cols-3 gap-2 mb-2"><input className="input" placeholder="Opz A" value={newQuestion.option1} onChange={e=>setNewQuestion({...newQuestion, option1: e.target.value})}/><input className="input" placeholder="Opz B" value={newQuestion.option2} onChange={e=>setNewQuestion({...newQuestion, option2: e.target.value})}/><input className="input" placeholder="Opz C" value={newQuestion.option3} onChange={e=>setNewQuestion({...newQuestion, option3: e.target.value})}/></div>
-                      <select className="input" value={newQuestion.correct} onChange={e=>setNewQuestion({...newQuestion, correct: Number(e.target.value)})}> <option value={0}>A</option><option value={1}>B</option><option value={2}>C</option></select>
-                      <button onClick={handleAddQuestion} className="btn-sec w-full mt-2">Aggiungi</button>
-                  </div>
-                  <div className="flex gap-2"><button onClick={()=>setIsQuizModalOpen(false)} className="btn-sec flex-1">Chiudi</button><button onClick={handleSaveQuiz} className="btn-pri flex-1">Salva</button></div>
-              </div>
+             <div className="modal-content max-w-2xl bg-slate-50">
+                 <h2 className="text-xl font-black mb-4 flex items-center gap-2"><Award className="text-yellow-500"/> Designer Attestato</h2>
+                 
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                     <div className="space-y-4">
+                         <div><label className="label">Intestazione</label><input className="input" value={certForm.title} onChange={e => setCertForm({...certForm, title: e.target.value})} /></div>
+                         <div><label className="label">Firma (Nome/Azienda)</label><input className="input" value={certForm.signer} onChange={e => setCertForm({...certForm, signer: e.target.value})} /></div>
+                         <div className="flex items-center gap-2"><input type="checkbox" checked={certForm.logo_show} onChange={e => setCertForm({...certForm, logo_show: e.target.checked})}/> <span className="text-sm">Mostra Logo</span></div>
+                         <button onClick={handleSaveCert} className="btn-pri w-full mt-4">Salva Template</button>
+                         <button onClick={() => setIsCertModalOpen(false)} className="btn-sec w-full mt-2">Chiudi</button>
+                     </div>
+                     
+                     {/* ANTEPRIMA VISIVA ATTESTATO */}
+                     <div className="bg-white border-8 border-double border-gray-300 p-8 text-center shadow-lg relative flex flex-col justify-center items-center h-full min-h-[300px]">
+                         <div className="absolute top-4 left-4 text-3xl opacity-20">📜</div>
+                         {certForm.logo_show && <div className="w-12 h-12 bg-gray-100 rounded-full mb-4 mx-auto border flex items-center justify-center text-xs">LOGO</div>}
+                         <h3 className="font-serif text-2xl font-black text-gray-800 tracking-widest">{certForm.title}</h3>
+                         <p className="text-xs text-gray-500 mt-4 italic">Si certifica che</p>
+                         <p className="font-bold text-lg border-b border-gray-300 pb-1 px-4 mt-2">[ NOME DELL'AGENTE ]</p>
+                         <p className="text-xs text-gray-500 mt-2">ha completato con successo il corso:</p>
+                         <p className="font-bold text-[#00665E] mt-1">{activeCourse?.title}</p>
+                         
+                         <div className="mt-8 border-t border-gray-300 pt-2 w-32 mx-auto">
+                             <p className="font-cursive text-xl text-gray-700">{certForm.signer}</p>
+                         </div>
+                     </div>
+                 </div>
+             </div>
           </div>
       )}
 
-      {/* ALTRI MODALI STANDARD (Lezione, Live, Cert) */}
+      {/* 7. QUIZ E LEZIONI (STANDARD) */}
       {isLessonModalOpen && (
           <div className="modal-overlay">
              <div className="modal-content max-w-lg">
                  <h2 className="text-xl font-black mb-4">Aggiungi Lezione</h2>
                  <input className="input mb-4" placeholder="Titolo Lezione" value={lessonForm.title} onChange={e => setLessonForm({...lessonForm, title: e.target.value})} />
-                 <div className="flex gap-4 mb-4"><button onClick={() => setLessonForm({...lessonForm, video_type: 'youtube'})} className="flex-1 p-2 border rounded-lg text-sm font-bold bg-red-50 text-red-600">YouTube</button><button onClick={() => setLessonForm({...lessonForm, video_type: 'upload'})} className="flex-1 p-2 border rounded-lg text-sm font-bold bg-blue-50 text-blue-600">Upload</button></div>
+                 <div className="flex gap-4 mb-4"><button onClick={() => setLessonForm({...lessonForm, video_type: 'youtube'})} className={`flex-1 p-2 border rounded-lg text-sm font-bold ${lessonForm.video_type === 'youtube' ? 'bg-red-50 text-red-600 border-red-500' : ''}`}>YouTube</button><button onClick={() => setLessonForm({...lessonForm, video_type: 'upload'})} className={`flex-1 p-2 border rounded-lg text-sm font-bold ${lessonForm.video_type === 'upload' ? 'bg-blue-50 text-blue-600 border-blue-500' : ''}`}>Upload</button></div>
                  {lessonForm.video_type === 'youtube' ? <input className="input mb-4" placeholder="Link YouTube" value={lessonForm.video_url} onChange={e => setLessonForm({...lessonForm, video_url: e.target.value})} /> : <div className="mb-4 bg-gray-50 p-3 rounded-xl border border-dashed"><input type="file" accept="video/*" onChange={e => setVideoFile(e.target.files?.[0] || null)} /></div>}
                  <div className="flex items-center gap-2 mb-6"><input type="checkbox" checked={privacyAccepted} onChange={e => setPrivacyAccepted(e.target.checked)} /><p className="text-xs">Confermo diritti.</p></div>
                  <button onClick={handleSaveLesson} disabled={uploading} className="btn-pri w-full">{uploading ? '...' : 'Salva'}</button>
@@ -554,28 +602,22 @@ export default function AcademyPage() {
           </div>
       )}
 
-      {isLiveModalOpen && (
+      {isQuizModalOpen && (
           <div className="modal-overlay">
-             <div className="modal-content max-w-lg">
-                 <h2 className="text-xl font-black mb-4">Configura Diretta</h2>
-                 <input className="input mb-2" placeholder="Titolo" value={liveForm.title} onChange={e => setLiveForm({...liveForm, title: e.target.value})} />
-                 <input type="datetime-local" className="input mb-2" value={liveForm.start_time} onChange={e => setLiveForm({...liveForm, start_time: e.target.value})} />
-                 <input className="input mb-4" placeholder="Link Piattaforma" value={liveForm.platform_link} onChange={e => setLiveForm({...liveForm, platform_link: e.target.value})} />
-                 <button onClick={handleSaveLive} className="btn-pri w-full">Salva e Sincronizza</button>
-                 <button onClick={() => setIsLiveModalOpen(false)} className="btn-sec w-full mt-2">Annulla</button>
-             </div>
-          </div>
-      )}
-
-      {isCertModalOpen && (
-          <div className="modal-overlay">
-             <div className="modal-content max-w-md">
-                 <h2 className="text-xl font-black mb-4">Configura Attestato</h2>
-                 <input className="input mb-2" value={certForm.title} onChange={e => setCertForm({...certForm, title: e.target.value})} />
-                 <input className="input mb-4" value={certForm.signer} onChange={e => setCertForm({...certForm, signer: e.target.value})} />
-                 <button onClick={handleSaveCert} className="btn-pri w-full">Salva</button>
-                 <button onClick={() => setIsCertModalOpen(false)} className="btn-sec w-full mt-2">Chiudi</button>
-             </div>
+              <div className="modal-content max-w-2xl">
+                  <h2 className="text-xl font-black mb-4">Quiz Builder</h2>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                      <input className="input" placeholder="Titolo" value={quizForm.title} onChange={e=>setQuizForm({...quizForm, title: e.target.value})}/>
+                      <input type="number" className="input" placeholder="Soglia %" value={quizForm.passing_score} onChange={e=>setQuizForm({...quizForm, passing_score: Number(e.target.value)})}/>
+                  </div>
+                  <div className="bg-blue-50 p-4 rounded-xl mb-4">
+                      <input className="input mb-2" placeholder="Nuova Domanda..." value={newQuestion.text} onChange={e=>setNewQuestion({...newQuestion, text: e.target.value})} />
+                      <div className="grid grid-cols-3 gap-2 mb-2"><input className="input" placeholder="Opz A" value={newQuestion.option1} onChange={e=>setNewQuestion({...newQuestion, option1: e.target.value})}/><input className="input" placeholder="Opz B" value={newQuestion.option2} onChange={e=>setNewQuestion({...newQuestion, option2: e.target.value})}/><input className="input" placeholder="Opz C" value={newQuestion.option3} onChange={e=>setNewQuestion({...newQuestion, option3: e.target.value})}/></div>
+                      <select className="input" value={newQuestion.correct} onChange={e=>setNewQuestion({...newQuestion, correct: Number(e.target.value)})}> <option value={0}>A è Corretta</option><option value={1}>B è Corretta</option><option value={2}>C è Corretta</option></select>
+                      <button onClick={handleAddQuestion} className="btn-sec w-full mt-2">Aggiungi in coda</button>
+                  </div>
+                  <div className="flex gap-2"><button onClick={()=>setIsQuizModalOpen(false)} className="btn-sec flex-1">Chiudi</button><button onClick={handleSaveQuiz} className="btn-pri flex-1">Salva tutto</button></div>
+              </div>
           </div>
       )}
 
