@@ -5,7 +5,7 @@ import { useEffect, useState, useRef } from 'react'
 import { 
   Play, Plus, Video, FileText, Monitor, BookOpen, PenTool, 
   Users, Award, Edit, BarChart3, CheckSquare, Eye, X, 
-  Trash2, Download, Palette, StickyNote
+  Trash2, Download, Save, Palette, StickyNote, Filter, UploadCloud
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
@@ -16,7 +16,7 @@ export default function AcademyPage() {
   const [agents, setAgents] = useState<any[]>([]) 
   const [loading, setLoading] = useState(true)
   const [userPlan, setUserPlan] = useState('Base') 
-  const [companyLogo, setCompanyLogo] = useState<string | null>(null)
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null) // LOGO AZIENDALE
   const [user, setUser] = useState<any>(null)
   
   // MODALI
@@ -45,7 +45,7 @@ export default function AcademyPage() {
   const [courseForm, setCourseForm] = useState({ title: '', description: '', category: 'Generale', thumbnail_url: '', attachment_url: '', is_mandatory: false, deadline: '' })
   const [lessonForm, setLessonForm] = useState({ title: '', video_type: 'youtube', video_url: '', notes: '' })
   const [liveForm, setLiveForm] = useState({ title: '', start_time: '', platform_link: '', description: '' })
-  const [certForm, setCertForm] = useState({ title: 'Attestato di Partecipazione', signer: 'La Direzione', logo_show: true })
+  const [certForm, setCertForm] = useState({ title: 'Attestato di Eccellenza', signer: 'La Direzione', logo_show: true })
   
   // QUIZ
   const [quizForm, setQuizForm] = useState({ title: 'Test Finale', passing_score: 70 })
@@ -67,11 +67,11 @@ export default function AcademyPage() {
     if(!user) return;
     setUser(user)
     
-    // FETCH PROFILO (Per il LOGO)
-    const { data: profile } = await supabase.from('profiles').select('plan, logo_url').eq('id', user.id).single()
+    // FETCH PROFILO (Per il LOGO) - Cambiato in getPublicUrl per sicurezza
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
     if(profile) {
         setUserPlan(profile.plan || 'Base')
-        setCompanyLogo(profile.logo_url)
+        if (profile.logo_url) setCompanyLogo(profile.logo_url)
     }
 
     const { data: coursesData } = await supabase.from('courses').select('*, lessons(*), quizzes(*), course_progress(*)').order('created_at', {ascending: false})
@@ -175,11 +175,11 @@ export default function AcademyPage() {
       fetchData(); setIsLessonModalOpen(false)
   }
 
-  // --- LIVE & AGENDA SYNC (FIXED: Date Format) ---
+  // --- LIVE & AGENDA SYNC ---
   const openLiveModal = (event?: any) => {
       if (event) {
           setActiveLive(event)
-          // Il formato datetime-local vuole YYYY-MM-DDThh:mm
+          // Imposta data per l'input datetime-local (YYYY-MM-DDThh:mm)
           const formattedDate = new Date(event.start_time).toISOString().slice(0, 16);
           setLiveForm({ title: event.title, start_time: formattedDate, platform_link: event.platform_link, description: event.description || '' })
       } else {
@@ -191,6 +191,7 @@ export default function AcademyPage() {
 
   const handleSaveLive = async () => {
       if(!liveForm.title || !liveForm.start_time) return alert("Titolo e Data sono obbligatori");
+      if(!activeLive && userPlan === 'Base' && liveEvents.length >= LIMITS.live) return alert("Limite Live Raggiunto.");
       
       let eventId = activeLive?.id
 
@@ -201,7 +202,7 @@ export default function AcademyPage() {
           if(data) eventId = data.id
       }
 
-      // SALVA IN AGENDA VERAMENTE
+      // SALVA IN AGENDA (Assicurati che la tabella appointments esista e abbia start_time)
       if(eventId) {
           const endTime = new Date(new Date(liveForm.start_time).getTime() + 60*60000).toISOString()
           await supabase.from('appointments').insert({
@@ -236,10 +237,9 @@ export default function AcademyPage() {
       setNewQuestion({ text: '', option1: '', option2: '', option3: '', correct: 0 })
   }
 
-  // --- ATTESTATO PREMIUM (Ripristinato) ---
+  // --- ATTESTATO "PREMIUM" ---
   const openCertModal = (item: any) => {
-      // Funziona sia per Corsi che per Live
-      setActiveCourse(item)
+      setActiveCourse(item) // Può essere sia corso che Live
       if(item.certificate_template) {
           setCertForm(item.certificate_template)
       } else {
@@ -249,16 +249,14 @@ export default function AcademyPage() {
   }
   
   const handleSaveCert = async () => {
-      // Determina se stiamo salvando per un corso o una live
       const table = activeTab === 'courses' ? 'courses' : 'live_events'
       await supabase.from(table).update({ certificate_template: certForm }).eq('id', activeCourse.id)
       alert("Template Attestato Salvato!"); setIsCertModalOpen(false); fetchData();
   }
 
-  // --- ASSEGNAZIONE AGENTI ---
+  // --- ASSEGNAZIONE & REGISTRO ---
   const handleAssign = async () => {
       if(selectedAgents.length === 0) return alert("Seleziona agenti.");
-      // Qui selectedAgents è un array di email
       const assignments = selectedAgents.map(email => ({
           course_id: activeCourse.id, agent_email: email, progress: 0, status: 'assigned'
       }))
@@ -267,17 +265,14 @@ export default function AcademyPage() {
       else alert("Errore: Possibile che sia già assegnato.")
   }
 
-  // --- REGISTRO PRESENZE LIVE (Avanzato) ---
   const apriRegistro = (event: any) => {
       setActiveLive(event)
-      // Carica i dati di default (tutti assenti)
       const defaultState = agents.map(a => ({ email: a.email, name: a.name, present: false, notes: '' }))
       setSelectedAgents(defaultState)
       setIsAttendanceModalOpen(true)
   }
 
   const handleSaveAttendance = async () => {
-      // selectedAgents qui è un array di oggetti con i dati avanzati
       const attendance = selectedAgents.filter(a => a.present).map(a => ({
           live_event_id: activeLive.id, agent_email: a.email, present: true, notes: a.notes || 'Presente'
       }))
@@ -304,7 +299,6 @@ export default function AcademyPage() {
 
   // --- STRUMENTI AULA (NOTE E LAVAGNA) FIXED ---
   const openTools = async (item: any) => {
-      // Funziona per Corsi e Live
       setActiveCourse(item) 
       const { data } = await supabase.from('course_materials').select('*').eq('course_id', item.id).eq('type', 'shared_note').single()
       if(data) setNotesContent(data.content || '')
@@ -313,13 +307,13 @@ export default function AcademyPage() {
   }
 
   const saveNotes = async () => {
-      // Usiamo type = 'shared_note' per evitare errori di constraint
+      // Fixato: Usiamo upsert e assicurati che non ci siano vincoli FK stretti lato DB.
       const { error } = await supabase.from('course_materials').upsert(
           { course_id: activeCourse.id, type: 'shared_note', content: notesContent }, 
           { onConflict: 'course_id, type' }
       )
-      if(!error) alert("Note Salvate con Successo!")
-      else alert("Errore: " + error.message)
+      if(!error) alert("Note Salvate!")
+      else alert("Errore: Esegui prima lo script SQL per aggiornare i vincoli del DB.")
   }
   
   // Canvas Logic
@@ -339,7 +333,7 @@ export default function AcademyPage() {
            <p className="text-gray-500 text-sm">Gestisci corsi, dirette e progressi.</p>
         </div>
         
-        {/* INDICATORI LIMITI (Richiesti) */}
+        {/* INDICATORI LIMITI */}
         <div className="bg-white px-5 py-2.5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-6 text-xs font-bold mr-4">
             <div className="text-center">
                 <span className="text-gray-400 block mb-1 uppercase text-[10px]">Corsi Usati</span>
@@ -376,8 +370,11 @@ export default function AcademyPage() {
                       </div>
                       <div className="p-6 flex-1 flex flex-col">
                           <div className="flex justify-between items-start">
-                             <h3 className="font-bold text-xl text-gray-900">{course.title}</h3>
-                             <span className="text-xs bg-gray-100 px-2 py-1 rounded font-bold text-gray-600">{course.lessons?.length} Lez.</span>
+                             <div>
+                                <h3 className="font-bold text-xl text-gray-900">{course.title}</h3>
+                                {course.is_mandatory && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded font-bold uppercase mt-1 inline-block">Obbligatorio</span>}
+                             </div>
+                             <div className="text-right"><span className="text-xs bg-gray-100 px-2 py-1 rounded font-bold text-gray-600">{course.lessons?.length} Lez.</span></div>
                           </div>
                           <p className="text-sm text-gray-500 mt-2 mb-4 line-clamp-2">{course.description}</p>
                           <div className="flex flex-wrap gap-2 mt-auto pt-4 border-t border-gray-50">
@@ -435,7 +432,7 @@ export default function AcademyPage() {
                   </div>
                   
                   {getChartData().length === 0 ? (
-                      <div className="p-10 text-center text-gray-400 bg-gray-50 rounded-xl">Nessun dato registrato.</div>
+                      <div className="p-10 text-center text-gray-400 bg-gray-50 rounded-xl">Nessun dato. Assegna il corso/live agli agenti.</div>
                   ) : (
                       <>
                           <div className="h-64 bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-6">
@@ -445,18 +442,18 @@ export default function AcademyPage() {
                                       <XAxis dataKey="name" fontSize={10} />
                                       <YAxis fontSize={10} />
                                       <Tooltip />
-                                      <Bar dataKey="progress" name="Progresso/Presenza" fill="#00665E" radius={[4, 4, 0, 0]} />
+                                      <Bar dataKey="progress" name="Progresso %" fill="#00665E" radius={[4, 4, 0, 0]} />
                                       <Bar dataKey="quiz" name="Voto Quiz" fill="#F59E0B" radius={[4, 4, 0, 0]} />
                                   </BarChart>
                               </ResponsiveContainer>
                           </div>
                           <table className="w-full text-sm text-left">
-                              <thead className="text-xs text-gray-500 uppercase bg-gray-50"><tr><th className="p-3">Agente</th><th className="p-3">Stato</th><th className="p-3">Dato</th><th className="p-3">Quiz</th></tr></thead>
+                              <thead className="text-xs text-gray-500 uppercase bg-gray-50"><tr><th className="p-3">Agente</th><th className="p-3">Stato</th><th className="p-3">Progresso</th><th className="p-3">Quiz</th></tr></thead>
                               <tbody>
                                   {getChartData().map((d:any, i:number) => (
                                       <tr key={i} className="border-b">
                                           <td className="p-3 font-bold">{d.name}</td>
-                                          <td className="p-3">{d.progress >= 100 ? '✅ Completato' : '🟡 In Corso'}</td>
+                                          <td className="p-3">{d.progress >= 100 ? '✅ Completato/Presente' : '🟡 In Corso'}</td>
                                           <td className="p-3"><div className="w-20 bg-gray-200 h-1.5 rounded-full"><div className="bg-[#00665E] h-1.5 rounded-full" style={{width:`${d.progress}%`}}></div></div></td>
                                           <td className="p-3 font-mono">{d.quiz || '-'}</td>
                                       </tr>
@@ -583,7 +580,7 @@ export default function AcademyPage() {
                                   <span className="font-bold text-sm">{agent.name}</span>
                               </label>
                               {agent.present && (
-                                  <input type="text" placeholder="Note sulla partecipazione..." className="text-xs p-1.5 border rounded outline-none" value={agent.notes} onChange={e => {
+                                  <input type="text" placeholder="Note (es. Ha partecipato attivamente)" className="text-xs p-1.5 border rounded outline-none" value={agent.notes} onChange={e => {
                                       const updated = [...selectedAgents]
                                       updated[index].notes = e.target.value
                                       setSelectedAgents(updated)
@@ -617,21 +614,21 @@ export default function AcademyPage() {
                      <div className="bg-white border-8 border-double border-gray-300 p-8 text-center shadow-lg relative flex flex-col justify-center items-center h-full min-h-[350px]">
                          <div className="absolute top-4 left-4 text-3xl opacity-20">📜</div>
                          
-                         {/* LOGO AZIENDA REALE */}
+                         {/* LOGO AZIENDA REALE DAL PROFILO */}
                          {certForm.logo_show && (
                              companyLogo ? (
                                  // eslint-disable-next-line @next/next/no-img-element
-                                 <img src={companyLogo} alt="Logo Azienda" className="h-16 object-contain mb-4 mx-auto" />
+                                 <img src={companyLogo} alt="Logo" className="h-16 object-contain mb-4 mx-auto" />
                              ) : (
-                                 <div className="w-16 h-16 bg-gray-100 rounded-full mb-4 mx-auto border flex items-center justify-center text-xs text-gray-400">Logo</div>
+                                 <div className="w-16 h-16 bg-gray-100 rounded-full mb-4 mx-auto border flex items-center justify-center text-xs text-gray-400">Nessun Logo</div>
                              )
                          )}
 
                          <h3 className="font-serif text-2xl font-black text-gray-800 tracking-widest leading-tight uppercase">{certForm.title}</h3>
                          <p className="text-xs text-gray-500 mt-6 italic">Si certifica che</p>
                          <p className="font-bold text-xl border-b-2 border-gray-300 pb-1 px-8 mt-2">[ NOME AGENTE ]</p>
-                         <p className="text-xs text-gray-500 mt-4">ha completato con successo il programma formativo:</p>
-                         <p className="font-black text-[#00665E] text-lg mt-1 uppercase">{activeCourse?.title || "Titolo del Corso"}</p>
+                         <p className="text-xs text-gray-500 mt-4">ha completato con successo:</p>
+                         <p className="font-black text-[#00665E] text-lg mt-1 uppercase">{activeCourse?.title || "Titolo Formazione"}</p>
                          
                          <div className="mt-8 pt-2 w-40 mx-auto text-center">
                              <p className="font-cursive text-2xl text-gray-700 leading-none">{certForm.signer}</p>
@@ -644,7 +641,7 @@ export default function AcademyPage() {
           </div>
       )}
 
-      {/* 7. QUIZ E LEZIONI (STANDARD) */}
+      {/* 7. QUIZ E LEZIONI */}
       {isLessonModalOpen && (
           <div className="modal-overlay">
              <div className="modal-content max-w-lg">
@@ -677,7 +674,7 @@ export default function AcademyPage() {
               <div className="modal-content max-w-2xl">
                   <h2 className="text-xl font-black mb-4">Quiz Builder</h2>
                   <div className="grid grid-cols-2 gap-4 mb-4">
-                      <input className="input" placeholder="Titolo Quiz" value={quizForm.title} onChange={e=>setQuizForm({...quizForm, title: e.target.value})}/>
+                      <input className="input" placeholder="Titolo" value={quizForm.title} onChange={e=>setQuizForm({...quizForm, title: e.target.value})}/>
                       <input type="number" className="input" placeholder="Soglia %" value={quizForm.passing_score} onChange={e=>setQuizForm({...quizForm, passing_score: Number(e.target.value)})}/>
                   </div>
                   <div className="bg-gray-50 p-4 rounded-xl mb-4 max-h-40 overflow-y-auto space-y-2">
