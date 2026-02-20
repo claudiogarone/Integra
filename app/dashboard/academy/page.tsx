@@ -456,6 +456,19 @@ export default function AcademyPage() {
                                           <td className="p-3">{d.progress >= 100 ? '✅ Completato/Presente' : '🟡 In Corso'}</td>
                                           <td className="p-3"><div className="w-20 bg-gray-200 h-1.5 rounded-full"><div className="bg-[#00665E] h-1.5 rounded-full" style={{width:`${d.progress}%`}}></div></div></td>
                                           <td className="p-3 font-mono">{d.quiz || '-'}</td>
+                                          <td className="p-3">
+    <button onClick={() => {
+        // Cerca il token corrispondente
+        const progressRecord = activeCourse.course_progress.find((cp:any) => cp.agent_email === d.email);
+        if(progressRecord && progressRecord.access_token) {
+            const link = `${window.location.origin}/learning/${progressRecord.access_token}`;
+            navigator.clipboard.writeText(link);
+            alert("Link copiato! Invialo all'agente.");
+        }
+    }} className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 font-bold border border-blue-200">
+        🔗 Copia Link Accesso
+    </button>
+</td>
                                       </tr>
                                   ))}
                               </tbody>
