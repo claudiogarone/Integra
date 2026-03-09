@@ -5,10 +5,7 @@ const nextConfig: NextConfig = {
     // Ignora errori TypeScript per andare online subito
     ignoreBuildErrors: true,
   },
-  eslint: {
-    // Ignora errori ESLint
-    ignoreDuringBuilds: true,
-  },
+  
 };
 
 export default nextConfig;

@@ -1,76 +1,78 @@
 import { NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
 
-// Inizializza Claude
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+export const dynamic = 'force-dynamic';
 
-export async function POST(req: Request) {
-  try {
-    const { imageBase64 } = await req.json();
+export async function POST(request: Request) {
+    try {
+        const body = await request.json();
+        const { imageBase64 } = body;
 
-    if (!imageBase64) {
-      return NextResponse.json({ error: 'Immagine mancante' }, { status: 400 });
-    }
+        if (!imageBase64) {
+            return NextResponse.json({ error: 'Immagine mancante. Riprova a caricare la foto.' }, { status: 400 });
+        }
 
-    // 1. Pulizia Base64 per Claude
-    // Il frontend manda "data:image/jpeg;base64,/9j/4AAQ..."
-    // Claude vuole solo "/9j/4AAQ..." e il media type "image/jpeg" separati.
-    const matches = imageBase64.match(/^data:((?:image\/(?:png|jpeg|gif|webp)));base64,(.*)$/);
+        const matches = imageBase64.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+        if (!matches || matches.length !== 3) {
+            return NextResponse.json({ error: 'Il formato della foto non è valido.' }, { status: 400 });
+        }
+        
+        const mimeType = matches[1];
+        const base64Data = matches[2];
 
-    if (!matches || matches.length !== 3) {
-      return NextResponse.json({ error: 'Formato immagine non valido' }, { status: 400 });
-    }
+        // ⚠️ ORA LEGGE DAL FILE .env.local IN MODO SICURO
+        // Il replace rimuove eventuali virgolette singole o doppie messe per sbaglio
+        const apiKey = process.env.GEMINI_API_KEY?.replace(/['"]/g, '').trim();
 
-    const mediaType = matches[1] as "image/jpeg" | "image/png" | "image/gif" | "image/webp"; 
-    const data = matches[2];
+        if (!apiKey || apiKey === '') {
+            return NextResponse.json({ error: "Chiave GEMINI_API_KEY non trovata nel file .env.local! Ricorda di riavviare il server." }, { status: 500 });
+        }
 
-    // 2. Chiamata a Claude 3 Haiku (Veloce ed Economico)
-    // Se vuoi più intelligenza usa: "claude-3-5-sonnet-20240620"
-    const msg = await anthropic.messages.create({
-      model: "claude-3-haiku-20240307", 
-      max_tokens: 300,
-      temperature: 0,
-      system: "Sei un assistente esperto di e-commerce. Rispondi SEMPRE e SOLO con un oggetto JSON valido. Non aggiungere saluti o altro testo.",
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: mediaType,
-                data: data,
-              },
+        const prompt = "Sei un copywriter esperto. Analizza questa immagine e restituisci ESATTAMENTE un JSON con: 1) 'name' (nome accattivante), 2) 'description' (breve descrizione persuasiva), 3) 'price' (stima prezzo, solo numero), 4) 'category' (Scegli tra: Elettronica, Abbigliamento, Accessori, Casa, Servizi, Alimentari, Altro).";
+
+        const payload = {
+            contents: [{ 
+                role: "user", 
+                parts: [ 
+                    { text: prompt }, 
+                    { inlineData: { mimeType, data: base64Data } } 
+                ] 
+            }],
+            generationConfig: { responseMimeType: "application/json" }
+        };
+
+        // L'URL ESATTO E FUNZIONANTE
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent`;
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'x-goog-api-key': apiKey // CHIAVE CARICATA DAL .ENV E INSERITA NELL'HEADER
             },
-            {
-              type: "text",
-              text: "Analizza questa immagine prodotto. Restituisci un JSON puro con questi campi: 'name' (nome breve commerciale in italiano), 'description' (descrizione accattivante di 2 frasi in italiano), 'price' (stima un numero realistico, es 49.99), 'category' (Scegli tra: 'Prodotti', 'Servizi'). Esempio output: {\"name\": \"Scarpe\", \"description\": \"...\", \"price\": \"50\", \"category\": \"Prodotti\"}"
-            }
-          ],
-        },
-      ],
-    });
+            body: JSON.stringify(payload),
+            cache: 'no-store' 
+        });
+        
+        const rawText = await res.text();
 
-    // 3. Estrazione e Pulizia JSON
-    // Claude a volte scrive del testo prima del JSON, prendiamo solo il blocco graffe
-    const textResponse = msg.content[0].type === 'text' ? msg.content[0].text : "";
-    
-    // Cerchiamo la prima graffa aperta e l'ultima chiusa per isolare il JSON
-    const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
-    
-    if (!jsonMatch) {
-       throw new Error("Impossibile leggere il JSON da Claude");
+        if (!res.ok) {
+            console.error("GOOGLE RAW ERROR:", rawText);
+            return NextResponse.json({ 
+                error: `RISPOSTA DI GOOGLE (Status ${res.status}): ${rawText}` 
+            }, { status: 400 });
+        }
+
+        const result = JSON.parse(rawText);
+        const textResponse = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        if (!textResponse) {
+            return NextResponse.json({ error: "Google non ha generato nessun testo utile." }, { status: 500 });
+        }
+
+        const cleanJson = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+        return NextResponse.json(JSON.parse(cleanJson), { status: 200 });
+
+    } catch (error: any) {
+        return NextResponse.json({ error: `CRASH INTERNO: ${error.message}` }, { status: 500 });
     }
-
-    const cleanJson = JSON.parse(jsonMatch[0]);
-
-    return NextResponse.json(cleanJson);
-
-  } catch (error: any) {
-    console.error('Errore Claude API:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
 }

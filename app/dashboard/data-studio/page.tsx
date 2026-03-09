@@ -1,0 +1,264 @@
+'use client'
+
+import { createClient } from '../../../utils/supabase/client'
+import { useEffect, useState, useRef } from 'react'
+import { 
+    BrainCircuit, Sparkles, Send, Database, Download, Share2, 
+    Loader2, Bot, User, Infinity 
+} from 'lucide-react'
+import { 
+    BarChart, Bar, AreaChart, Area, XAxis, YAxis, 
+    CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell, PieChart as RechartsPie, Pie
+} from 'recharts'
+
+export default function DataStudioPage() {
+  const [user, setUser] = useState<any>(null)
+  const [currentPlan, setCurrentPlan] = useState('Base')
+  const [loading, setLoading] = useState(true)
+  
+  const [inputQuery, setInputQuery] = useState('')
+  const [isThinking, setIsThinking] = useState(false)
+  const chatEndRef = useRef<HTMLDivElement>(null)
+
+  const supabase = createClient()
+
+  const queryLimits: any = { 'Base': 100, 'Enterprise': 1000, 'Ambassador': 'Illimitate' }
+  const [queriesUsed, setQueriesUsed] = useState(12)
+
+  const initialMessage = { id: 1, role: 'ai', text: "Ciao! Sono la tua AI Business Intelligence. Questa è un'interfaccia di prova. In produzione mi collegherò a Claude per interrogare i tuoi dati reali. Cosa simuliamo oggi?", type: 'text' }
+  const [messages, setMessages] = useState<any[]>([initialMessage])
+
+  useEffect(() => {
+    const getData = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+          setUser(user)
+          const { data: profile } = await supabase.from('profiles').select('plan, company_name').eq('id', user.id).single()
+          if (profile) setCurrentPlan(profile.plan || 'Base')
+      }
+      setLoading(false)
+    }
+    getData()
+  }, [])
+
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, isThinking])
+
+  const mockDataRevenue = [
+      { name: 'Gen', 'Milano': 4000, 'Roma': 2400 },
+      { name: 'Feb', 'Milano': 3000, 'Roma': 1398 },
+      { name: 'Mar', 'Milano': 2000, 'Roma': 9800 },
+      { name: 'Apr', 'Milano': 2780, 'Roma': 3908 },
+  ];
+  const mockDataAgents = [
+      { name: 'Mario Rossi', Vendite: 45 }, { name: 'Giulia Bianchi', Vendite: 38 }, { name: 'Luca Verdi', Vendite: 62 }
+  ];
+  const mockDataProducts = [
+      { name: 'Servizio Base', value: 400 }, { name: 'Premium', value: 300 }, { name: 'Consulenza', value: 300 }
+  ];
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
+  const handleAskAI = async (e?: React.FormEvent, customQuery?: string) => {
+      if (e) e.preventDefault();
+      const query = customQuery || inputQuery;
+      if (!query.trim()) return;
+
+      if (currentPlan !== 'Ambassador' && queriesUsed >= queryLimits[currentPlan]) {
+          return alert(`Hai raggiunto il limite di query AI del piano ${currentPlan}.`)
+      }
+
+      setMessages(prev => [...prev, { id: Date.now(), role: 'user', text: query, type: 'text' }])
+      setInputQuery('')
+      setIsThinking(true)
+
+      setTimeout(() => {
+          let aiResponse: any = { id: Date.now() + 1, role: 'ai', text: "Ho analizzato i dati (Simulazione).", type: 'text' }
+          const q = query.toLowerCase();
+
+          if (q.includes('fatturato') || q.includes('vendite') || q.includes('mesi')) {
+              aiResponse.text = "Ecco l'andamento del fatturato degli ultimi mesi."
+              aiResponse.type = 'chart'; aiResponse.chartType = 'area'; aiResponse.data = mockDataRevenue
+          } else if (q.includes('agenti') || q.includes('team')) {
+              aiResponse.text = "Ecco le performance simulate degli agenti."
+              aiResponse.type = 'chart'; aiResponse.chartType = 'bar'; aiResponse.data = mockDataAgents
+          } else if (q.includes('prodotti')) {
+              aiResponse.text = "Distribuzione delle vendite (Dati Mock)."
+              aiResponse.type = 'chart'; aiResponse.chartType = 'pie'; aiResponse.data = mockDataProducts
+          } else {
+              aiResponse.text = `Al momento sono in modalità simulazione. In produzione userò Claude AI per analizzare "${query}"!`
+          }
+
+          setMessages(prev => [...prev, aiResponse])
+          setQueriesUsed(prev => prev + 1)
+          setIsThinking(false)
+      }, 1500)
+  }
+
+  const renderChart = (msg: any) => {
+      if (msg.chartType === 'area') {
+          return (
+              <div className="h-72 print:h-[350px] w-full mt-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm print:shadow-none print:border-2 print:border-gray-200">
+                  <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={msg.data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}><XAxis dataKey="name"/><YAxis/><CartesianGrid strokeDasharray="3 3"/><Tooltip/><Legend/><Area type="monotone" dataKey="Milano" stroke="#00665E" fill="#00665E" fillOpacity={0.3}/><Area type="monotone" dataKey="Roma" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.3}/></AreaChart>
+                  </ResponsiveContainer>
+              </div>
+          )
+      }
+      if (msg.chartType === 'bar') {
+          return (
+              <div className="h-72 print:h-[350px] w-full mt-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm print:shadow-none print:border-2 print:border-gray-200">
+                  <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={msg.data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}><XAxis dataKey="name"/><YAxis/><CartesianGrid strokeDasharray="3 3"/><Tooltip/><Bar dataKey="Vendite" fill="#00665E" radius={[4, 4, 0, 0]}/></BarChart>
+                  </ResponsiveContainer>
+              </div>
+          )
+      }
+      if (msg.chartType === 'pie') {
+          return (
+              <div className="h-72 print:h-[350px] w-full mt-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-center print:shadow-none print:border-2 print:border-gray-200">
+                  <ResponsiveContainer width="100%" height="100%">
+                      <RechartsPie><Pie data={msg.data} cx="50%" cy="50%" innerRadius={60} outerRadius={90} fill="#8884d8" paddingAngle={5} dataKey="value" label>{msg.data.map((entry: any, index: number) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip/><Legend/></RechartsPie>
+                  </ResponsiveContainer>
+              </div>
+          )
+      }
+      return null;
+  }
+
+  if (loading) return <div className="p-10 text-[#00665E] font-bold animate-pulse">Avvio Motore di Business Intelligence...</div>
+
+  return (
+    <>
+      {/* TRUCCO CSS "VISIBILITY ISOLATION" PER IL PDF:
+        Nasconde tutto il sito web, prende solo il div "chat-export-area" e lo mette a tutto schermo.
+      */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          @page { margin: 15mm; }
+          body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background-color: white !important; }
+          
+          /* 1. Nascondi tutto il sito web */
+          body * { visibility: hidden; }
+          
+          /* 2. Rendi visibile SOLO l'area del report e i suoi figli */
+          #chat-export-area, #chat-export-area * { visibility: visible; }
+          
+          /* 3. Posiziona l'area del report in alto a sinistra a grandezza naturale */
+          #chat-export-area {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            overflow: visible !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
+          }
+
+          /* 4. Nascondi la barra di scrittura (input) perché non serve nel PDF */
+          #chat-input-bar, #chat-input-bar * { display: none !important; }
+          
+          /* Evita che i messaggi o i grafici vengano spezzati a metà pagina */
+          .print-avoid-break { page-break-inside: avoid; break-inside: avoid; }
+        }
+      `}} />
+
+      <main className="flex-1 overflow-hidden bg-[#F8FAFC] text-gray-900 font-sans h-screen flex flex-col pb-20 md:pb-0">
+        
+        {/* HEADER */}
+        <div className="flex-shrink-0 p-8 border-b border-gray-200 bg-white flex justify-between items-center z-10 shadow-sm relative">
+          <div>
+            <h1 className="text-3xl font-black text-[#00665E] flex items-center gap-3"><BrainCircuit size={32}/> AI Data Studio</h1>
+            <p className="text-gray-500 text-sm mt-1">Interroga i tuoi database aziendali parlando in linguaggio naturale.</p>
+          </div>
+          <div className="flex items-center gap-4">
+              <div className="bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg flex flex-col items-end">
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Query AI Mese ({currentPlan})</span>
+                  <span className={`font-bold text-sm ${currentPlan === 'Ambassador' ? 'text-purple-600' : 'text-[#00665E]'}`}>
+                      {currentPlan === 'Ambassador' ? <Infinity size={16}/> : `${queriesUsed} / ${queryLimits[currentPlan]}`}
+                  </span>
+              </div>
+              
+              {/* BOTTONE ESPORTA PDF */}
+              <button onClick={() => window.print()} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-black transition shadow-lg">
+                  <Download size={16}/> Esporta Report PDF
+              </button>
+
+          </div>
+        </div>
+
+        <div className="flex-1 flex overflow-hidden">
+            
+            {/* SIDEBAR (Sparirà in stampa grazie al CSS globale) */}
+            <div className="hidden xl:flex w-80 flex-col bg-gray-50 border-r border-gray-200 p-6 overflow-y-auto">
+                <div className="mb-8">
+                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Database size={14}/> Fonti Dati</h3>
+                    <div className="space-y-2">
+                        <div className="flex justify-between bg-white p-3 rounded-xl shadow-sm text-sm font-bold text-gray-700"><span className="flex items-center gap-2"><div className="w-2 h-2 bg-green-500 rounded-full"></div> CRM Principale</span></div>
+                    </div>
+                </div>
+                <div>
+                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Sparkles size={14}/> Prompts Suggeriti</h3>
+                    <div className="space-y-3">
+                        {["Mostrami l'andamento del fatturato.", "Analisi agenti", "Distribuzione prodotti"].map((prompt, i) => (
+                            <button key={i} onClick={() => handleAskAI(undefined, prompt)} className="w-full text-left p-4 rounded-xl bg-white border border-gray-200 hover:border-[#00665E] hover:shadow-md transition text-sm text-gray-600 font-medium">{prompt}</button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* ===== AREA CHAT: L'UNICA COSA CHE VERRÀ STAMPATA (id="chat-export-area") ===== */}
+            <div id="chat-export-area" className="flex-1 flex flex-col bg-white relative">
+                
+                {/* Intestazione del Documento PDF (Visibile solo in stampa) */}
+                <div className="hidden print:block mb-8 border-b-4 border-[#00665E] pb-6 px-4 mt-4">
+                    <div className="flex items-center gap-3 mb-2">
+                        <BrainCircuit size={40} className="text-[#00665E]"/>
+                        <h1 className="text-4xl font-black text-[#00665E]">IntegraOS Data Studio</h1>
+                    </div>
+                    <p className="text-gray-600 font-bold text-xl">Report Analitico di Business Intelligence</p>
+                    <p className="text-gray-400 text-sm mt-1">Generato automaticamente in data: {new Date().toLocaleDateString('it-IT')}</p>
+                </div>
+
+                {/* Elenco Messaggi */}
+                <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 scroll-smooth" id="chat-container">
+                    {messages.map((msg) => (
+                        <div key={msg.id} className={`flex print-avoid-break ${msg.role === 'user' ? 'justify-end print:justify-start' : 'justify-start'}`}>
+                            
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0 shadow-md ${msg.role === 'user' ? 'bg-gray-200 text-gray-600 ml-4 print:hidden' : 'bg-[#00665E] mr-4'}`}>
+                                {msg.role === 'user' ? <User size={20}/> : <Bot size={20}/>}
+                            </div>
+
+                            <div className={`max-w-[85%] print:max-w-full ${msg.role === 'user' ? 'bg-[#00665E] text-white p-5 rounded-3xl rounded-tr-sm print:bg-gray-100 print:text-gray-900 print:border-l-4 print:border-[#00665E] print:rounded-lg print:w-full' : 'w-full'}`}>
+                                
+                                {msg.role === 'user' ? (
+                                    <p className="text-[15px] font-medium print:font-black print:text-lg">Domanda Analitica: "{msg.text}"</p>
+                                ) : (
+                                    <div className="w-full">
+                                        <div className="bg-gray-50 border border-gray-100 p-5 rounded-3xl rounded-tl-sm shadow-sm print:shadow-none print:bg-white print:border-none print:p-0 print:mb-4">
+                                            <p className="text-[15px] text-gray-800 print:text-gray-900 print:text-lg"><Sparkles size={16} className="inline mr-2 text-amber-500 print:hidden"/>{msg.text}</p>
+                                        </div>
+                                        {msg.type === 'chart' && renderChart(msg)}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                    {isThinking && <div className="flex justify-start print:hidden"><div className="w-10 h-10 rounded-full bg-[#00665E] flex items-center justify-center text-white shrink-0 mr-4 animate-pulse"><Bot size={20}/></div><div className="bg-gray-50 p-5 rounded-3xl text-gray-500 flex items-center gap-3"><Loader2 className="animate-spin text-[#00665E]"/><span>Analisi Dati...</span></div></div>}
+                    <div ref={chatEndRef} className="print:hidden"/>
+                </div>
+
+                {/* BARRA DI INPUT (Sparirà in stampa grazie all'ID "chat-input-bar") */}
+                <div id="chat-input-bar" className="p-6 bg-white border-t border-gray-100">
+                    <form onSubmit={handleAskAI} className="relative max-w-4xl mx-auto">
+                        <input type="text" value={inputQuery} onChange={e => setInputQuery(e.target.value)} placeholder="Chiedi all'AI: es. Mostrami le vendite..." className="w-full border-2 border-gray-200 p-5 pr-16 rounded-2xl outline-none focus:border-[#00665E]" disabled={isThinking} />
+                        <button type="submit" disabled={!inputQuery.trim() || isThinking} className="absolute right-3 top-3 bottom-3 bg-[#00665E] text-white px-4 rounded-xl hover:bg-[#004d46] disabled:opacity-50 transition"><Send size={20}/></button>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+      </main>
+    </>
+  )
+}

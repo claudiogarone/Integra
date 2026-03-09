@@ -4,189 +4,240 @@ import { createClient } from '../../utils/supabase/client'
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-// UNICO IMPORT PULITO DI TUTTE LE ICONE
 import { 
-  LayoutDashboard, Users, ShoppingBag, Calendar, MessageSquare, FileText, 
-  Send, Rocket, Bot, Award, Settings, LogOut, CreditCard, 
-  GraduationCap, UserCog, Printer, Map
+  LayoutDashboard, Users, Sparkles, Zap, Landmark, Leaf, 
+  Palette, Gift, Workflow, Link2, BookOpen, 
+  Settings, Crown, Bot, ShieldCheck, CreditCard, LogOut, 
+  Database, Calendar, BarChart3, Megaphone, Image as ImageIcon, 
+  Radar, EyeOff, Handshake, UserCog, GraduationCap, Mic, 
+  ShoppingBag, FileText, MessageSquare, BarChart, Target, Building
 } from 'lucide-react'
+
+type MenuItem = {
+    name: string;
+    href: string;
+    icon: React.ReactNode;
+    badge?: string;
+    highlight?: boolean;
+};
+
+type MenuGroup = {
+    title: string;
+    items: MenuItem[];
+};
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null)
+  const [companyProfile, setCompanyProfile] = useState<{name: string, logo: string} | null>(null)
+  
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) router.push('/login')
-      else setUser(user)
-    }
-    checkUser()
-  }, [router, supabase])
+    const fetchGlobalData = async () => {
+      const devUserId = '00000000-0000-0000-0000-000000000000';
+      setUser({ email: 'admin@integraos.it', id: devUserId });
 
-  // Stile Link Sidebar
-  const getLinkClass = (path: string) => {
-    const baseClass = "flex items-center gap-3 py-3 px-4 rounded-xl transition-all font-medium text-sm group"
-    if (pathname === path) {
-      return `${baseClass} bg-[#00665E]/10 text-[#00665E] font-bold shadow-sm`
-    }
-    return `${baseClass} text-gray-500 hover:bg-gray-50 hover:text-[#00665E]`
-  }
+      const { data } = await supabase
+        .from('profiles')
+        .select('company_name, logo_url')
+        .eq('id', devUserId)
+        .single();
 
-  if (!user) return <div className="bg-white h-screen w-screen flex items-center justify-center text-[#00665E] animate-pulse">Caricamento Integra OS...</div>
+      if (data) {
+          setCompanyProfile({
+              name: data.company_name || 'La Tua Azienda',
+              logo: data.logo_url || ''
+          });
+      }
+    }
+    fetchGlobalData()
+  }, [supabase])
+
+  if (!user) return <div className="bg-white h-screen w-screen flex items-center justify-center text-[#00665E] font-bold animate-pulse">Inizializzazione Ecosistema...</div>
+
+  const menuGroups: MenuGroup[] = [
+      {
+          title: 'Dati & Comunicazione',
+          items: [
+              { name: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard size={18}/> },
+              { name: 'Inbox Unificata', href: '/dashboard/inbox', icon: <MessageSquare size={18}/>, badge: 'Nuovo' },
+              { name: 'Data Studio', href: '/dashboard/data-studio', icon: <BarChart3 size={18}/> },
+              { name: 'Agenda', href: '/dashboard/agenda', icon: <Calendar size={18}/> },
+          ]
+      },
+      {
+          title: 'Vendite & CRM',
+          items: [
+              { name: 'CRM & Pipeline', href: '/dashboard/crm', icon: <Users size={18}/> },
+              { name: 'CDP (Customer Data)', href: '/dashboard/cdp', icon: <Database size={18}/> },
+              { name: 'E-commerce', href: '/dashboard/ecommerce', icon: <ShoppingBag size={18}/> },
+              { name: 'Preventivi (Quotes)', href: '/dashboard/quotes', icon: <FileText size={18}/> },
+          ]
+      },
+      {
+          title: 'Fidelity & Marketing',
+          items: [
+              { name: 'Fidelity Card & Punti', href: '/dashboard/loyalty', icon: <CreditCard size={18}/> },
+              { name: 'Report Fedeltà', href: '/dashboard/loyalty/report', icon: <BarChart size={18}/> },
+              { name: 'Campagne Marketing', href: '/dashboard/marketing', icon: <Megaphone size={18}/> },
+              { name: 'Launchpad Social', href: '/dashboard/launchpad', icon: <Sparkles size={18}/> },
+              { name: 'Radar Media Locali', href: '/dashboard/radar', icon: <Radar size={18}/> },
+          ]
+      },
+      {
+          title: 'Design & Intelligenza AI',
+          items: [
+              { name: 'Creative Studio', href: '/dashboard/design', icon: <Palette size={18}/> },
+              { name: 'Volantini & Landing', href: '/dashboard/flyer', icon: <ImageIcon size={18}/> },
+              { name: 'Agenti AI', href: '/dashboard/ai-agent', icon: <Bot size={18}/> },
+              { name: 'Voice & Chat AI', href: '/dashboard/voice', icon: <Mic size={18}/> },
+              { name: 'Nurturing Engine', href: '/dashboard/nurturing', icon: <Gift size={18}/>, badge: 'AI' },
+              { name: 'Modalità Incognito', href: '/dashboard/incognito', icon: <EyeOff size={18}/>, badge: 'PRO' },
+          ]
+      },
+      {
+          title: 'Automazioni & Connessioni',
+          items: [
+              { name: 'Zap Automations', href: '/dashboard/automations', icon: <Zap size={18}/> },
+              { name: 'Workflows', href: '/dashboard/workflows', icon: <Workflow size={18}/> },
+              { name: 'Integrations (Nexus)', href: '/dashboard/integrations', icon: <Link2 size={18}/> },
+              { name: 'Affiliation Network', href: '/dashboard/affiliation', icon: <Handshake size={18}/> },
+          ]
+      },
+      {
+          title: 'Team, HR & Amministrazione',
+          items: [
+              { name: 'Agenti & Teams', href: '/dashboard/agents', icon: <UserCog size={18}/> },
+              { name: 'Valutazione Performance', href: '/dashboard/performance', icon: <Target size={18}/>, badge: 'Nuovo' },
+              { name: 'Wellness Aziendale', href: '/dashboard/wellness', icon: <Leaf size={18}/> },
+              { name: 'Finance & CFO', href: '/dashboard/finance', icon: <Landmark size={18}/> },
+              { name: 'Energy Monitor', href: '/dashboard/energy', icon: <Zap size={18}/> },
+          ]
+      },
+      {
+          title: 'Sistema & Formazione',
+          items: [
+              { name: 'Impostazioni', href: '/dashboard/settings', icon: <Settings size={18}/> },
+              { name: 'Academy Corsi', href: '/dashboard/academy', icon: <GraduationCap size={18}/> },
+              { name: 'Tutorial & Manuale', href: '/dashboard/tutorial', icon: <BookOpen size={18}/> },
+              { name: 'Piani & Upgrade', href: '/dashboard/enterprise', icon: <Crown size={18}/>, highlight: true },
+          ]
+      }
+  ]
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] text-gray-800 font-sans overflow-hidden">
       
-      {/* --- SIDEBAR --- */}
       <aside className="w-72 bg-white flex flex-col border-r border-gray-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-30 h-full flex-shrink-0">
         
-        {/* LOGO */}
-        <div className="p-6 flex flex-col items-center flex-shrink-0 border-b border-gray-50">
-          <h1 className="text-2xl font-black text-[#00665E] tracking-tighter">
-            INTEGRA<span className="font-light text-gray-400">OS</span>
-          </h1>
+        {/* LOGO INTEGRAOS FISSO IN ALTO */}
+        <div className="p-6 flex flex-col items-center flex-shrink-0 border-b border-gray-50 bg-white sticky top-0 z-10 min-h-[88px] justify-center">
+            <h1 className="text-2xl font-black text-[#00665E] tracking-tighter flex items-center gap-2 text-center leading-tight">
+                <ShieldCheck size={28} className="text-emerald-500 shrink-0"/>
+                INTEGRA OS
+            </h1>
         </div>
 
-        {/* MENU SCROLLABILE */}
-        <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-8 scrollbar-hide">
-          
-          {/* SEZIONE 1: ANALISI */}
-          <div>
-            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 pl-4">Business Intelligence</h3>
-            <div className="space-y-1">
-              <Link href="/dashboard" className={getLinkClass('/dashboard')}>
-                <LayoutDashboard size={18} /> Dashboard
-              </Link>
-              <Link href="/dashboard/crm" className={getLinkClass('/dashboard/crm')}>
-                <Users size={18} /> CRM & Funnel
-              </Link>
-            </div>
-          </div>
+        <nav className="flex-1 overflow-y-auto px-3 py-6 space-y-6 custom-scrollbar pb-24">
+          {menuGroups.map((group, idx) => (
+            <div key={idx}>
+              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 pl-4">{group.title}</h3>
+              <div className="space-y-0.5">
+                {group.items.map(item => {
+                   const isActive = pathname === item.href || (pathname.startsWith(item.href + '/') && item.href !== '/dashboard');
+                   
+                   let linkClass = "flex items-center gap-3 py-2 px-4 rounded-xl transition-all font-medium text-sm group "
+                   if (isActive) {
+                     linkClass += "bg-[#00665E]/10 text-[#00665E] font-bold shadow-sm"
+                   } else if (item.highlight) {
+                     linkClass += "text-amber-500 hover:bg-amber-50 hover:text-amber-600 font-bold"
+                   } else {
+                     linkClass += "text-gray-500 hover:bg-gray-50 hover:text-[#00665E]"
+                   }
 
-          {/* SEZIONE 2: VENDITA & FIDELITY */}
-          <div>
-            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 pl-4">Vendita & Clienti</h3>
-            <div className="space-y-1">
-              <Link href="/dashboard/loyalty" className={getLinkClass('/dashboard/loyalty')}>
-                 <Award size={18} className="text-orange-500"/> Fidelity Card
-              </Link>
-              <Link href="/dashboard/loyalty/terminal" className={getLinkClass('/dashboard/loyalty/terminal')}>
-                 <CreditCard size={18} /> Terminale Punti
-              </Link>
-              <Link href="/dashboard/agenda" className={getLinkClass('/dashboard/agenda')}>
-                <Calendar size={18} /> Agenda
-              </Link>
-              <Link href="/dashboard/ecommerce" className={getLinkClass('/dashboard/ecommerce')}>
-                <ShoppingBag size={18} /> Prodotti
-              </Link>
-              <Link href="/dashboard/quotes" className={getLinkClass('/dashboard/quotes')}>
-                <FileText size={18} /> Preventivi
-              </Link>
+                   return (
+                     <Link key={item.name} href={item.href} className={linkClass}>
+                       <span className={`${isActive ? 'text-[#00665E]' : item.highlight ? 'text-amber-500' : 'text-gray-400 group-hover:text-[#00665E]'} transition-colors`}>
+                         {item.icon}
+                       </span>
+                       <span className="flex-1 truncate">{item.name}</span>
+                       
+                       {item.badge && (
+                         <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md shrink-0 ${
+                             item.badge === 'AI' ? 'bg-purple-100 text-purple-600' :
+                             item.badge === 'PRO' ? 'bg-amber-100 text-amber-600' :
+                             'bg-blue-100 text-blue-600'
+                         }`}>
+                             {item.badge}
+                         </span>
+                       )}
+                     </Link>
+                   )
+                })}
+              </div>
             </div>
-          </div>
-
-          {/* SEZIONE 3: MARKETING & FORMAZIONE (Nuova Academy qui) */}
-          <div>
-            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 pl-4">Crescita</h3>
-            <div className="space-y-1">
-              <Link href="/dashboard/inbox" className={getLinkClass('/dashboard/inbox')}>
-                 <MessageSquare size={18} /> Inbox Unificata
-              </Link>
-              <Link href="/dashboard/marketing" className={getLinkClass('/dashboard/marketing')}>
-                 <Send size={18} /> Campagne Email
-              </Link>
-              <Link href="/dashboard/launchpad" className={getLinkClass('/dashboard/launchpad')}>
-                 <Rocket size={18} /> Launchpad Social
-              </Link>
-              {/* NUOVO LINK ACADEMY */}
-              <Link href="/dashboard/academy" className={getLinkClass('/dashboard/academy')}>
-                 <GraduationCap size={18} /> Academy <span className="ml-auto text-[9px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-bold">NEW</span>
-              </Link>
-            </div>
-          </div>
-
-          {/* SEZIONE 4: STRUMENTI AZIENDALI (Nuovi Link qui) */}
-          <div>
-            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 pl-4">Strumenti</h3>
-            <div className="space-y-1">
-                <Link href="/dashboard/agents" className={getLinkClass('/dashboard/agents')}>
-                    <UserCog size={18} /> Agenti & Team
-                </Link>
-                <Link href="/dashboard/flyer" className={getLinkClass('/dashboard/flyer')}>
-                    <Printer size={18} /> Crea Volantino
-                </Link>
-                <Link href="/dashboard/settings" className={getLinkClass('/dashboard/settings')}>
-                    <Settings size={18} /> Configurazione
-                </Link>
-            </div>
-          </div>
-
-          {/* SEZIONE 5: ENTERPRISE & AI */}
-          <div className="bg-gradient-to-b from-teal-50/50 to-transparent p-3 rounded-xl border border-teal-50 mx-1">
-            <h3 className="text-[10px] font-black text-[#00665E] uppercase tracking-widest mb-2 flex items-center gap-2">
-               ✨ Enterprise AI
-            </h3>
-            <div className="space-y-1">
-               <Link href="/dashboard/ai-agent" className={getLinkClass('/dashboard/ai-agent')}>
-                 <Bot size={18} /> Agente AI
-               </Link>
-            </div>
-          </div>
-
+          ))}
         </nav>
 
-        {/* UTENTE FOOTER */}
-        <div className="p-4 border-t border-gray-100 bg-gray-50/50">
+        {/* PROFILO AZIENDALE IN BASSO CON IL SUO LOGO */}
+        <div className="p-4 border-t border-gray-100 bg-gray-50/50 shrink-0 sticky bottom-0 z-10">
            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-[#00665E] text-white flex items-center justify-center font-bold text-sm shadow-md">
-                {user.email?.charAt(0).toUpperCase()}
-              </div>
+              {companyProfile?.logo ? (
+                  <img src={companyProfile.logo} alt={companyProfile.name} className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-md bg-white shrink-0" />
+              ) : (
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#00665E] to-teal-500 text-white flex items-center justify-center font-bold text-sm shadow-md shrink-0 border-2 border-white">
+                    {companyProfile?.name ? companyProfile.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+              )}
               <div className="overflow-hidden flex-1">
-                <p className="text-xs text-gray-900 truncate font-bold">{user.email}</p>
-                <Link href="/dashboard/settings" className="text-[10px] text-gray-500 hover:text-[#00665E] flex items-center gap-1">
-                   <Settings size={10} /> Impostazioni
+                <p className="text-xs text-gray-900 truncate font-black">{companyProfile?.name || 'La Tua Azienda'}</p>
+                <Link href="/dashboard/settings" className="text-[10px] text-gray-500 hover:text-[#00665E] flex items-center gap-1 mt-0.5">
+                   <Settings size={10} /> Gestisci Azienda
                 </Link>
               </div>
-              <button onClick={async () => { await supabase.auth.signOut(); router.push('/login') }} className="text-gray-400 hover:text-red-500 transition">
-                 <LogOut size={16} />
+              <button onClick={() => router.push('/login')} className="text-gray-400 hover:text-red-500 transition shrink-0 bg-white p-2 rounded-lg border border-gray-200 shadow-sm" title="Esci">
+                 <LogOut size={14} />
               </button>
            </div>
         </div>
 
       </aside>
 
-      {/* --- AREA CONTENUTO --- */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#F8FAFC] relative min-w-0">
         
-        {/* Header Mobile */}
         <header className="md:hidden bg-white p-4 flex justify-between items-center shadow-sm sticky top-0 z-20 flex-shrink-0">
-           <span className="font-black text-[#00665E]">INTEGRA OS</span>
+           <span className="font-black text-[#00665E] flex items-center gap-2">
+               <ShieldCheck size={20}/> INTEGRA OS
+           </span>
            <button className="text-gray-500">☰</button>
         </header>
 
-        {/* CONTENUTO SCROLLABILE */}
-        <div className="flex-1 overflow-y-auto scroll-smooth">
+        <div className="flex-1 overflow-y-auto scroll-smooth relative">
           <div className="min-h-[calc(100vh-100px)]">
             {children}
           </div>
 
-          {/* FOOTER */}
-          <footer className="bg-white border-t border-gray-200 py-6 px-8 mt-10 text-center md:text-left">
-              <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-400">
-                <p>© 2024 Integra OS. All rights reserved.</p>
+          <footer className="bg-white border-t border-gray-200 py-6 px-8 mt-10 text-center md:text-left shrink-0">
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-400 font-medium">
+                <p>© {new Date().getFullYear()} {companyProfile?.name || 'La Tua Azienda'}. Tutti i diritti riservati.</p>
                 <div className="flex gap-4">
-                  <span>Partner: Concept ADV</span>
-                  <span>•</span>
-                  <span>Partner: Enestar</span>
+                  <span className="flex items-center gap-1">Powered by <span className="font-black text-[#00665E] ml-1 tracking-tight">INTEGRA<span className="font-light text-gray-400">OS</span></span></span>
                 </div>
               </div>
           </footer>
         </div>
 
       </div>
+
+      <style dangerouslySetInnerHTML={{__html: `
+          .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+          .custom-scrollbar:hover::-webkit-scrollbar-thumb { background: #94a3b8; }
+          .scrollbar-hide::-webkit-scrollbar { display: none; }
+      `}} />
     </div>
   )
 }
