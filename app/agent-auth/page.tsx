@@ -6,7 +6,7 @@ import { createClient } from '@/utils/supabase/client'
 import Link from 'next/link'
 import { 
     Shield, Mail, Lock, ArrowRight, UserCheck, 
-    Loader2, Building2, User, EyeOff, Eye, Briefcase, AlertTriangle // <-- Aggiunto AlertTriangle
+    Loader2, Building2, User, EyeOff, Eye, Briefcase, AlertTriangle 
 } from 'lucide-react'
 
 export default function AgentAuthPage() {
@@ -26,7 +26,7 @@ export default function AgentAuthPage() {
         companyCode: '' // IL CODICE MAGICO PER AGGANCIARE L'AZIENDA
     })
 
-    // Pulisci sessioni vecchie all'apertura (come fatto per la registrazione admin)
+    // Pulisci sessioni vecchie all'apertura
     useEffect(() => {
         const cleanSession = async () => { await supabase.auth.signOut() }
         cleanSession()
@@ -81,19 +81,18 @@ export default function AgentAuthPage() {
     }
 
     return (
-        <main className="min-h-screen bg-[#020817] font-sans selection:bg-blue-500 selection:text-white flex flex-col relative overflow-hidden">
+        <main className="min-h-screen bg-[#F8FAFC] font-sans selection:bg-blue-500 selection:text-white flex flex-col relative overflow-hidden text-slate-800">
             
-            {/* EFFETTI LUCE GLOBALI (Sui toni del blu per differenziarsi dall'Admin verde) */}
-            <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[500px] bg-blue-600/10 rounded-full blur-[150px] pointer-events-none -z-10"></div>
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay pointer-events-none z-0"></div>
+            {/* EFFETTI LUCE GLOBALI (Sui toni del blu chiaro) */}
+            <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[500px] bg-blue-500 rounded-full blur-[150px] opacity-[0.05] pointer-events-none -z-10"></div>
+            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] mix-blend-overlay pointer-events-none z-0"></div>
 
-            {/* NAVBAR MINIMALE */}
-            <nav className="px-6 md:px-12 py-5 flex justify-between items-center border-b border-white/5 bg-[#020817]/80 backdrop-blur-md sticky top-0 z-50">
+            {/* NAVBAR PREMIUM LIGHT */}
+            <nav className="px-6 md:px-12 py-4 flex justify-between items-center border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
                 <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition">
-                    <Shield className="text-blue-500" size={28}/>
-                    <div className="text-2xl font-black text-white tracking-tighter">INTEGRA<span className="font-light text-slate-500">OS</span></div>
+                    <img src="/logo-integra.png" alt="IntegraOS Logo" className="h-8 md:h-10 object-contain" />
                 </Link>
-                <div className="text-xs font-bold text-blue-400 bg-blue-500/10 px-4 py-2 rounded-full border border-blue-500/20 flex items-center gap-2">
+                <div className="text-xs font-bold text-blue-700 bg-blue-50 px-4 py-2 rounded-full border border-blue-200 flex items-center gap-2 shadow-sm">
                     <Briefcase size={14}/> Portale Forza Vendita
                 </div>
             </nav>
@@ -101,26 +100,26 @@ export default function AgentAuthPage() {
             {/* CONTENUTO PRINCIPALE */}
             <div className="flex-1 p-6 md:p-12 lg:p-16 flex items-center justify-center relative z-10 w-full">
                 
-                <div className="w-full max-w-5xl mx-auto flex flex-col lg:flex-row gap-12 items-center">
+                <div className="w-full max-w-6xl mx-auto flex flex-col lg:flex-row gap-12 items-center">
                     
                     {/* COLONNA SINISTRA: IL FORM */}
-                    <div className="w-full lg:w-1/2 bg-slate-900/80 backdrop-blur-xl border border-slate-800 p-8 md:p-10 rounded-3xl shadow-2xl relative">
+                    <div className="w-full lg:w-1/2 bg-white border border-slate-200 p-8 md:p-10 rounded-3xl shadow-xl relative animate-in slide-in-from-left-8">
                         
                         {/* Toggle Login / Registrazione */}
-                        <div className="flex p-1 bg-[#020817] rounded-xl mb-8 border border-slate-800">
-                            <button onClick={() => setIsLoginMode(true)} className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${isLoginMode ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
+                        <div className="flex p-1.5 bg-slate-50 rounded-xl mb-8 border border-slate-200 shadow-inner">
+                            <button onClick={() => setIsLoginMode(true)} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${isLoginMode ? 'bg-white text-blue-700 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
                                 Accedi
                             </button>
-                            <button onClick={() => setIsLoginMode(false)} className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${!isLoginMode ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
+                            <button onClick={() => setIsLoginMode(false)} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${!isLoginMode ? 'bg-white text-blue-700 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
                                 Nuovo Agente
                             </button>
                         </div>
 
                         <div className="mb-8">
-                            <h2 className="text-3xl font-black text-white mb-2">
+                            <h2 className="text-3xl font-black text-slate-900 mb-2">
                                 {isLoginMode ? 'Bentornato nel Team.' : 'Unisciti alla Rete.'}
                             </h2>
-                            <p className="text-slate-400 text-sm">
+                            <p className="text-slate-500 text-sm font-medium">
                                 {isLoginMode 
                                     ? 'Inserisci le credenziali fornite dalla tua azienda per accedere al CRM.' 
                                     : 'Inserisci i tuoi dati e il Codice Azienda per collegarti al tuo datore di lavoro.'}
@@ -128,7 +127,7 @@ export default function AgentAuthPage() {
                         </div>
 
                         {error && (
-                            <div className="bg-rose-500/10 border border-rose-500/50 text-rose-400 p-4 rounded-xl mb-6 text-sm font-bold flex items-center gap-2">
+                            <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-sm font-bold flex items-center gap-2 shadow-sm">
                                 <AlertTriangle size={18}/> {error}
                             </div>
                         )}
@@ -139,82 +138,82 @@ export default function AgentAuthPage() {
                             {!isLoginMode && (
                                 <>
                                     <div>
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Nome e Cognome</label>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Nome e Cognome</label>
                                         <div className="relative">
-                                            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18}/>
-                                            <input required type="text" value={formData.fullName} onChange={e=>setFormData({...formData, fullName: e.target.value})} className="w-full bg-[#020817] border border-slate-700 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:border-blue-500 transition" placeholder="Mario Rossi" />
+                                            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                                            <input required type="text" value={formData.fullName} onChange={e=>setFormData({...formData, fullName: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-4 text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition font-bold" placeholder="Mario Rossi" />
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2 block flex items-center gap-1">Codice Aziendale (Richiesto) <Lock size={12}/></label>
+                                        <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2 block flex items-center gap-1 ml-1">Codice Aziendale (Richiesto) <Lock size={12}/></label>
                                         <div className="relative">
                                             <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500" size={18}/>
-                                            <input required type="text" value={formData.companyCode} onChange={e=>setFormData({...formData, companyCode: e.target.value})} className="w-full bg-blue-500/5 border border-blue-500/30 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:border-blue-500 transition font-mono uppercase" placeholder="ES: ALFA-9876" />
+                                            <input required type="text" value={formData.companyCode} onChange={e=>setFormData({...formData, companyCode: e.target.value})} className="w-full bg-blue-50 border border-blue-200 rounded-xl py-3.5 pl-12 pr-4 text-blue-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition font-mono font-black uppercase shadow-inner" placeholder="ES: ALFA-9876" />
                                         </div>
-                                        <p className="text-[10px] text-slate-500 mt-1">Richiedi questo codice all'amministratore del tuo ecosistema.</p>
+                                        <p className="text-[10px] font-medium text-slate-500 mt-1.5 ml-1">Richiedi questo codice all'amministratore del tuo ecosistema.</p>
                                     </div>
                                 </>
                             )}
 
                             {/* CAMPI COMUNI (EMAIL E PASSWORD) */}
                             <div>
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Email Lavorativa</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Email Lavorativa</label>
                                 <div className="relative">
-                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18}/>
-                                    <input required type="email" value={formData.email} onChange={e=>setFormData({...formData, email: e.target.value})} className="w-full bg-[#020817] border border-slate-700 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:border-blue-500 transition" placeholder="mario.rossi@azienda.it" />
+                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                                    <input required type="email" value={formData.email} onChange={e=>setFormData({...formData, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-4 text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition font-bold" placeholder="mario.rossi@azienda.it" />
                                 </div>
                             </div>
 
                             <div>
-                                <div className="flex justify-between items-center mb-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Password</label>
-                                    {isLoginMode && <a href="#" className="text-xs text-blue-400 hover:text-blue-300">Password dimenticata?</a>}
+                                <div className="flex justify-between items-center mb-2 ml-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
+                                    {isLoginMode && <a href="#" className="text-[10px] font-bold text-blue-600 hover:text-blue-500 transition">Password dimenticata?</a>}
                                 </div>
                                 <div className="relative">
-                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18}/>
-                                    <input required type={showPassword ? "text" : "password"} value={formData.password} onChange={e=>setFormData({...formData, password: e.target.value})} className="w-full bg-[#020817] border border-slate-700 rounded-xl py-3 pl-12 pr-12 text-white outline-none focus:border-blue-500 transition font-mono" placeholder="••••••••" />
-                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition">
+                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                                    <input required type={showPassword ? "text" : "password"} value={formData.password} onChange={e=>setFormData({...formData, password: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-12 text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition font-mono font-bold" placeholder="••••••••" />
+                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition">
                                         {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
                                     </button>
                                 </div>
                             </div>
 
-                            <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white font-black py-4 rounded-xl hover:bg-blue-500 transition mt-6 flex justify-center items-center gap-2 shadow-[0_0_20px_rgba(59,130,246,0.3)] disabled:opacity-50">
+                            <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white font-black py-4 rounded-xl hover:bg-blue-700 transition mt-8 flex justify-center items-center gap-2 shadow-lg shadow-blue-600/20 disabled:opacity-50">
                                 {loading ? <><Loader2 size={18} className="animate-spin"/> Elaborazione...</> : (isLoginMode ? <><UserCheck size={18}/> Accedi all'Area Agenti</> : <><UserCheck size={18}/> Registra Profilo Agente</>)}
                             </button>
                         </form>
                     </div>
 
                     {/* COLONNA DESTRA: VANTAGGI PER L'AGENTE */}
-                    <div className="w-full lg:w-1/2 text-center lg:text-left">
-                        <div className="inline-block bg-blue-500/10 text-blue-400 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-blue-500/20 mb-6">
+                    <div className="w-full lg:w-1/2 text-center lg:text-left animate-in slide-in-from-right-8">
+                        <div className="inline-block bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-200 mb-6 shadow-sm">
                             IntegraOS per i Venditori
                         </div>
-                        <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight leading-[1.1] mb-6">
+                        <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.1] mb-6">
                             La tua scrivania <br/>
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">intelligente e privata.</span>
+                            <span className="text-blue-600">intelligente e privata.</span>
                         </h2>
-                        <p className="text-lg text-slate-400 mb-10 leading-relaxed font-light">
+                        <p className="text-lg text-slate-600 mb-10 leading-relaxed font-medium max-w-xl mx-auto lg:mx-0">
                             Accedi al portale dedicato per gestire i tuoi lead, monitorare le tue provvigioni e utilizzare gli strumenti di intelligenza artificiale messi a disposizione dalla tua azienda.
                         </p>
                         
-                        <div className="space-y-6 text-left">
-                            <div className="flex gap-4">
-                                <div className="w-12 h-12 bg-slate-900 border border-slate-700 rounded-2xl flex items-center justify-center shrink-0 shadow-lg text-blue-400">
+                        <div className="space-y-6 text-left max-w-xl mx-auto lg:mx-0">
+                            <div className="flex gap-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition">
+                                <div className="w-12 h-12 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center shrink-0 shadow-inner text-blue-600">
                                     <Shield size={24}/>
                                 </div>
                                 <div>
-                                    <h4 className="text-white font-bold mb-1">Dati Isolati e Protetti</h4>
-                                    <p className="text-sm text-slate-400">Vedi solo i contatti a te assegnati. Nessun altro agente può accedere al tuo portafoglio clienti.</p>
+                                    <h4 className="text-slate-900 font-black mb-1">Dati Isolati e Protetti</h4>
+                                    <p className="text-sm text-slate-500 font-medium">Vedi solo i contatti a te assegnati. Nessun altro agente può accedere al tuo portafoglio clienti.</p>
                                 </div>
                             </div>
-                            <div className="flex gap-4">
-                                <div className="w-12 h-12 bg-slate-900 border border-slate-700 rounded-2xl flex items-center justify-center shrink-0 shadow-lg text-emerald-400">
+                            <div className="flex gap-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition">
+                                <div className="w-12 h-12 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-center shrink-0 shadow-inner text-emerald-600">
                                     <ArrowRight size={24}/>
                                 </div>
                                 <div>
-                                    <h4 className="text-white font-bold mb-1">Pipeline Automatica</h4>
-                                    <p className="text-sm text-slate-400">Ricevi notifiche in tempo reale quando un tuo cliente interagisce con un'email o scarica un preventivo.</p>
+                                    <h4 className="text-slate-900 font-black mb-1">Pipeline Automatica</h4>
+                                    <p className="text-sm text-slate-500 font-medium">Ricevi notifiche in tempo reale quando un tuo cliente interagisce con un'email o scarica un preventivo.</p>
                                 </div>
                             </div>
                         </div>
