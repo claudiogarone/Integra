@@ -134,10 +134,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         
         {/* LOGO INTEGRAOS FISSO IN ALTO */}
         <div className="p-6 flex flex-col items-center flex-shrink-0 border-b border-gray-50 bg-white sticky top-0 z-10 min-h-[88px] justify-center">
-            <h1 className="text-2xl font-black text-[#00665E] tracking-tighter flex items-center gap-2 text-center leading-tight">
-                <ShieldCheck size={28} className="text-emerald-500 shrink-0"/>
-                INTEGRA OS
-            </h1>
+            <img src="/logo-integraos.png" alt="IntegraOS Logo" className="h-10 object-contain" />
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-6 space-y-6 custom-scrollbar pb-24">
@@ -208,9 +205,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#F8FAFC] relative min-w-0">
         
         <header className="md:hidden bg-white p-4 flex justify-between items-center shadow-sm sticky top-0 z-20 flex-shrink-0">
-           <span className="font-black text-[#00665E] flex items-center gap-2">
-               <ShieldCheck size={20}/> INTEGRA OS
-           </span>
+           <img src="/logo-integraos.png" alt="IntegraOS Logo" className="h-8 object-contain" />
            <button className="text-gray-500">☰</button>
         </header>
 
@@ -221,9 +216,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <footer className="bg-white border-t border-gray-200 py-6 px-8 mt-10 text-center md:text-left shrink-0">
               <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-400 font-medium">
-                <p>© {new Date().getFullYear()} {companyProfile?.name || 'La Tua Azienda'}. Tutti i diritti riservati.</p>
-                <div className="flex gap-4">
-                  <span className="flex items-center gap-1">Powered by <span className="font-black text-[#00665E] ml-1 tracking-tight">INTEGRA<span className="font-light text-gray-400">OS</span></span></span>
+                <p>© 2026 {companyProfile?.name || 'La Tua Azienda'}. Tutti i diritti riservati.</p>
+                <div className="flex flex-wrap items-center justify-center md:justify-end gap-3">
+                  <span className="flex items-center gap-2">
+                    Powered by 
+                    <img src="/logo-integraos.png" alt="IntegraOS" className="h-4 object-contain grayscale opacity-80" />
+                  </span>
+                  <span className="hidden md:inline-block text-gray-200">|</span>
+                  <div className="flex items-center gap-3">
+                    <img src="/logo-concept.jpeg" alt="Concept ADV" className="h-5 object-contain grayscale opacity-60 hover:grayscale-0 transition" onError={(e) => { e.currentTarget.style.display='none' }} />
+                    <img src="/logo-enestar.jpeg" alt="Enestar" className="h-5 object-contain grayscale opacity-60 hover:grayscale-0 transition" onError={(e) => { e.currentTarget.style.display='none' }} />
+                  </div>
                 </div>
               </div>
           </footer>

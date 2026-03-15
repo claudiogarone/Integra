@@ -111,7 +111,6 @@ function RegisterForm() {
                     company_name: formData.companyName, 
                     plan: formData.plan,
                     role: 'admin',
-                    subscription_status: 'active',
                     company_code: newCompanyCode 
                 })
                 
