@@ -8,7 +8,7 @@ import {
   Building, UserCheck, Smartphone, Lock, Mail, GraduationCap,
   Database, CreditCard, MessageSquare, Radar, EyeOff, Handshake,
   Star, Quote, TrendingUp, Clock, Landmark,
-  Sparkles, Cookie, X
+  Sparkles, Cookie, X, FileText
 } from 'lucide-react'
 
 export default function Home() {
@@ -18,6 +18,7 @@ export default function Home() {
   const [showCookieBanner, setShowCookieBanner] = useState(false)
   const [showLeadModal, setShowLeadModal] = useState(false)
   const [showPrivacyModal, setShowPrivacyModal] = useState(false)
+  const [showTermsModal, setShowTermsModal] = useState(false)
   
   const [leadEmail, setLeadEmail] = useState('')
   const [leadConsent, setLeadConsent] = useState(false)
@@ -228,6 +229,36 @@ export default function Home() {
           </div>
       )}
 
+      {/* ======================================================= */}
+      {/* MODALE TERMINI DI SERVIZIO                              */}
+      {/* ======================================================= */}
+      {showTermsModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+              <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-2xl shadow-2xl relative overflow-hidden flex flex-col max-h-[80vh] animate-in zoom-in-95">
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                      <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                          <FileText size={20} className="text-[#00665E]"/> Termini e Condizioni d'Uso
+                      </h2>
+                      <button onClick={() => setShowTermsModal(false)} className="text-slate-400 hover:text-slate-700 bg-white border border-slate-200 p-2 rounded-full shadow-sm">
+                          <X size={20}/>
+                      </button>
+                  </div>
+                  <div className="p-6 overflow-y-auto text-sm text-slate-600 space-y-4 custom-scrollbar bg-white">
+                      <p><strong>1. Accettazione dei Termini:</strong> L'accesso e l'uso della piattaforma IntegraOS ("Servizio") comportano l'accettazione integrale dei presenti Termini di Servizio.</p>
+                      <p><strong>2. Descrizione del Servizio:</strong> IntegraOS è un software gestionale SaaS (Software as a Service) fornito in licenza d'uso. La piattaforma offre strumenti di CRM, fatturazione, marketing automation e gestione risorse umane.</p>
+                      <p><strong>3. Licenza e Proprietà Intellettuale:</strong> Tutto il codice, il design, i marchi e la tecnologia alla base di IntegraOS sono di proprietà esclusiva di Concept ADV & Enestar. All'utente viene concessa una licenza d'uso limitata, non esclusiva e non trasferibile.</p>
+                      <p><strong>4. Limitazione di Responsabilità:</strong> Il fornitore non sarà responsabile per danni diretti, indiretti o consequenziali derivanti dall'uso o dall'impossibilità di usare il Servizio, inclusa la perdita di dati o interruzioni del business.</p>
+                      <p><strong>5. Modifiche al Servizio:</strong> Ci riserviamo il diritto di modificare o interrompere temporaneamente o permanentemente il Servizio (o parte di esso) con o senza preavviso. Le funzionalità incluse nei piani possono variare nel tempo.</p>
+                  </div>
+                  <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end">
+                      <button onClick={() => setShowTermsModal(false)} className="bg-[#00665E] hover:bg-[#004d47] text-white font-bold py-3 px-8 rounded-xl transition shadow-md">
+                          Accetto e Chiudi
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
       {/* BACKGROUND EFFECTS (Light Theme) */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#00665E] rounded-full blur-[120px] opacity-[0.05]"></div>
@@ -238,8 +269,8 @@ export default function Home() {
       <nav className="fixed w-full z-40 top-0 border-b border-slate-200 bg-white/80 backdrop-blur-md shadow-sm">
         <div className="max-w-7xl mx-auto px-6 md:px-12 py-4 flex justify-between items-center">
             <div className="flex items-center gap-2">
-                {/* Nuovo Logo Inserito */}
-                <img src="/logo-integraos.png" alt="IntegraOS Logo" className="h-8 md:h-10 object-contain" />
+                {/* Nuovo Logo Inserito (Corretto il nome file) */}
+                <img src="/logo-integra.png" alt="IntegraOS Logo" className="h-8 md:h-10 object-contain" />
             </div>
             
             <div className="hidden lg:flex gap-8 text-sm font-bold text-slate-500">
@@ -475,8 +506,8 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-              {/* BASE */}
-              <div className="bg-white border border-slate-200 rounded-3xl p-8 hover:border-[#00665E] hover:shadow-xl transition duration-300 flex flex-col">
+              {/* BASE (Corretto hover aggiungendo 'group') */}
+              <div className="bg-white border border-slate-200 rounded-3xl p-8 hover:border-[#00665E] hover:shadow-xl transition duration-300 flex flex-col group">
                   <h3 className="text-xl font-bold text-slate-900 mb-2">Base</h3>
                   <p className="text-slate-500 text-sm mb-6 h-10 font-medium">Perfetto per PMI e negozi fisici singoli.</p>
                   <div className="text-4xl font-black text-slate-900 mb-6">€99<span className="text-lg text-slate-400 font-normal">/mese</span></div>
@@ -485,7 +516,7 @@ export default function Home() {
                       <li className="flex items-center gap-3"><CheckCircle size={18} className="text-emerald-500"/> 3 Automazioni Zap</li>
                       <li className="flex items-center gap-3"><CheckCircle size={18} className="text-emerald-500"/> 5 Agenti & Terminale Punti</li>
                   </ul>
-                  <button onClick={() => { localStorage.setItem('integra_plan', 'Base'); window.location.href = '/register'; }} className="w-full block text-center bg-slate-100 text-slate-700 border border-slate-200 font-bold py-3 rounded-xl hover:bg-slate-200 transition">
+                  <button onClick={() => { localStorage.setItem('integra_plan', 'Base'); window.location.href = '/register'; }} className="w-full block text-center bg-slate-50 text-slate-700 border border-slate-200 font-bold py-3 rounded-xl group-hover:bg-[#00665E] group-hover:text-white transition">
                       Registrati ed Inizia
                   </button>
               </div>
@@ -557,7 +588,8 @@ export default function Home() {
       <footer className="border-t border-slate-200 py-12 bg-white relative z-10">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-2">
-                <img src="/logo-integraos.png" alt="IntegraOS Logo" className="h-6 object-contain grayscale opacity-60" />
+                {/* Logo Footer Corretto */}
+                <img src="/logo-integra.png" alt="IntegraOS Logo" className="h-6 object-contain grayscale opacity-60" />
             </div>
             <p className="text-slate-500 text-sm font-medium text-center md:text-left">
                 &copy; 2026 Integra OS. All rights reserved.<br/>
@@ -565,7 +597,7 @@ export default function Home() {
             </p>
             <div className="flex gap-4 text-xs font-bold">
                 <button type="button" onClick={() => setShowPrivacyModal(true)} className="text-slate-400 hover:text-[#00665E] transition">Privacy Policy (GDPR)</button>
-                <a href="#" className="text-slate-400 hover:text-[#00665E] transition">Termini di Servizio</a>
+                <button type="button" onClick={() => setShowTermsModal(true)} className="text-slate-400 hover:text-[#00665E] transition">Termini di Servizio</button>
             </div>
         </div>
       </footer>
