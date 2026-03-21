@@ -58,9 +58,9 @@ function AcademyAuthForm() {
             }
 
         } catch (err: any) {
-            alert("Errore durante il caricamento del pagamento: " + err.message)
-            setCheckoutStatus(null)
-            setCheckingSession(false)
+            // FIX: Se va in errore, ci butta in dashboard per spezzare il loop!
+            console.error(err)
+            window.location.href = '/learning/dashboard'
         }
     }
 
@@ -193,7 +193,8 @@ function AcademyAuthForm() {
                     <div>
                         <div className="flex justify-between items-center mb-2 ml-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
-                            {isLoginMode && <a href="#" className="text-[10px] font-bold text-[#00665E] hover:text-[#004d46] transition">Password dimenticata?</a>}
+                            {/* FIX: Tasto Password Dimenticata ora mostra un avviso invece di fare refresh */}
+                            {isLoginMode && <button type="button" onClick={() => alert("La funzione di recupero password è in fase di attivazione. Contatta l'amministratore dell'Academy per resettare i tuoi dati.")} className="text-[10px] font-bold text-[#00665E] hover:text-[#004d46] transition">Password dimenticata?</button>}
                         </div>
                         <div className="relative">
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>

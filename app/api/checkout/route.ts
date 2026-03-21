@@ -4,21 +4,18 @@ import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
-// Dati mockati nel caso si scelgano i corsi finti dalla vetrina
 const MOCK_COURSES: any = {
     'ai-sales-masterclass': { title: 'AI Sales Masterclass', price: 299 },
     'integraos-zero-to-hero': { title: 'IntegraOS: Zero to Hero', price: 149 },
     'marketing-automation': { title: 'Marketing Automation 3.0', price: 199 }
 };
 
-// Funzione helper per evitare crash in fase di compilazione su Vercel
 function getSupabase() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co';
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy_key';
     return createClient(supabaseUrl, supabaseServiceKey);
 }
 
-// Funzione helper per accendere Stripe solo quando serve
 function getStripe() {
     const stripeKey = process.env.STRIPE_SECRET_KEY || 'sk_test_dummy';
     return new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
@@ -32,7 +29,6 @@ export async function POST(request: Request) {
         const { courseId, email } = await request.json();
         const origin = request.headers.get('origin') || 'http://localhost:3000';
 
-        // Carichiamo la chiave in tempo reale
         const stripeKey = process.env.STRIPE_SECRET_KEY || '';
 
         // FALLBACK DI SICUREZZA: Se manca la chiave vera, simuliamo
@@ -44,16 +40,20 @@ export async function POST(request: Request) {
         const stripe = getStripe();
         const supabase = getSupabase();
 
-        // TROVA IL CORSO: Prima cerca nel DB Reale, altrimenti nei Mock
         let title = 'Corso IntegraOS Academy';
         let price = 99;
 
-        const { data: dbCourse } = await supabase.from('academy_courses').select('title, price').eq('id', courseId).single();
+        // FIX: Controlliamo se courseId è un UUID reale prima di interrogare Supabase!
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
         
-        if (dbCourse) {
-            title = dbCourse.title;
-            price = dbCourse.price || 99;
+        if (uuidRegex.test(courseId)) {
+            const { data: dbCourse } = await supabase.from('academy_courses').select('title, price').eq('id', courseId).single();
+            if (dbCourse) {
+                title = dbCourse.title;
+                price = dbCourse.price || 99;
+            }
         } else if (MOCK_COURSES[courseId]) {
+            // Se è un corso finto della vetrina iniziale
             title = MOCK_COURSES[courseId].title;
             price = MOCK_COURSES[courseId].price;
         }
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
                     price_data: {
                         currency: 'eur',
                         product_data: { name: title },
-                        unit_amount: Math.round(price * 100), // In centesimi
+                        unit_amount: Math.round(price * 100),
                     },
                     quantity: 1,
                 },
@@ -97,21 +97,25 @@ export async function GET(request: Request) {
 
     if (course_id && email) {
         const supabase = getSupabase();
-        let actualCourseId = course_id;
+        let actualCourseId: string | null = course_id;
         
         if (['ai-sales-masterclass', 'integraos-zero-to-hero', 'marketing-automation'].includes(course_id)) {
              const { data: realCourses } = await supabase.from('academy_courses').select('id').limit(1);
              if (realCourses && realCourses.length > 0) {
                  actualCourseId = realCourses[0].id;
+             } else {
+                 actualCourseId = null; // Previene l'inserimento se il database corsi è completamente vuoto
              }
         }
 
-        await supabase.from('course_progress').upsert({
-            course_id: actualCourseId,
-            agent_email: email,
-            progress: 0,
-            status: 'assigned'
-        }, { onConflict: 'course_id, agent_email' });
+        if (actualCourseId) {
+            await supabase.from('course_progress').upsert({
+                course_id: actualCourseId,
+                agent_email: email,
+                progress: 0,
+                status: 'assigned'
+            }, { onConflict: 'course_id, agent_email' });
+        }
     }
 
     return NextResponse.redirect(`${origin}/learning/dashboard?success=true`);
