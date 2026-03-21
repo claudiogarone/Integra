@@ -5,33 +5,90 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import Link from 'next/link'
 import { 
-    Shield, Mail, Lock, User, Loader2, ArrowRight, 
-    BookOpen, GraduationCap, ArrowLeft, AlertTriangle 
+    Shield, Mail, Lock, ArrowRight, UserCheck, 
+    Loader2, User, EyeOff, Eye, AlertTriangle, 
+    CheckCircle
 } from 'lucide-react'
+
+const COURSES_INFO: Record<string, {title: string, desc: string, price: number, color: string}> = {
+    'ai-sales-masterclass': { title: 'AI Sales Masterclass', desc: 'Impara a delegare il 90% del follow-up clienti all\'Intelligenza Artificiale.', price: 299, color: 'blue' },
+    'integraos-zero-to-hero': { title: 'IntegraOS: Zero to Hero', desc: 'Il corso definitivo per configurare il tuo ecosistema aziendale.', price: 149, color: 'emerald' },
+    'marketing-automation': { title: 'Marketing Automation 3.0', desc: 'Crea funnel infallibili collegando WhatsApp, Email e Landing Pages.', price: 199, color: 'purple' }
+}
 
 function AcademyAuthForm() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const supabase = createClient()
     
+    const buyParam = searchParams.get('buy')
+    const selectedCourse = buyParam ? COURSES_INFO[buyParam] : null
+
     const [isLoginMode, setIsLoginMode] = useState(true)
     const [loading, setLoading] = useState(false)
+    const [checkingSession, setCheckingSession] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [showPassword, setShowPassword] = useState(false)
+    const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null)
 
-    // Controlla se l'utente vuole comprare un corso specifico
-    const courseToBuy = searchParams.get('buy')
-
+    // Dati Form
     const [formData, setFormData] = useState({
         fullName: '',
         email: '',
         password: ''
     })
 
-    // Pulizia sessioni vecchie all'apertura
+    // FUNZIONE DI CONNESSIONE A STRIPE
+    const handleStripeCheckout = async (userEmail: string, courseId: string) => {
+        try {
+            setCheckoutStatus("Connessione sicura a Stripe in corso...")
+            
+            // Chiama la nostra API Backend sicura
+            const response = await fetch('/api/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    courseId: courseId, 
+                    email: userEmail 
+                })
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) throw new Error(data.error || "Errore di connessione a Stripe")
+
+            // Reindirizza l'utente alla pagina di pagamento ufficiale di Stripe
+            if (data.url) {
+                window.location.href = data.url
+            } else {
+                throw new Error("URL di checkout mancante")
+            }
+
+        } catch (err: any) {
+            alert("Errore durante il caricamento del pagamento: " + err.message)
+            window.location.href = '/learning/dashboard' // In caso di errore lo mandiamo alla dashboard
+        }
+    }
+
+    // Controllo Sessione Intelligente all'avvio
     useEffect(() => {
-        const cleanSession = async () => { await supabase.auth.signOut() }
-        cleanSession()
-    }, [supabase.auth])
+        const handleSession = async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+            
+            if (user) {
+                if (buyParam) {
+                    // Utente già loggato che vuole comprare: lo mandiamo a Stripe!
+                    await handleStripeCheckout(user.email || '', buyParam)
+                } else {
+                    // Solo accesso normale, va alla dashboard
+                    window.location.href = '/learning/dashboard'
+                }
+            } else {
+                setCheckingSession(false)
+            }
+        }
+        handleSession()
+    }, [buyParam, supabase.auth])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -40,90 +97,91 @@ function AcademyAuthForm() {
 
         try {
             if (isLoginMode) {
-                // LOGICA LOGIN STUDENTE
+                // LOGICA DI LOGIN
                 const { error: signInError } = await supabase.auth.signInWithPassword({
                     email: formData.email,
                     password: formData.password,
                 })
                 if (signInError) throw signInError
                 
-                // Vai alla dashboard studente (passando il corso da comprare se presente)
-                const redirectUrl = courseToBuy ? `/formazione/dashboard?buy=${courseToBuy}` : '/formazione/dashboard'
-                window.location.href = redirectUrl
+                // Se c'è un corso da comprare, chiama Stripe, altrimenti ricarica
+                if (buyParam) {
+                    await handleStripeCheckout(formData.email, buyParam)
+                } else {
+                    window.location.reload()
+                }
 
             } else {
-                // LOGICA REGISTRAZIONE NUOVO STUDENTE
-                if (!formData.fullName) throw new Error("Inserisci il tuo nome completo o quello dell'azienda.")
-                
+                // LOGICA DI REGISTRAZIONE NUOVO STUDENTE
                 const { data: authData, error: signUpError } = await supabase.auth.signUp({
                     email: formData.email,
                     password: formData.password,
                 })
                 if (signUpError) throw signUpError
 
+                // Creazione del profilo STUDENTE nel database
                 if (authData.user) {
-                    // Creazione profilo con ruolo 'student'
-                    const { error: profileError } = await supabase.from('profiles').insert({
+                    await supabase.from('profiles').insert({
                         id: authData.user.id,
                         full_name: formData.fullName,
-                        company_name: formData.fullName, // Usiamo lo stesso campo per comodità
-                        role: 'student', // FONDAMENTALE PER L'ISOLAMENTO
-                        subscription_status: 'academy_free'
+                        role: 'student', 
+                        subscription_status: 'active'
                     })
-                    if (profileError) {
-                        console.error("Errore salvataggio profilo:", profileError)
-                        throw new Error("Errore durante la creazione del profilo studente.")
+                    
+                    // Va a Stripe per pagare
+                    if (buyParam) {
+                        await handleStripeCheckout(formData.email, buyParam)
+                        return; // Ferma l'esecuzione qui per aspettare il redirect
                     }
                 }
 
-                // Vai alla dashboard studente
-                const redirectUrl = courseToBuy ? `/formazione/dashboard?buy=${courseToBuy}` : '/formazione/dashboard'
-                window.location.href = redirectUrl
+                window.location.href = '/learning/dashboard'
             }
         } catch (err: any) {
             setError(err.message || "Credenziali non valide o errore di sistema.")
-        } finally {
             setLoading(false)
         }
     }
 
+    if (checkingSession || checkoutStatus) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 text-[#00665E]">
+                <Loader2 className="animate-spin mb-4" size={48}/>
+                <h2 className="text-xl font-black">{checkoutStatus || "Verifica accessi in corso..."}</h2>
+                {checkoutStatus && <p className="text-slate-500 font-medium mt-2 text-sm">Non chiudere questa finestra.</p>}
+            </div>
+        )
+    }
+
     return (
-        <div className="w-full max-w-5xl mx-auto flex flex-col lg:flex-row gap-12 items-center">
+        <div className="w-full max-w-6xl mx-auto flex flex-col lg:flex-row gap-12 items-center">
             
             {/* COLONNA SINISTRA: IL FORM */}
-            <div className="w-full lg:w-1/2 bg-slate-900/80 backdrop-blur-xl border border-slate-800 p-8 md:p-10 rounded-3xl shadow-[0_0_50px_rgba(79,70,229,0.1)] relative z-10">
+            <div className="w-full lg:w-1/2 bg-white border border-slate-200 p-8 md:p-10 rounded-3xl shadow-xl relative animate-in slide-in-from-left-8">
                 
-                {courseToBuy && (
-                    <div className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 p-4 rounded-xl mb-6 text-sm font-bold flex items-center gap-3">
-                        <BookOpen size={20} className="shrink-0"/>
-                        Stai per accedere al corso. Accedi o registrati per completare l'iscrizione.
-                    </div>
-                )}
-
-                {/* Toggle Login / Registrazione */}
-                <div className="flex p-1 bg-[#020817] rounded-xl mb-8 border border-slate-800">
-                    <button onClick={() => setIsLoginMode(true)} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${isLoginMode ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
+                <div className="flex p-1.5 bg-slate-50 rounded-xl mb-8 border border-slate-200 shadow-inner">
+                    <button onClick={() => setIsLoginMode(true)} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${isLoginMode ? 'bg-white text-[#00665E] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
                         Accedi
                     </button>
-                    <button onClick={() => setIsLoginMode(false)} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${!isLoginMode ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
-                        Crea Account
+                    <button onClick={() => setIsLoginMode(false)} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${!isLoginMode ? 'bg-white text-[#00665E] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
+                        Nuovo Studente
                     </button>
                 </div>
 
                 <div className="mb-8">
-                    <h2 className="text-3xl font-black text-white mb-2">
-                        {isLoginMode ? 'Bentornato.' : 'Inizia a Imparare.'}
+                    <h2 className="text-3xl font-black text-slate-900 mb-2">
+                        {isLoginMode ? 'Bentornato in Academy.' : 'Inizia a studiare.'}
                     </h2>
-                    <p className="text-slate-400 text-sm leading-relaxed">
+                    <p className="text-slate-500 text-sm font-medium">
                         {isLoginMode 
-                            ? 'Inserisci le tue credenziali per riprendere i tuoi corsi da dove li avevi lasciati.' 
-                            : 'Crea un account gratuito per la tua azienda e accedi al catalogo formativo IntegraOS.'}
+                            ? 'Inserisci le tue credenziali per accedere ai tuoi corsi e attestati.' 
+                            : 'Crea un account gratuito per sbloccare i contenuti e completare gli acquisti.'}
                     </p>
                 </div>
 
                 {error && (
-                    <div className="bg-rose-500/10 border border-rose-500/50 text-rose-400 p-4 rounded-xl mb-6 text-sm font-bold flex items-center gap-2">
-                        <AlertTriangle size={18} className="shrink-0"/> {error}
+                    <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-sm font-bold flex items-center gap-2 shadow-sm">
+                        <AlertTriangle size={18}/> {error}
                     </div>
                 )}
 
@@ -131,108 +189,97 @@ function AcademyAuthForm() {
                     
                     {!isLoginMode && (
                         <div>
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Nome Azienda o Referente</label>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Nome e Cognome</label>
                             <div className="relative">
-                                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18}/>
-                                <input required type="text" value={formData.fullName} onChange={e=>setFormData({...formData, fullName: e.target.value})} className="w-full bg-[#020817] border border-slate-700 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:border-indigo-500 transition" placeholder="Es. TechSolutions Srl" />
+                                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                                <input required type="text" value={formData.fullName} onChange={e=>setFormData({...formData, fullName: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-4 text-slate-900 outline-none focus:border-[#00665E] focus:ring-1 focus:ring-[#00665E] transition font-bold" placeholder="Mario Rossi" />
                             </div>
                         </div>
                     )}
 
                     <div>
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Email di Accesso</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Email</label>
                         <div className="relative">
-                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18}/>
-                            <input required type="email" value={formData.email} onChange={e=>setFormData({...formData, email: e.target.value})} className="w-full bg-[#020817] border border-slate-700 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:border-indigo-500 transition" placeholder="email@azienda.it" />
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                            <input required type="email" value={formData.email} onChange={e=>setFormData({...formData, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-4 text-slate-900 outline-none focus:border-[#00665E] focus:ring-1 focus:ring-[#00665E] transition font-bold" placeholder="mario.rossi@email.com" />
                         </div>
                     </div>
 
                     <div>
-                        <div className="flex justify-between items-center mb-2">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Password</label>
-                            {isLoginMode && <a href="#" className="text-xs text-indigo-400 hover:text-indigo-300">Password dimenticata?</a>}
+                        <div className="flex justify-between items-center mb-2 ml-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
+                            {isLoginMode && <a href="#" className="text-[10px] font-bold text-[#00665E] hover:text-[#004d46] transition">Password dimenticata?</a>}
                         </div>
                         <div className="relative">
-                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18}/>
-                            <input required type="password" value={formData.password} onChange={e=>setFormData({...formData, password: e.target.value})} className="w-full bg-[#020817] border border-slate-700 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:border-indigo-500 transition font-mono" placeholder="••••••••" />
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                            <input required type={showPassword ? "text" : "password"} value={formData.password} onChange={e=>setFormData({...formData, password: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-12 text-slate-900 outline-none focus:border-[#00665E] focus:ring-1 focus:ring-[#00665E] transition font-mono font-bold" placeholder="••••••••" />
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition">
+                                {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
+                            </button>
                         </div>
                     </div>
 
-                    <button type="submit" disabled={loading} className="w-full bg-indigo-600 text-white font-black py-4 rounded-xl hover:bg-indigo-500 transition mt-6 flex justify-center items-center gap-2 shadow-[0_0_20px_rgba(79,70,229,0.3)] disabled:opacity-50">
-                        {loading ? <><Loader2 size={18} className="animate-spin"/> Attendere...</> : (isLoginMode ? <><ArrowRight size={18}/> Accedi all'Aula</> : <><GraduationCap size={18}/> Registrati Gratis</>)}
+                    <button type="submit" disabled={loading} className="w-full bg-[#00665E] text-white font-black py-4 rounded-xl hover:bg-[#004d46] transition mt-8 flex justify-center items-center gap-2 shadow-lg shadow-[#00665E]/20 disabled:opacity-50">
+                        {loading ? <><Loader2 size={18} className="animate-spin"/> Elaborazione...</> : (
+                            buyParam ? <><Shield size={18}/> Procedi al Pagamento</> : (isLoginMode ? <><UserCheck size={18}/> Accedi all'Academy</> : <><UserCheck size={18}/> Crea Account Gratuito</>)
+                        )}
                     </button>
-                    
-                    {!isLoginMode && (
-                        <p className="text-center text-xs text-slate-500 mt-4 leading-relaxed">
-                            Creando un account accetti la nostra Privacy Policy e i Termini della piattaforma e-learning. L'account base è gratuito.
-                        </p>
-                    )}
                 </form>
             </div>
 
-            {/* COLONNA DESTRA: I VANTAGGI DELL'ACADEMY */}
-            <div className="w-full lg:w-1/2 text-center lg:text-left relative z-10">
-                <div className="inline-block bg-indigo-500/10 text-indigo-400 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-indigo-500/20 mb-6">
-                    IntegraOS Academy
-                </div>
-                <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight leading-[1.1] mb-6">
-                    Il tuo portale per<br/>
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">crescere e scalare.</span>
-                </h2>
-                <p className="text-lg text-slate-400 mb-10 leading-relaxed font-light">
-                    Accedi all'area riservata per seguire i tuoi corsi in 4K, scaricare il materiale didattico e interagire con i tutor AI disponibili 24/7.
-                </p>
-                
-                <div className="space-y-6 text-left max-w-md mx-auto lg:mx-0">
-                    <div className="flex gap-4">
-                        <div className="w-12 h-12 bg-slate-900 border border-slate-700 rounded-2xl flex items-center justify-center shrink-0 shadow-lg text-indigo-400">
-                            <BookOpen size={24}/>
+            {/* COLONNA DESTRA: INFORMAZIONI CORSO */}
+            <div className="w-full lg:w-1/2 text-center lg:text-left animate-in slide-in-from-right-8">
+                {selectedCourse && (
+                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                        <div className="inline-block bg-amber-50 text-amber-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-200 mb-6 shadow-sm">
+                            Riepilogo Ordine
                         </div>
-                        <div>
-                            <h4 className="text-white font-bold mb-1">Corsi sempre disponibili</h4>
-                            <p className="text-sm text-slate-400">Guarda le lezioni dal tuo computer o smartphone, quando vuoi. Riprendi esattamente da dove avevi lasciato.</p>
+                        <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-[1.1] mb-4">
+                            {selectedCourse.title}
+                        </h2>
+                        <p className="text-base text-slate-600 mb-8 font-medium">
+                            {selectedCourse.desc}
+                        </p>
+                        
+                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 mb-6 flex justify-between items-center">
+                            <span className="font-bold text-slate-500 uppercase tracking-widest text-xs">Totale (IVA Inclusa)</span>
+                            <span className="text-3xl font-black text-[#00665E]">€{selectedCourse.price}</span>
                         </div>
-                    </div>
-                    <div className="flex gap-4">
-                        <div className="w-12 h-12 bg-slate-900 border border-slate-700 rounded-2xl flex items-center justify-center shrink-0 shadow-lg text-purple-400">
-                            <GraduationCap size={24}/>
-                        </div>
-                        <div>
-                            <h4 className="text-white font-bold mb-1">Certificazioni Ufficiali</h4>
-                            <p className="text-sm text-slate-400">Supera i quiz di fine modulo e ottieni attestati ufficiali da condividere sul tuo profilo LinkedIn aziendale.</p>
+                        
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3 text-slate-600 text-sm font-medium">
+                                <CheckCircle size={18} className="text-emerald-500"/> Checkout crittografato SSL
+                            </div>
+                            <div className="flex items-center gap-3 text-slate-600 text-sm font-medium">
+                                <CheckCircle size={18} className="text-emerald-500"/> Carte di Credito, Apple Pay e Google Pay
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
-
         </div>
     )
 }
 
 export default function AcademyLoginPage() {
     return (
-        <main className="min-h-screen bg-[#020817] font-sans selection:bg-indigo-500 selection:text-white flex flex-col relative overflow-hidden">
-            
-            {/* Effetti Luce (Indigo per l'Academy) */}
-            <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[500px] bg-indigo-600/10 rounded-full blur-[150px] pointer-events-none -z-10"></div>
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay pointer-events-none z-0"></div>
+        <main className="min-h-screen bg-[#F8FAFC] font-sans selection:bg-[#00665E] selection:text-white flex flex-col relative overflow-hidden text-slate-800">
+            <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[500px] bg-[#00665E] rounded-full blur-[150px] opacity-[0.04] pointer-events-none -z-10"></div>
+            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] mix-blend-overlay pointer-events-none z-0"></div>
 
-            {/* Navbar Semplificata */}
-            <nav className="px-6 md:px-12 py-5 flex justify-between items-center border-b border-white/5 bg-[#020817]/80 backdrop-blur-md sticky top-0 z-50">
-                <Link href="/formazione" className="flex items-center gap-2 hover:opacity-80 transition">
-                    <Shield className="text-indigo-500" size={28}/>
-                    <div className="text-2xl font-black text-white tracking-tighter">
-                        INTEGRA<span className="font-light text-slate-500">OS</span> <span className="text-indigo-400 font-medium tracking-normal ml-1">Academy</span>
-                    </div>
-                </Link>
-                <Link href="/formazione" className="text-xs font-bold text-slate-400 hover:text-white transition flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-full border border-slate-800">
-                    <ArrowLeft size={14}/> Torna al Catalogo
-                </Link>
+            <nav className="px-6 md:px-12 py-4 flex justify-between items-center border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+                <div className="flex items-center gap-4">
+                    <Link href="/formazione" className="flex items-center gap-2 hover:opacity-80 transition border-l border-slate-200 pl-4">
+                        <img src="/logo-integra.png" alt="IntegraOS Academy" className="h-8 md:h-10 object-contain" onError={(e) => e.currentTarget.src='/logo-integraos.png'} />
+                    </Link>
+                </div>
+                <div className="text-xs font-bold text-[#00665E] bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200 flex items-center gap-2 shadow-sm">
+                    <Shield size={14}/> Checkout Sicuro
+                </div>
             </nav>
 
-            {/* Contenuto Form */}
             <div className="flex-1 p-6 md:p-12 lg:p-16 flex items-center justify-center relative z-10 w-full">
-                <Suspense fallback={<div className="text-indigo-500 flex flex-col items-center gap-4"><Loader2 className="animate-spin" size={40}/><p className="font-bold">Avvio ambiente sicuro...</p></div>}>
+                <Suspense fallback={<div className="text-[#00665E] flex flex-col items-center gap-4 mt-20"><Loader2 className="animate-spin" size={40}/><p className="font-black text-lg">Inizializzazione connessione sicura...</p></div>}>
                     <AcademyAuthForm />
                 </Suspense>
             </div>
