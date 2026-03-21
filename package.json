@@ -27,7 +27,8 @@
     "react-dom": "19.2.3",
     "react-qr-code": "^2.0.18",
     "recharts": "^3.7.0",
-    "resend": "^6.9.2"
+    "resend": "^6.9.2",
+    "stripe": "^20.4.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
