@@ -4,20 +4,25 @@ import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
-// Carichiamo la chiave segreta di Stripe dal file .env.local
-const stripeKey = process.env.STRIPE_SECRET_KEY || '';
-const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
 // Dati mockati nel caso si scelgano i corsi finti dalla vetrina
 const MOCK_COURSES: any = {
     'ai-sales-masterclass': { title: 'AI Sales Masterclass', price: 299 },
     'integraos-zero-to-hero': { title: 'IntegraOS: Zero to Hero', price: 149 },
     'marketing-automation': { title: 'Marketing Automation 3.0', price: 199 }
 };
+
+// Funzione helper per evitare crash in fase di compilazione su Vercel
+function getSupabase() {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co';
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy_key';
+    return createClient(supabaseUrl, supabaseServiceKey);
+}
+
+// Funzione helper per accendere Stripe solo quando serve
+function getStripe() {
+    const stripeKey = process.env.STRIPE_SECRET_KEY || 'sk_test_dummy';
+    return new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
+}
 
 // ======================================================================
 // METODO POST: CREA LA SESSIONE E REINDIRIZZA ALLA PAGINA DI STRIPE
@@ -27,17 +32,22 @@ export async function POST(request: Request) {
         const { courseId, email } = await request.json();
         const origin = request.headers.get('origin') || 'http://localhost:3000';
 
-        // FALLBACK DI SICUREZZA: Se manca la chiave Stripe, simuliamo l'acquisto
+        // Carichiamo la chiave in tempo reale
+        const stripeKey = process.env.STRIPE_SECRET_KEY || '';
+
+        // FALLBACK DI SICUREZZA: Se manca la chiave vera, simuliamo
         if (!stripeKey) {
             console.warn("⚠️ Nessuna STRIPE_SECRET_KEY trovata. Attivo la Simulazione di Acquisto.");
             return NextResponse.json({ url: `${origin}/api/checkout?session_id=simulata&course_id=${courseId}&email=${email}` });
         }
 
-        // TROVA IL CORSO: Prima cerca nel Database Reale, altrimenti nei Mock
+        const stripe = getStripe();
+        const supabase = getSupabase();
+
+        // TROVA IL CORSO: Prima cerca nel DB Reale, altrimenti nei Mock
         let title = 'Corso IntegraOS Academy';
         let price = 99;
 
-        // FIX: La tabella corretta è academy_courses
         const { data: dbCourse } = await supabase.from('academy_courses').select('title, price').eq('id', courseId).single();
         
         if (dbCourse) {
@@ -57,7 +67,7 @@ export async function POST(request: Request) {
                     price_data: {
                         currency: 'eur',
                         product_data: { name: title },
-                        unit_amount: Math.round(price * 100), // Stripe ragiona in centesimi!
+                        unit_amount: Math.round(price * 100), // In centesimi
                     },
                     quantity: 1,
                 },
@@ -86,10 +96,10 @@ export async function GET(request: Request) {
     const origin = new URL(request.url).origin;
 
     if (course_id && email) {
+        const supabase = getSupabase();
         let actualCourseId = course_id;
         
         if (['ai-sales-masterclass', 'integraos-zero-to-hero', 'marketing-automation'].includes(course_id)) {
-             // FIX: La tabella corretta è academy_courses
              const { data: realCourses } = await supabase.from('academy_courses').select('id').limit(1);
              if (realCourses && realCourses.length > 0) {
                  actualCourseId = realCourses[0].id;
