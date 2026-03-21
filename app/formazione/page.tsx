@@ -393,4 +393,5 @@ export default function FormazioneCatalogPage() {
             )}
         </main>
     )
+    
 }
