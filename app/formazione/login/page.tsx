@@ -36,6 +36,7 @@ function AcademyAuthForm() {
         password: ''
     })
 
+    // FUNZIONE DI CONNESSIONE A STRIPE
     const handleStripeCheckout = async (userEmail: string, courseId: string) => {
         try {
             setCheckoutStatus("Connessione sicura al Gateway di Pagamento in corso...")
