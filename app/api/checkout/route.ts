@@ -37,7 +37,8 @@ export async function POST(request: Request) {
         let title = 'Corso IntegraOS Academy';
         let price = 99;
 
-        const { data: dbCourse } = await supabase.from('courses').select('title, price').eq('id', courseId).single();
+        // FIX: La tabella corretta è academy_courses
+        const { data: dbCourse } = await supabase.from('academy_courses').select('title, price').eq('id', courseId).single();
         
         if (dbCourse) {
             title = dbCourse.title;
@@ -56,15 +57,13 @@ export async function POST(request: Request) {
                     price_data: {
                         currency: 'eur',
                         product_data: { name: title },
-                        unit_amount: Math.round(price * 100), // Stripe ragiona in centesimi! (es. 99€ = 9900)
+                        unit_amount: Math.round(price * 100), // Stripe ragiona in centesimi!
                     },
                     quantity: 1,
                 },
             ],
             mode: 'payment',
-            // Dove mandare l'utente se paga con successo (Richiamiamo la nostra API in GET)
             success_url: `${origin}/api/checkout?session_id={CHECKOUT_SESSION_ID}&course_id=${courseId}&email=${email}`,
-            // Dove mandarlo se annulla il pagamento
             cancel_url: `${origin}/learning/dashboard?canceled=true`,
             metadata: { courseId, email }
         });
@@ -87,18 +86,16 @@ export async function GET(request: Request) {
     const origin = new URL(request.url).origin;
 
     if (course_id && email) {
-        // Se il corso comprato è uno di quelli "Finti" della vetrina iniziale, 
-        // assegniamo il primo corso REALE disponibile nel DB per evitare errori
         let actualCourseId = course_id;
         
         if (['ai-sales-masterclass', 'integraos-zero-to-hero', 'marketing-automation'].includes(course_id)) {
-             const { data: realCourses } = await supabase.from('courses').select('id').limit(1);
+             // FIX: La tabella corretta è academy_courses
+             const { data: realCourses } = await supabase.from('academy_courses').select('id').limit(1);
              if (realCourses && realCourses.length > 0) {
                  actualCourseId = realCourses[0].id;
              }
         }
 
-        // 💡 SALVATAGGIO REALE: Sblocchiamo il corso per l'utente!
         await supabase.from('course_progress').upsert({
             course_id: actualCourseId,
             agent_email: email,
@@ -107,6 +104,5 @@ export async function GET(request: Request) {
         }, { onConflict: 'course_id, agent_email' });
     }
 
-    // Reindirizza lo studente alla sua dashboard formativa
     return NextResponse.redirect(`${origin}/learning/dashboard?success=true`);
 }
