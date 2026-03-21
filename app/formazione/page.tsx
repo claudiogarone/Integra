@@ -247,12 +247,16 @@ export default function AcademyLoginPage() {
             <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[500px] bg-[#00665E] rounded-full blur-[150px] opacity-[0.04] pointer-events-none -z-10"></div>
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] mix-blend-overlay pointer-events-none z-0"></div>
 
-            {/* NAVBAR PREMIUM LIGHT */}
+            {/* NAVBAR PREMIUM LIGHT CON PULSANTE HOME FISATO */}
             <nav className="px-6 md:px-12 py-4 flex justify-between items-center border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
-                <Link href="/formazione" className="flex items-center gap-2 hover:opacity-80 transition">
-                    <ArrowLeft size={18} className="text-slate-400"/>
-                    <img src="/logo-integraos.png" alt="IntegraOS Academy" className="h-8 md:h-10 object-contain" onError={(e) => e.currentTarget.src='/logo-integra.png'} />
-                </Link>
+                <div className="flex items-center gap-4">
+                    <Link href="/" className="text-slate-500 hover:text-slate-800 transition flex items-center gap-2 text-sm font-bold bg-slate-50 border border-slate-200 px-4 py-2 rounded-full hover:bg-slate-100 hidden sm:flex">
+                        <ArrowLeft size={16}/> Torna al Sito
+                    </Link>
+                    <Link href="/formazione" className="flex items-center gap-2 hover:opacity-80 transition border-l border-slate-200 pl-4">
+                        <img src="/logo-integraos.png" alt="IntegraOS Academy" className="h-8 md:h-10 object-contain" onError={(e) => e.currentTarget.src='/logo-integra.png'} />
+                    </Link>
+                </div>
                 <div className="text-xs font-bold text-[#00665E] bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200 flex items-center gap-2 shadow-sm">
                     <Shield size={14}/> Area Studenti Sicura
                 </div>

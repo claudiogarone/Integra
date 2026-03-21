@@ -3,7 +3,8 @@
 import { createClient } from '../../../utils/supabase/client'
 import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
-import { Play, CheckCircle, FileText, Download, Award, Clock, ArrowRight, Monitor, StickyNote, Palette, Lock, Printer, Building } from 'lucide-react'
+import Link from 'next/link'
+import { Play, CheckCircle, FileText, Download, Award, Clock, ArrowRight, Monitor, StickyNote, Palette, Lock, Printer, Building, ArrowLeft } from 'lucide-react'
 
 export default function StudentPortal() {
   const params = useParams()
@@ -50,7 +51,39 @@ export default function StudentPortal() {
   }, [assignment])
 
   const fetchData = async () => {
-    // 1. Cerca se è un CORSO
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // 1. GESTIONE CASO "DASHBOARD" GENERICA (Appena Loggato)
+    if (token === 'dashboard') {
+        if (!user) {
+            window.location.href = '/formazione/login';
+            return;
+        }
+        
+        // Cerchiamo se l'utente ha almeno un corso assegnato
+        const { data: firstAssign } = await supabase.from('course_progress')
+            .select('access_token').eq('agent_email', user.email).limit(1).single();
+        
+        if (firstAssign && firstAssign.access_token) {
+            window.location.href = `/learning/${firstAssign.access_token}`;
+            return;
+        }
+        
+        // Altrimenti, cerchiamo se ha una diretta live assegnata
+        const { data: firstLive } = await supabase.from('live_attendance')
+            .select('access_token').eq('agent_email', user.email).limit(1).single();
+            
+        if (firstLive && firstLive.access_token) {
+            window.location.href = `/learning/${firstLive.access_token}`;
+            return;
+        }
+        
+        // Se non ha proprio nulla, fermiamo il caricamento per mostrare la schermata "Vuota"
+        setLoading(false);
+        return; 
+    }
+
+    // 2. Cerca se è un CORSO SPECIFICO
     const { data: courseAssign } = await supabase.from('course_progress').select('*').eq('access_token', token).single()
     
     if (courseAssign) {
@@ -98,7 +131,7 @@ export default function StudentPortal() {
         }
 
     } else {
-        // 2. Cerca se è una DIRETTA LIVE
+        // 3. Cerca se è una DIRETTA LIVE
         const { data: liveAssign } = await supabase.from('live_attendance').select('*').eq('access_token', token).single()
         
         if (liveAssign) {
@@ -215,7 +248,25 @@ export default function StudentPortal() {
   }
 
   if (loading) return <div className="p-10 text-center text-[#00665E] animate-pulse font-bold mt-20">Accesso sicuro al portale formativo...</div>
-  if (!course && !liveEvent) return <div className="p-10 text-center text-red-500 font-bold mt-20">Link non valido, scaduto o revocato dall'amministratore.</div>
+  
+  // GESTIONE STATO "VUOTO" QUANDO SI ENTRA NELLA DASHBOARD SENZA CORSI ASSEGNATI
+  if (!course && !liveEvent) {
+      if (token === 'dashboard') {
+          return (
+              <div className="h-screen w-full flex flex-col items-center justify-center bg-[#F8FAFC]">
+                  <div className="bg-white p-10 rounded-3xl shadow-xl text-center max-w-md border border-slate-200">
+                      <div className="w-20 h-20 bg-[#00665E]/10 text-[#00665E] rounded-full flex items-center justify-center mx-auto mb-6"><Monitor size={40}/></div>
+                      <h2 className="text-2xl font-black text-slate-900 mb-2">Benvenuto in Academy!</h2>
+                      <p className="text-slate-500 font-medium mb-8">Non hai ancora nessun corso o diretta live assegnata al tuo account. Esplora il catalogo per iscriverti e iniziare a studiare.</p>
+                      <Link href="/formazione" className="bg-[#00665E] text-white px-8 py-4 rounded-xl font-black shadow-lg hover:bg-[#004d46] transition flex items-center justify-center gap-2">
+                          Esplora il Catalogo <ArrowRight size={18}/>
+                      </Link>
+                  </div>
+              </div>
+          )
+      }
+      return <div className="p-10 text-center text-red-500 font-bold mt-20">Link non valido, scaduto o revocato dall'amministratore.</div>
+  }
 
   const target = course || liveEvent;
   
@@ -297,7 +348,7 @@ export default function StudentPortal() {
                   </>
               )}
 
-              <div className="pt-6">
+              <div className="pt-6 pb-4">
                   {/* Il tasto per l'attestato c'è SEMPRE se sbloccato */}
                   <button onClick={() => setActiveView('certificate')} className={`w-full p-4 rounded-2xl text-sm font-bold border-2 transition flex flex-col items-center justify-center gap-2 text-center ${
                       activeView === 'certificate' ? 'bg-green-50 border-green-500 text-green-700 shadow-md' : 
@@ -309,9 +360,15 @@ export default function StudentPortal() {
                   </button>
               </div>
           </div>
-          <div className="p-4 border-t border-gray-100 bg-slate-900 text-xs text-center text-slate-400 flex flex-col items-center">
-              <span>Accesso Autenticato</span>
-              <b className="text-white text-sm mt-1">{agentName}</b>
+          
+          <div className="p-4 border-t border-gray-100 bg-slate-900 text-xs text-center text-slate-400 flex flex-col items-center gap-3">
+              <div>
+                  <span>Accesso Autenticato</span>
+                  <b className="text-white text-sm mt-1 block">{agentName}</b>
+              </div>
+              <Link href="/formazione" className="w-full bg-slate-800 text-white py-2 rounded-lg font-bold hover:bg-slate-700 transition border border-slate-700 flex items-center justify-center gap-2 shadow-sm">
+                  <ArrowLeft size={14}/> Torna al Catalogo
+              </Link>
           </div>
       </div>
 
