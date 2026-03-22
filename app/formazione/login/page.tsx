@@ -213,8 +213,8 @@ function AcademyAuthForm() {
                     <div>
                         <div className="flex justify-between items-center mb-2 ml-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
-                            {/* FIX: Mostra il Banner Blu invece di ricaricare o usare l'alert del browser */}
-                            {isLoginMode && <button type="button" onClick={() => { setError(null); setInfoMessage("La funzione di recupero password automatica è in fase di attivazione. Contatta l'amministratore dell'Academy per resettare i tuoi dati in modo sicuro."); }} className="text-[10px] font-bold text-[#00665E] hover:text-[#004d46] transition">Password dimenticata?</button>}
+                            {/* FIX: Alert di sistema immediato */}
+                            {isLoginMode && <button type="button" onClick={() => alert("Per motivi di sicurezza, la funzione di recupero password automatica è disattivata. Contatta l'amministratore dell'Azienda per resettare le tue credenziali.")} className="text-[10px] font-bold text-[#00665E] hover:text-[#004d46] transition">Password dimenticata?</button>}
                         </div>
                         <div className="relative">
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
