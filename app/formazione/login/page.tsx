@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import Link from 'next/link'
 import { 
     Shield, Mail, Lock, UserCheck, 
     Loader2, User, EyeOff, Eye, AlertTriangle, 
-    CheckCircle, ArrowLeft, Info
+    CheckCircle, ArrowLeft
 } from 'lucide-react'
 
 const COURSES_INFO: Record<string, {title: string, desc: string, price: number, color: string}> = {
@@ -26,13 +26,9 @@ function AcademyAuthForm() {
     const [isLoginMode, setIsLoginMode] = useState(true)
     const [loading, setLoading] = useState(false)
     const [checkingSession, setCheckingSession] = useState(true)
-    
-    // Stati per i messaggi all'utente
     const [error, setError] = useState<string | null>(null)
-    const [infoMessage, setInfoMessage] = useState<string | null>(null)
-    const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null)
-    
     const [showPassword, setShowPassword] = useState(false)
+    const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null)
 
     const [formData, setFormData] = useState({
         fullName: '',
@@ -40,7 +36,6 @@ function AcademyAuthForm() {
         password: ''
     })
 
-    // FUNZIONE DI CONNESSIONE A STRIPE
     const handleStripeCheckout = async (userEmail: string, courseId: string) => {
         try {
             setCheckoutStatus("Connessione sicura al Gateway di Pagamento in corso...")
@@ -86,17 +81,8 @@ function AcademyAuthForm() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-
-        // CONTROLLO DATI MANUALE (Garantisce che il bottone funzioni visivamente sempre)
-        setInfoMessage(null)
-        setError(null)
-
-        if (!formData.email || !formData.password || (!isLoginMode && !formData.fullName)) {
-            setError("Compila tutti i campi per procedere.");
-            return;
-        }
-
         setLoading(true)
+        setError(null)
 
         try {
             if (isLoginMode) {
@@ -135,7 +121,7 @@ function AcademyAuthForm() {
                 window.location.href = '/learning/dashboard'
             }
         } catch (err: any) {
-            setError("Credenziali non valide. Controlla l'email e la password.")
+            setError("Credenziali non valide o errore di sistema.")
             setLoading(false)
         }
     }
@@ -153,14 +139,13 @@ function AcademyAuthForm() {
     return (
         <div className="w-full max-w-6xl mx-auto flex flex-col lg:flex-row gap-12 items-center">
             
-            {/* COLONNA SINISTRA: IL FORM */}
             <div className="w-full lg:w-1/2 bg-white border border-slate-200 p-8 md:p-10 rounded-3xl shadow-xl relative animate-in slide-in-from-left-8">
                 
                 <div className="flex p-1.5 bg-slate-50 rounded-xl mb-8 border border-slate-200 shadow-inner">
-                    <button onClick={() => {setIsLoginMode(true); setError(null); setInfoMessage(null);}} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${isLoginMode ? 'bg-white text-[#00665E] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
+                    <button onClick={() => {setIsLoginMode(true); setError(null);}} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${isLoginMode ? 'bg-white text-[#00665E] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
                         Accedi
                     </button>
-                    <button onClick={() => {setIsLoginMode(false); setError(null); setInfoMessage(null);}} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${!isLoginMode ? 'bg-white text-[#00665E] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
+                    <button onClick={() => {setIsLoginMode(false); setError(null);}} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${!isLoginMode ? 'bg-white text-[#00665E] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
                         Nuovo Studente
                     </button>
                 </div>
@@ -176,28 +161,20 @@ function AcademyAuthForm() {
                     </p>
                 </div>
 
-                {/* BANNER ERRORE */}
                 {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-sm font-bold flex items-center gap-3 shadow-sm animate-in fade-in">
-                        <AlertTriangle size={20} className="shrink-0"/> {error}
-                    </div>
-                )}
-
-                {/* BANNER INFORMAZIONE (Es. Password dimenticata) */}
-                {infoMessage && (
-                    <div className="bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-xl mb-6 text-sm font-bold flex items-start gap-3 shadow-sm animate-in fade-in">
-                        <Info size={20} className="shrink-0 mt-0.5"/> {infoMessage}
+                    <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-sm font-bold flex items-start gap-2 shadow-sm">
+                        <AlertTriangle size={18} className="shrink-0 mt-0.5"/> 
+                        <span>{error}</span>
                     </div>
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-5">
-                    
                     {!isLoginMode && (
                         <div>
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Nome e Cognome</label>
                             <div className="relative">
                                 <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                                <input type="text" value={formData.fullName} onChange={e=>setFormData({...formData, fullName: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-4 text-slate-900 outline-none focus:border-[#00665E] focus:ring-1 focus:ring-[#00665E] transition font-bold" placeholder="Mario Rossi" />
+                                <input required type="text" value={formData.fullName} onChange={e=>setFormData({...formData, fullName: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-4 text-slate-900 outline-none focus:border-[#00665E] focus:ring-1 focus:ring-[#00665E] transition font-bold" placeholder="Mario Rossi" />
                             </div>
                         </div>
                     )}
@@ -206,19 +183,27 @@ function AcademyAuthForm() {
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Email</label>
                         <div className="relative">
                             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                            <input type="email" value={formData.email} onChange={e=>setFormData({...formData, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-4 text-slate-900 outline-none focus:border-[#00665E] focus:ring-1 focus:ring-[#00665E] transition font-bold" placeholder="mario.rossi@email.com" />
+                            <input required type="email" value={formData.email} onChange={e=>setFormData({...formData, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-4 text-slate-900 outline-none focus:border-[#00665E] focus:ring-1 focus:ring-[#00665E] transition font-bold" placeholder="mario.rossi@email.com" />
                         </div>
                     </div>
 
                     <div>
                         <div className="flex justify-between items-center mb-2 ml-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
-                            {/* FIX: Alert di sistema immediato */}
-                            {isLoginMode && <button type="button" onClick={() => alert("Per motivi di sicurezza, la funzione di recupero password automatica è disattivata. Contatta l'amministratore dell'Azienda per resettare le tue credenziali.")} className="text-[10px] font-bold text-[#00665E] hover:text-[#004d46] transition">Password dimenticata?</button>}
+                            {/* FIX DEFINITIVO: Forza il messaggio di errore rosso per farsi notare subito */}
+                            {isLoginMode && (
+                                <button 
+                                    type="button" 
+                                    onClick={() => setError("⚠️ La funzione di recupero password automatica è disattivata per motivi di sicurezza. Contatta l'amministratore dell'Academy per resettare i tuoi dati.")} 
+                                    className="text-[10px] font-bold text-[#00665E] hover:text-[#004d46] transition"
+                                >
+                                    Password dimenticata?
+                                </button>
+                            )}
                         </div>
                         <div className="relative">
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                            <input type={showPassword ? "text" : "password"} value={formData.password} onChange={e=>setFormData({...formData, password: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-12 text-slate-900 outline-none focus:border-[#00665E] focus:ring-1 focus:ring-[#00665E] transition font-mono font-bold" placeholder="••••••••" />
+                            <input required type={showPassword ? "text" : "password"} value={formData.password} onChange={e=>setFormData({...formData, password: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-12 text-slate-900 outline-none focus:border-[#00665E] focus:ring-1 focus:ring-[#00665E] transition font-mono font-bold" placeholder="••••••••" />
                             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition">
                                 {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
                             </button>
@@ -233,7 +218,6 @@ function AcademyAuthForm() {
                 </form>
             </div>
 
-            {/* COLONNA DESTRA: INFORMAZIONI CORSO */}
             <div className="w-full lg:w-1/2 text-center lg:text-left animate-in slide-in-from-right-8">
                 {selectedCourse ? (
                     <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">

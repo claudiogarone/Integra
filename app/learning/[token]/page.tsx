@@ -16,7 +16,6 @@ export default function StudentPortal() {
   const [liveEvent, setLiveEvent] = useState<any>(null) 
   const [agentName, setAgentName] = useState('')
   
-  // Dati Azienda Admin
   const [companyProfile, setCompanyProfile] = useState<any>({ name: 'Academy', logo: '' })
   
   const [courseNotes, setCourseNotes] = useState('')
@@ -27,7 +26,6 @@ export default function StudentPortal() {
   
   const [quizAnswers, setQuizAnswers] = useState<{[key: number]: number}>({})
 
-  // Tracking del tempo in piattaforma (per l'analitica dell'admin)
   const [secondsSpent, setSecondsSpent] = useState(0)
   const secondsRef = useRef(0)
 
@@ -37,7 +35,6 @@ export default function StudentPortal() {
     if (token) fetchData()
   }, [token])
 
-  // Timer: salva il tempo passato sulla piattaforma ogni 15 secondi (Silenzioso)
   useEffect(() => {
       if (!assignment || assignment.type === 'live') return;
       const interval = setInterval(() => {
@@ -53,14 +50,12 @@ export default function StudentPortal() {
   const fetchData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
 
-    // 1. GESTIONE CASO "DASHBOARD" GENERICA (Appena Loggato)
     if (token === 'dashboard') {
         if (!user) {
             window.location.href = '/formazione/login';
             return;
         }
         
-        // Cerchiamo se l'utente ha almeno un corso assegnato
         const { data: firstAssign } = await supabase.from('course_progress')
             .select('access_token').eq('agent_email', user.email).limit(1).single();
         
@@ -69,7 +64,6 @@ export default function StudentPortal() {
             return;
         }
         
-        // Altrimenti, cerchiamo se ha una diretta live assegnata
         const { data: firstLive } = await supabase.from('live_attendance')
             .select('access_token').eq('agent_email', user.email).limit(1).single();
             
@@ -78,12 +72,10 @@ export default function StudentPortal() {
             return;
         }
         
-        // Se non ha proprio nulla, fermiamo il caricamento per mostrare la schermata "Vuota"
         setLoading(false);
         return; 
     }
 
-    // 2. Cerca se è un CORSO SPECIFICO
     const { data: courseAssign } = await supabase.from('course_progress').select('*').eq('access_token', token).single()
     
     if (courseAssign) {
@@ -91,14 +83,11 @@ export default function StudentPortal() {
         secondsRef.current = courseAssign.time_spent_seconds || 0
         setSecondsSpent(secondsRef.current)
         
-        // Recupera Nome Agente
         const { data: agentData } = await supabase.from('team_members').select('name').eq('email', courseAssign.agent_email).single()
         setAgentName(agentData?.name || courseAssign.agent_email.split('@')[0])
 
-        // Recupera Dati Corso Completi (Incluso il Quiz)
         const { data: courseData } = await supabase.from('courses').select('*, lessons(*), quizzes(*, quiz_questions(*))').eq('id', courseAssign.course_id).single()
         
-        // Ordiniamo le lezioni per visualizzarle corrette
         if(courseData && courseData.lessons) {
             courseData.lessons.sort((a:any, b:any) => a.id - b.id);
         }
@@ -112,7 +101,6 @@ export default function StudentPortal() {
             if(board) setWhiteboardImg(board.content)
         }
 
-        // Recupera Logo e Nome dell'Azienda (L'Admin che ha creato il corso)
         if(courseData) {
             const { data: profile } = await supabase.from('profiles').select('*').eq('id', courseData.user_id).single()
             if(profile) {
@@ -120,10 +108,8 @@ export default function StudentPortal() {
             }
         }
 
-        // Trova l'ultimo quiz creato (ignoriamo vecchie bozze)
         const latestQuiz = courseData?.quizzes?.length > 0 ? courseData.quizzes[courseData.quizzes.length - 1] : null;
 
-        // Decide la vista iniziale in base al progresso
         if(courseAssign.progress >= 100 && (!latestQuiz || courseAssign.quiz_score >= latestQuiz.passing_score)) {
             setActiveView('certificate')
         } else {
@@ -131,7 +117,6 @@ export default function StudentPortal() {
         }
 
     } else {
-        // 3. Cerca se è una DIRETTA LIVE
         const { data: liveAssign } = await supabase.from('live_attendance').select('*').eq('access_token', token).single()
         
         if (liveAssign) {
@@ -164,16 +149,12 @@ export default function StudentPortal() {
     setLoading(false)
   }
 
-  // Estraiamo sempre l'ultimo quiz valido
   const currentQuiz = course?.quizzes?.length > 0 ? course.quizzes[course.quizzes.length - 1] : null;
 
-  // --- LOGICA AVANZAMENTO PERCENTUALE VIDEO REALE ---
   const handleMarkLessonComplete = async () => {
       const totalLessons = course.lessons.length;
-      // Calcola la nuova percentuale basata sulla lezione corrente
       const targetProgress = Math.round(((activeLessonIndex + 1) / totalLessons) * 100);
       
-      // Aggiorniamo solo se il nuovo progresso è maggiore di quello salvato (per evitare che si abbassi se rivede un video)
       if (targetProgress > assignment.progress) {
           const { error } = await supabase.from('course_progress').update({ progress: targetProgress }).eq('id', assignment.id);
           if (!error) {
@@ -181,20 +162,17 @@ export default function StudentPortal() {
           }
       }
 
-      // Passa alla lezione successiva o al quiz
       if (activeLessonIndex < totalLessons - 1) {
           setActiveLessonIndex(activeLessonIndex + 1);
       } else {
           if (currentQuiz) {
               setActiveView('quiz');
           } else {
-              // Se non c'è quiz ed è l'ultima lezione, sblocca attestato
               if (targetProgress >= 100) setActiveView('certificate');
           }
       }
   }
 
-  // --- LOGICA QUIZ INFALLIBILE ---
   const handleQuizSubmit = async () => {
       if(!currentQuiz || !currentQuiz.quiz_questions || currentQuiz.quiz_questions.length === 0) {
           return alert("Errore: Impossibile caricare le domande del test.");
@@ -207,7 +185,6 @@ export default function StudentPortal() {
 
       const score = Math.round((correctCount / currentQuiz.quiz_questions.length) * 100);
 
-      // Aggiorna sempre il punteggio nel DB
       await supabase.from('course_progress').update({ quiz_score: score }).eq('id', assignment.id)
       setAssignment((prev: any) => ({...prev, quiz_score: score}))
 
@@ -219,16 +196,10 @@ export default function StudentPortal() {
       }
   }
 
-  // --- LOGICA DIRETTA LIVE AUTOMATICA ---
   const handleJoinLive = async () => {
-      // 1. Registra in automatico la presenza nel database Admin
       await supabase.from('live_attendance').update({ present: true, notes: 'Accesso tramite portale' }).eq('id', assignment.id);
       setAssignment((prev: any) => ({...prev, present: true}));
-      
-      // 2. Apre il link della diretta (Zoom/Meet) in una nuova scheda
       window.open(liveEvent.platform_link, '_blank');
-      
-      // 3. Sposta la vista sull'attestato
       alert("✅ Presenza registrata con successo! L'attestato sarà disponibile al termine della sessione.");
       setActiveView('certificate');
   }
@@ -249,7 +220,6 @@ export default function StudentPortal() {
 
   if (loading) return <div className="p-10 text-center text-[#00665E] animate-pulse font-bold mt-20">Accesso sicuro al portale formativo...</div>
   
-  // GESTIONE STATO "VUOTO" QUANDO SI ENTRA NELLA DASHBOARD SENZA CORSI ASSEGNATI
   if (!course && !liveEvent) {
       if (token === 'dashboard') {
           return (
@@ -258,9 +228,11 @@ export default function StudentPortal() {
                       <div className="w-20 h-20 bg-[#00665E]/10 text-[#00665E] rounded-full flex items-center justify-center mx-auto mb-6"><Monitor size={40}/></div>
                       <h2 className="text-2xl font-black text-slate-900 mb-2">Benvenuto in Academy!</h2>
                       <p className="text-slate-500 font-medium mb-8">Non hai ancora nessun corso o diretta live assegnata al tuo account. Esplora il catalogo per iscriverti e iniziare a studiare.</p>
-                      <Link href="/formazione" className="bg-[#00665E] text-white px-8 py-4 rounded-xl font-black shadow-lg hover:bg-[#004d46] transition flex items-center justify-center gap-2">
+                      
+                      {/* FIX DEFINITIVO LOOP: Forziamo il browser ad aprire la pagina svuotando la cache della memoria interna */}
+                      <a href="/formazione" className="bg-[#00665E] text-white px-8 py-4 rounded-xl font-black shadow-lg hover:bg-[#004d46] transition flex items-center justify-center gap-2">
                           Esplora il Catalogo <ArrowRight size={18}/>
-                      </Link>
+                      </a>
                   </div>
               </div>
           )
@@ -270,12 +242,10 @@ export default function StudentPortal() {
 
   const target = course || liveEvent;
   
-  // VERIFICA SBLOCCO ATTESTATO
   const isCertUnlocked = assignment?.type === 'live' 
       ? assignment.present 
       : (assignment.progress >= 100 && (!currentQuiz || assignment.quiz_score >= currentQuiz.passing_score));
 
-  // Modello di attestato di default nel caso l'admin non ne abbia salvato uno
   const defaultTemplate = {
       title: 'Attestato di Partecipazione',
       signer: `Direzione ${companyProfile.name}`,
@@ -287,9 +257,7 @@ export default function StudentPortal() {
   return (
     <div className="flex h-screen bg-slate-50 font-sans">
       
-      {/* ========================================================= */}
       {/* SIDEBAR NAVIGAZIONE STUDENTE */}
-      {/* ========================================================= */}
       <div className="w-80 bg-white border-r border-gray-200 flex flex-col shadow-sm shrink-0 print:hidden">
           <div className="p-6 border-b border-gray-100 flex flex-col items-center text-center">
               {companyProfile.logo ? (
@@ -349,7 +317,6 @@ export default function StudentPortal() {
               )}
 
               <div className="pt-6 pb-4">
-                  {/* Il tasto per l'attestato c'è SEMPRE se sbloccato */}
                   <button onClick={() => setActiveView('certificate')} className={`w-full p-4 rounded-2xl text-sm font-bold border-2 transition flex flex-col items-center justify-center gap-2 text-center ${
                       activeView === 'certificate' ? 'bg-green-50 border-green-500 text-green-700 shadow-md' : 
                       isCertUnlocked ? 'bg-white border-green-200 text-green-600 hover:bg-green-50 hover:border-green-400' : 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
@@ -366,19 +333,16 @@ export default function StudentPortal() {
                   <span>Accesso Autenticato</span>
                   <b className="text-white text-sm mt-1 block">{agentName}</b>
               </div>
-              <Link href="/formazione" className="w-full bg-slate-800 text-white py-2 rounded-lg font-bold hover:bg-slate-700 transition border border-slate-700 flex items-center justify-center gap-2 shadow-sm">
+              <a href="/formazione" className="w-full bg-slate-800 text-white py-2 rounded-lg font-bold hover:bg-slate-700 transition border border-slate-700 flex items-center justify-center gap-2 shadow-sm">
                   <ArrowLeft size={14}/> Torna al Catalogo
-              </Link>
+              </a>
           </div>
       </div>
 
-      {/* ========================================================= */}
       {/* AREA PRINCIPALE CONTENUTI */}
-      {/* ========================================================= */}
       <div className="flex-1 overflow-y-auto print:overflow-visible">
           <div className="max-w-5xl mx-auto p-8 py-12 print:p-0 print:max-w-full">
               
-              {/* VISTA: INTRODUZIONE CORSO */}
               {activeView === 'intro' && course && (
                   <div className="animate-in fade-in slide-in-from-bottom-4">
                       <div className="h-72 w-full bg-gray-200 rounded-3xl overflow-hidden mb-8 shadow-lg relative">
@@ -403,7 +367,6 @@ export default function StudentPortal() {
                   </div>
               )}
 
-              {/* VISTA: MATERIALI CONDIVISI */}
               {activeView === 'materials' && (
                   <div className="animate-in fade-in slide-in-from-bottom-4 space-y-8">
                       <h1 className="text-3xl font-black text-gray-900 flex items-center gap-3"><FileText className="text-purple-600"/> Materiali di Supporto</h1>
@@ -428,7 +391,6 @@ export default function StudentPortal() {
                   </div>
               )}
 
-              {/* VISTA: DIRETTA LIVE */}
               {activeView === 'live' && liveEvent && (
                   <div className="animate-in fade-in slide-in-from-bottom-4 flex flex-col items-center justify-center min-h-[60vh]">
                       <div className="bg-red-50 border-4 border-red-100 p-12 rounded-[3rem] text-center mb-8 max-w-2xl w-full shadow-2xl relative overflow-hidden">
@@ -447,7 +409,6 @@ export default function StudentPortal() {
                   </div>
               )}
 
-              {/* VISTA: LEZIONI VIDEO */}
               {activeView === 'lesson' && course?.lessons[activeLessonIndex] && (
                   <div className="animate-in fade-in slide-in-from-right">
                       <div className="flex justify-between items-end mb-6">
@@ -475,7 +436,6 @@ export default function StudentPortal() {
                   </div>
               )}
 
-              {/* VISTA: QUIZ FINALE */}
               {activeView === 'quiz' && currentQuiz && (
                   <div className="animate-in fade-in slide-in-from-bottom-4">
                       <div className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-xl border border-gray-100">
@@ -520,7 +480,6 @@ export default function StudentPortal() {
                   </div>
               )}
 
-              {/* VISTA: ATTESTATO (PDF NATIVO) */}
               {activeView === 'certificate' && (
                   <div className="animate-in zoom-in-95 duration-500 flex flex-col items-center pb-20 print:p-0">
                       
@@ -534,7 +493,6 @@ export default function StudentPortal() {
                           <Printer size={24}/> Stampa / Salva in PDF
                       </button>
 
-                      {/* IL FOGLIO A4 ORIZZONTALE (LANDSCAPE) */}
                       <div className="print-container bg-white border border-gray-200 shadow-2xl relative flex flex-col justify-center items-center print:border-none print:shadow-none" style={{ width: '297mm', minHeight: '210mm', padding: '15mm', boxSizing: 'border-box' }}>
                           <div className="border-8 border-double border-gray-300 w-full h-full p-16 text-center relative flex flex-col justify-center items-center">
                               <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none"><Award size={500}/></div>
@@ -570,7 +528,6 @@ export default function StudentPortal() {
           </div>
       </div>
 
-      {/* STILI PER STAMPA PDF PERFETTA */}
       <style dangerouslySetInnerHTML={{ __html: `
         .print-only { display: none; }
         @media print {
