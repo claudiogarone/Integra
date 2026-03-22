@@ -50,14 +50,16 @@ export default function StudentPortal() {
   const fetchData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
 
+    // --- CONTROLLO DASHBOARD ---
     if (token === 'dashboard') {
         if (!user) {
             window.location.href = '/formazione/login';
             return;
         }
         
+        // Cerca il primo corso posseduto che abbia un access_token VALIDO!
         const { data: firstAssign } = await supabase.from('course_progress')
-            .select('access_token').eq('agent_email', user.email).limit(1).single();
+            .select('access_token').eq('agent_email', user.email).not('access_token', 'is', null).limit(1).single();
         
         if (firstAssign && firstAssign.access_token) {
             window.location.href = `/learning/${firstAssign.access_token}`;
@@ -65,17 +67,19 @@ export default function StudentPortal() {
         }
         
         const { data: firstLive } = await supabase.from('live_attendance')
-            .select('access_token').eq('agent_email', user.email).limit(1).single();
+            .select('access_token').eq('agent_email', user.email).not('access_token', 'is', null).limit(1).single();
             
         if (firstLive && firstLive.access_token) {
             window.location.href = `/learning/${firstLive.access_token}`;
             return;
         }
         
+        // Se arriva qui, non ha corsi o i token sono rotti.
         setLoading(false);
         return; 
     }
 
+    // --- RECUPERO DATI CORSO TRAMITE TOKEN ---
     const { data: courseAssign } = await supabase.from('course_progress').select('*').eq('access_token', token).single()
     
     if (courseAssign) {
@@ -86,12 +90,15 @@ export default function StudentPortal() {
         const { data: agentData } = await supabase.from('team_members').select('name').eq('email', courseAssign.agent_email).single()
         setAgentName(agentData?.name || courseAssign.agent_email.split('@')[0])
 
-        const { data: courseData } = await supabase.from('courses').select('*, lessons(*), quizzes(*, quiz_questions(*))').eq('id', courseAssign.course_id).single()
+        // FIX: Assicuriamoci che usi la tabella giusta (academy_courses e academy_lessons) come le API dell'admin!
+        const { data: courseData } = await supabase.from('academy_courses').select('*, academy_lessons(*), quizzes(*, quiz_questions(*))').eq('id', courseAssign.course_id).single()
         
-        if(courseData && courseData.lessons) {
+        if(courseData) {
+            // Mappiamo academy_lessons in lessons per non rompere il resto del codice UI
+            courseData.lessons = courseData.academy_lessons || [];
             courseData.lessons.sort((a:any, b:any) => a.id - b.id);
+            setCourse(courseData)
         }
-        setCourse(courseData)
 
         const { data: materialsData } = await supabase.from('course_materials').select('*').eq('course_id', courseAssign.course_id)
         if(materialsData) {
@@ -229,10 +236,10 @@ export default function StudentPortal() {
                       <h2 className="text-2xl font-black text-slate-900 mb-2">Benvenuto in Academy!</h2>
                       <p className="text-slate-500 font-medium mb-8">Non hai ancora nessun corso o diretta live assegnata al tuo account. Esplora il catalogo per iscriverti e iniziare a studiare.</p>
                       
-                      {/* FIX DEFINITIVO LOOP: Forziamo il browser ad aprire la pagina svuotando la cache della memoria interna */}
-                      <a href="/formazione" className="bg-[#00665E] text-white px-8 py-4 rounded-xl font-black shadow-lg hover:bg-[#004d46] transition flex items-center justify-center gap-2">
+                      {/* FIX: Link diretto per pulire la history e farti uscire dalla dashboard studente */}
+                      <Link href="/formazione" className="bg-[#00665E] text-white px-8 py-4 rounded-xl font-black shadow-lg hover:bg-[#004d46] transition flex items-center justify-center gap-2">
                           Esplora il Catalogo <ArrowRight size={18}/>
-                      </a>
+                      </Link>
                   </div>
               </div>
           )

@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { 
     Shield, Mail, Lock, ArrowRight, UserCheck, 
     Loader2, User, EyeOff, Eye, AlertTriangle, 
-    CheckCircle, ArrowLeft
+    CheckCircle, ArrowLeft, Info
 } from 'lucide-react'
 
 const COURSES_INFO: Record<string, {title: string, desc: string, price: number, color: string}> = {
@@ -27,9 +27,11 @@ function AcademyAuthForm() {
     const [isLoginMode, setIsLoginMode] = useState(true)
     const [loading, setLoading] = useState(false)
     const [checkingSession, setCheckingSession] = useState(true)
+    
     const [error, setError] = useState<string | null>(null)
-    const [showPassword, setShowPassword] = useState(false)
+    const [showForgotMsg, setShowForgotMsg] = useState(false) // FIX: Stato nativo per il messaggio password
     const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null)
+    const [showPassword, setShowPassword] = useState(false)
 
     const [formData, setFormData] = useState({
         fullName: '',
@@ -37,9 +39,6 @@ function AcademyAuthForm() {
         password: ''
     })
 
-    // =================================================================
-    // FUNZIONE DI CONNESSIONE A STRIPE (CON BYPASS DI EMERGENZA ANTI-LOOP)
-    // =================================================================
     const handleStripeCheckout = async (userEmail: string, courseId: string) => {
         try {
             setCheckoutStatus("Connessione sicura al Gateway in corso...")
@@ -52,7 +51,6 @@ function AcademyAuthForm() {
 
             const data = await response.json()
 
-            // Se Stripe risponde con URL, andiamo a pagare
             if (response.ok && data.url) {
                 window.location.href = data.url
             } else {
@@ -60,26 +58,22 @@ function AcademyAuthForm() {
             }
 
         } catch (err: any) {
-            // =================================================================
-            // FIX ANTI-LOOP: Se Stripe va in crash (es. mancano le API Keys), 
-            // NON FACCIAMO IL REDIRECT. Forziamo l'assegnazione del corso per farti testare!
-            // =================================================================
-            alert("⚠️ AVVISO DI SISTEMA: Stripe non è ancora configurato su Vercel.\n\nPer permetterti di testare la piattaforma senza bloccarti, il corso ti verrà sbloccato gratuitamente in automatico!");
-            
+            // FIX DEL LOOP INFINITO: Ora creiamo il Token (Link Magico) durante la simulazione!
             setCheckoutStatus("Sblocco corso in corso...");
             
-            // Prende il primo corso reale disponibile e lo assegna all'utente
             const { data: realCourses } = await supabase.from('academy_courses').select('id').limit(1);
             if (realCourses && realCourses.length > 0) {
+                 const magicToken = `tok_${Date.now()}_${Math.floor(Math.random()*1000)}`; // GENERIAMO IL TOKEN!
+                 
                  await supabase.from('course_progress').upsert({
                      course_id: realCourses[0].id,
                      agent_email: userEmail,
                      progress: 0,
-                     status: 'assigned'
+                     status: 'assigned',
+                     access_token: magicToken // SALVIAMO IL TOKEN NEL DB!
                  }, { onConflict: 'course_id, agent_email' });
             }
             
-            // Ora che ha sicuramente il corso, lo mandiamo in dashboard
             window.location.href = '/learning/dashboard';
         }
     }
@@ -105,6 +99,7 @@ function AcademyAuthForm() {
         e.preventDefault()
         setLoading(true)
         setError(null)
+        setShowForgotMsg(false)
 
         try {
             if (isLoginMode) {
@@ -117,7 +112,7 @@ function AcademyAuthForm() {
                 if (buyParam) {
                     await handleStripeCheckout(formData.email, buyParam)
                 } else {
-                    window.location.reload()
+                    window.location.href = '/learning/dashboard'
                 }
 
             } else {
@@ -160,31 +155,30 @@ function AcademyAuthForm() {
     return (
         <div className="w-full max-w-6xl mx-auto flex flex-col lg:flex-row gap-12 items-center">
             
-            {/* COLONNA SINISTRA: IL FORM */}
             <div className="w-full lg:w-1/2 bg-white border border-slate-200 p-8 md:p-10 rounded-3xl shadow-xl relative animate-in slide-in-from-left-8">
                 
                 <div className="flex p-1.5 bg-slate-50 rounded-xl mb-8 border border-slate-200 shadow-inner">
-                    <button type="button" onClick={() => setIsLoginMode(true)} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${isLoginMode ? 'bg-white text-[#00665E] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
+                    <button type="button" onClick={() => {setIsLoginMode(true); setError(null); setShowForgotMsg(false);}} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${isLoginMode ? 'bg-white text-[#00665E] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
                         Accedi
                     </button>
-                    <button type="button" onClick={() => setIsLoginMode(false)} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${!isLoginMode ? 'bg-white text-[#00665E] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
+                    <button type="button" onClick={() => {setIsLoginMode(false); setError(null); setShowForgotMsg(false);}} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${!isLoginMode ? 'bg-white text-[#00665E] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
                         Nuovo Studente
                     </button>
                 </div>
 
-                <div className="mb-8">
+                <div className="mb-6">
                     <h2 className="text-3xl font-black text-slate-900 mb-2">
                         {isLoginMode ? 'Bentornato in Academy.' : 'Inizia a studiare.'}
                     </h2>
                     <p className="text-slate-500 text-sm font-medium">
                         {isLoginMode 
-                            ? 'Inserisci le tue credenziali per accedere ai tuoi corsi e attestati.' 
-                            : 'Crea un account gratuito per sbloccare i contenuti e completare gli acquisti.'}
+                            ? 'Inserisci le tue credenziali per accedere ai tuoi corsi.' 
+                            : 'Crea un account gratuito per sbloccare i contenuti.'}
                     </p>
                 </div>
 
                 {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-sm font-bold flex items-start gap-2 shadow-sm">
+                    <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-sm font-bold flex items-start gap-2 shadow-sm animate-in fade-in">
                         <AlertTriangle size={18} className="shrink-0 mt-0.5"/> 
                         <span>{error}</span>
                     </div>
@@ -214,17 +208,26 @@ function AcademyAuthForm() {
                         <div className="flex justify-between items-center mb-2 ml-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
                             
-                            {/* FIX DEFINITIVO PASSWORD: Alert Nativo di sistema (infallibile) */}
+                            {/* FIX PASSWORD: Bottone che attiva uno stato React (Nessun Alert del browser) */}
                             {isLoginMode && (
                                 <button 
                                     type="button" 
-                                    onClick={() => window.alert("⚠️ FUNZIONE DISATTIVATA\n\nPer motivi di sicurezza, la funzione di recupero password automatica è disattivata. Contatta l'amministratore dell'azienda per resettare le tue credenziali.")} 
+                                    onClick={() => setShowForgotMsg(true)} 
                                     className="text-[10px] font-bold text-[#00665E] hover:text-[#004d46] transition underline"
                                 >
                                     Password dimenticata?
                                 </button>
                             )}
                         </div>
+
+                        {/* MESSAGGIO PASSWORD DIMENTICATA IN PAGINA */}
+                        {showForgotMsg && (
+                            <div className="bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-xl mb-4 text-xs font-bold flex items-start gap-2 shadow-sm animate-in fade-in">
+                                <Info size={16} className="shrink-0 mt-0.5"/>
+                                Per motivi di sicurezza, la funzione di recupero automatico è disattivata. Contatta il tuo amministratore per resettare i dati.
+                            </div>
+                        )}
+
                         <div className="relative">
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
                             <input required type={showPassword ? "text" : "password"} value={formData.password} onChange={e=>setFormData({...formData, password: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-12 text-slate-900 outline-none focus:border-[#00665E] focus:ring-1 focus:ring-[#00665E] transition font-mono font-bold" placeholder="••••••••" />
@@ -242,9 +245,7 @@ function AcademyAuthForm() {
                 </form>
             </div>
 
-            {/* COLONNA DESTRA: INFORMAZIONI CORSO O VANTAGGI GENERALI */}
             <div className="w-full lg:w-1/2 text-center lg:text-left animate-in slide-in-from-right-8">
-                
                 {selectedCourse ? (
                     <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
                         <div className="inline-block bg-amber-50 text-amber-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-200 mb-6 shadow-sm">
@@ -290,7 +291,6 @@ function AcademyAuthForm() {
     )
 }
 
-// Layout principale della pagina
 export default function AcademyLoginPage() {
     return (
         <main className="min-h-screen bg-[#F8FAFC] font-sans selection:bg-[#00665E] selection:text-white flex flex-col relative overflow-hidden text-slate-800">
