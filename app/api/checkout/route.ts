@@ -68,7 +68,7 @@ export async function POST(request: Request) {
             ],
             mode: 'payment',
             success_url: `${origin}/api/checkout?session_id={CHECKOUT_SESSION_ID}&course_id=${courseId}&email=${email}`,
-            cancel_url: `${origin}/learning/dashboard?canceled=true`,
+            cancel_url: `${origin}/formazione/dashboard?canceled=true`,
             metadata: { courseId, email }
         });
 
@@ -97,7 +97,6 @@ export async function GET(request: Request) {
              if (realCourses && realCourses.length > 0) {
                  actualCourseId = realCourses[0].id;
              } else {
-                 // FIX DEFINITIVO LOOP: IL DATABASE È VUOTO! CREIAMO UN CORSO DI TEST!
                  const { data: newCourse } = await supabase.from('academy_courses').insert({
                      title: MOCK_COURSES[course_id]?.title || 'Corso Autogenerato',
                      description: 'Creato in automatico dal sistema per completare il test di acquisto.',
@@ -112,15 +111,24 @@ export async function GET(request: Request) {
         if (actualCourseId) {
             const magicToken = `tok_${Date.now()}_${Math.floor(Math.random()*1000)}`;
             
-            await supabase.from('course_progress').upsert({
-                course_id: actualCourseId,
-                agent_email: email,
-                progress: 0,
-                status: 'assigned',
-                access_token: magicToken
-            }, { onConflict: 'course_id, agent_email' });
+            // FIX: Niente più upsert! Usiamo select e poi insert per evitare crash del Database
+            const { data: existingProgress } = await supabase.from('course_progress')
+                .select('id').eq('course_id', actualCourseId).eq('agent_email', email).single();
+
+            if (existingProgress) {
+                await supabase.from('course_progress').update({ access_token: magicToken }).eq('id', existingProgress.id);
+            } else {
+                await supabase.from('course_progress').insert({
+                    course_id: actualCourseId,
+                    agent_email: email,
+                    progress: 0,
+                    status: 'assigned',
+                    access_token: magicToken
+                });
+            }
         }
     }
 
-    return NextResponse.redirect(`${origin}/learning/dashboard?success=true`);
+    // FIX: Ti manda alla TUA vera dashboard studenti, spezzando il loop!
+    return NextResponse.redirect(`${origin}/formazione/dashboard?success=true`);
 }

@@ -70,12 +70,22 @@ function AcademyAuthForm() {
             
             if (actualId) {
                 const magicToken = `tok_${Date.now()}`; 
-                await supabase.from('course_progress').upsert({
-                    course_id: actualId, agent_email: userEmail, progress: 0, status: 'assigned', access_token: magicToken 
-                }, { onConflict: 'course_id, agent_email' });
+                
+                // FIX: Salvataggio sicuro nel Database bypassando il conflitto di upsert
+                const { data: existingProgress } = await supabase.from('course_progress')
+                    .select('id').eq('course_id', actualId).eq('agent_email', userEmail).single();
+
+                if (existingProgress) {
+                    await supabase.from('course_progress').update({ access_token: magicToken }).eq('id', existingProgress.id);
+                } else {
+                    await supabase.from('course_progress').insert({
+                        course_id: actualId, agent_email: userEmail, progress: 0, status: 'assigned', access_token: magicToken
+                    });
+                }
             }
             
-            window.location.href = '/learning/dashboard';
+            // FIX: Reindirizzamento alla dashboard corretta
+            window.location.href = '/formazione/dashboard';
         }
     }
 
@@ -87,7 +97,8 @@ function AcademyAuthForm() {
                 if (buyParam) {
                     await handleStripeCheckout(user.email || '', buyParam)
                 } else {
-                    window.location.href = '/learning/dashboard'
+                    // FIX: Reindirizzamento alla dashboard corretta
+                    window.location.href = '/formazione/dashboard'
                 }
             } else {
                 setCheckingSession(false)
@@ -112,7 +123,8 @@ function AcademyAuthForm() {
                 if (buyParam) {
                     await handleStripeCheckout(formData.email, buyParam)
                 } else {
-                    window.location.href = '/learning/dashboard'
+                    // FIX: Reindirizzamento alla dashboard corretta
+                    window.location.href = '/formazione/dashboard'
                 }
 
             } else {
@@ -135,7 +147,8 @@ function AcademyAuthForm() {
                         return; 
                     }
                 }
-                window.location.href = '/learning/dashboard'
+                // FIX: Reindirizzamento alla dashboard corretta
+                window.location.href = '/formazione/dashboard'
             }
         } catch (err: any) {
             setError("Credenziali non valide. Controlla email e password.")
@@ -208,11 +221,11 @@ function AcademyAuthForm() {
                         <div className="flex justify-between items-center mb-2 ml-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
                             
-                            {/* ORA IL BOTTONE È ATTIVO E MOSTRA L'ERRORE ROSSO */}
+                            {/* FIX DEFINITIVO PASSWORD: Setta lo stato Error mostrando il Banner Rosso nativo React */}
                             {isLoginMode && (
                                 <button 
                                     type="button" 
-                                    onClick={() => setError("⚠️ Avviso Sicurezza: La funzione di recupero password automatica è disattivata. Contatta l'amministratore aziendale per resettare la password.")} 
+                                    onClick={() => setError("⚠️ Avviso di Sicurezza: La funzione di recupero password automatica è disattivata. Contatta l'amministratore dell'azienda per resettare le tue credenziali in modo sicuro.")} 
                                     className="text-[10px] font-bold text-[#00665E] hover:text-[#004d46] transition underline"
                                 >
                                     Password dimenticata?
@@ -294,7 +307,7 @@ export default function AcademyLoginPage() {
                         <ArrowLeft size={16}/> Torna al Sito
                     </Link>
                     <Link href="/formazione" className="flex items-center gap-2 hover:opacity-80 transition border-l border-slate-200 pl-4">
-                        <img src="/logo-integraos.png" alt="IntegraOS Academy" className="h-8 md:h-10 object-contain" onError={(e) => e.currentTarget.src='/logo-integra.png'} />
+                        <img src="/logo-integra.png" alt="IntegraOS Academy" className="h-8 md:h-10 object-contain" onError={(e) => e.currentTarget.src='/logo-integraos.png'} />
                     </Link>
                 </div>
                 <div className="text-xs font-bold text-[#00665E] bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200 flex items-center gap-2 shadow-sm">
