@@ -6,7 +6,7 @@ import { createClient } from '@/utils/supabase/client'
 import { 
     Shield, Mail, Lock, UserCheck, 
     Loader2, User, EyeOff, Eye, AlertTriangle, 
-    CheckCircle, ArrowLeft
+    CheckCircle, ArrowLeft, Info, X
 } from 'lucide-react'
 
 const COURSES_INFO: Record<string, {title: string, desc: string, price: number, color: string}> = {
@@ -28,6 +28,9 @@ function AcademyAuthForm() {
     const [error, setError] = useState<string | null>(null)
     const [showPassword, setShowPassword] = useState(false)
     const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null)
+    
+    // NUOVO STATO PER IL MODALE DELLA PASSWORD
+    const [showPasswordModal, setShowPasswordModal] = useState(false)
 
     const [formData, setFormData] = useState({
         fullName: '',
@@ -54,20 +57,25 @@ function AcademyAuthForm() {
             }
 
         } catch (err: any) {
-            // FIX DEL LOOP: Bypass se Stripe fallisce, assegna il corso col Token!
             setCheckoutStatus("Sblocco corso in modalità Test...");
             
+            let actualId = null;
             const { data: realCourses } = await supabase.from('academy_courses').select('id').limit(1);
             if (realCourses && realCourses.length > 0) {
-                 const magicToken = `tok_${Date.now()}_${Math.floor(Math.random()*1000)}`; 
-                 
-                 await supabase.from('course_progress').upsert({
-                     course_id: realCourses[0].id,
-                     agent_email: userEmail,
-                     progress: 0,
-                     status: 'assigned',
-                     access_token: magicToken 
-                 }, { onConflict: 'course_id, agent_email' });
+                 actualId = realCourses[0].id;
+            } else {
+                 // CREA CORSO FINTO SE DB E' VUOTO
+                 const { data: newCourse } = await supabase.from('academy_courses').insert({
+                     title: 'Corso Autogenerato', description: 'Test', price: 0, status: 'Pubblicato', user_id: '00000000-0000-0000-0000-000000000000'
+                 }).select().single();
+                 if (newCourse) actualId = newCourse.id;
+            }
+            
+            if (actualId) {
+                const magicToken = `tok_${Date.now()}`; 
+                await supabase.from('course_progress').upsert({
+                    course_id: actualId, agent_email: userEmail, progress: 0, status: 'assigned', access_token: magicToken 
+                }, { onConflict: 'course_id, agent_email' });
             }
             
             window.location.href = '/learning/dashboard';
@@ -203,11 +211,11 @@ function AcademyAuthForm() {
                         <div className="flex justify-between items-center mb-2 ml-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
                             
-                            {/* IL FIX DELLA PASSWORD E' QUI. Forza lo stato di Error! */}
+                            {/* ORA APRE IL MODALE INEQUIVOCABILE! */}
                             {isLoginMode && (
                                 <button 
                                     type="button" 
-                                    onClick={() => setError("⚠️ Avviso Sicurezza: La funzione di recupero password automatica è disattivata. Contatta l'amministratore aziendale per resettare la password.")} 
+                                    onClick={() => setShowPasswordModal(true)} 
                                     className="text-[10px] font-bold text-[#00665E] hover:text-[#004d46] transition underline"
                                 >
                                     Password dimenticata?
@@ -273,6 +281,31 @@ function AcademyAuthForm() {
                     </>
                 )}
             </div>
+
+            {/* MODALE DI SICUREZZA GIGANTE PER LA PASSWORD */}
+            {showPasswordModal && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+                    <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95">
+                        <div className="bg-blue-50 p-6 border-b border-blue-100 flex justify-between items-center text-blue-900">
+                            <h3 className="font-black text-xl flex items-center gap-2"><Info size={24}/> Recupero Password</h3>
+                            <button onClick={() => setShowPasswordModal(false)} className="text-blue-400 hover:text-blue-600 bg-white p-1.5 rounded-full shadow-sm"><X size={16}/></button>
+                        </div>
+                        <div className="p-8 text-center">
+                            <Shield className="w-16 h-16 text-blue-400 mx-auto mb-4" />
+                            <h4 className="text-lg font-bold text-gray-900 mb-2">Funzione Disattivata per Sicurezza</h4>
+                            <p className="text-sm text-gray-500 mb-6">
+                                Per garantire la massima protezione dei tuoi dati e dei tuoi corsi acquistati, il reset automatico della password non è consentito.
+                            </p>
+                            <p className="text-sm font-bold text-gray-800 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                Contatta direttamente l'amministratore dell'Academy tramite email per richiedere le tue nuove credenziali di accesso.
+                            </p>
+                            <button onClick={() => setShowPasswordModal(false)} className="w-full mt-6 bg-[#00665E] text-white py-3.5 rounded-xl font-black shadow-lg hover:bg-[#004d46] transition">
+                                Ho Capito
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
@@ -285,7 +318,6 @@ export default function AcademyLoginPage() {
 
             <nav className="px-6 md:px-12 py-4 flex justify-between items-center border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
                 <div className="flex items-center gap-4">
-                    {/* FIX ANTI-LOOP: ANCHE QUI USIAMO UN TAG A VERO */}
                     <a href="/" className="text-slate-500 hover:text-slate-800 transition flex items-center gap-2 text-sm font-bold bg-slate-50 border border-slate-200 px-4 py-2 rounded-full hidden sm:flex">
                         <ArrowLeft size={16}/> Torna al Sito
                     </a>

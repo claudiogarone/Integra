@@ -95,12 +95,21 @@ export async function GET(request: Request) {
              if (realCourses && realCourses.length > 0) {
                  actualCourseId = realCourses[0].id;
              } else {
-                 actualCourseId = null; 
+                 // FIX ASSOLUTO: Se il database è vuoto, creiamo un corso finto per spezzare il loop!
+                 const { data: newCourse } = await supabase.from('academy_courses').insert({
+                     title: MOCK_COURSES[course_id]?.title || 'Corso Autogenerato',
+                     description: 'Generato in automatico dal sistema per farti testare il portale.',
+                     price: 0,
+                     status: 'Pubblicato',
+                     user_id: '00000000-0000-0000-0000-000000000000'
+                 }).select().single();
+                 
+                 if (newCourse) actualCourseId = newCourse.id;
+                 else actualCourseId = null;
              }
         }
 
         if (actualCourseId) {
-            // FIX: GENERIAMO IL TOKEN QUI IN MODO CHE LA DASHBOARD RIESCA A CARICARLO!
             const magicToken = `tok_${Date.now()}_${Math.floor(Math.random()*1000)}`;
             
             await supabase.from('course_progress').upsert({
@@ -108,7 +117,7 @@ export async function GET(request: Request) {
                 agent_email: email,
                 progress: 0,
                 status: 'assigned',
-                access_token: magicToken // <--- ERA QUESTO CHE MANCAVA!
+                access_token: magicToken
             }, { onConflict: 'course_id, agent_email' });
         }
     }

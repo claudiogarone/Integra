@@ -3,7 +3,6 @@
 import { createClient } from '../../../utils/supabase/client'
 import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
-import Link from 'next/link'
 import { Play, CheckCircle, FileText, Download, Award, Clock, ArrowRight, Monitor, StickyNote, Palette, Lock, Printer, Building, ArrowLeft } from 'lucide-react'
 
 export default function StudentPortal() {
@@ -236,10 +235,10 @@ export default function StudentPortal() {
                       <h2 className="text-2xl font-black text-slate-900 mb-2">Benvenuto in Academy!</h2>
                       <p className="text-slate-500 font-medium mb-8">Non hai ancora nessun corso o diretta live assegnata al tuo account. Esplora il catalogo per iscriverti e iniziare a studiare.</p>
                       
-                      {/* FIX: Link diretto per pulire la history e farti uscire dalla dashboard studente */}
-                      <Link href="/formazione" className="bg-[#00665E] text-white px-8 py-4 rounded-xl font-black shadow-lg hover:bg-[#004d46] transition flex items-center justify-center gap-2">
+                      {/* FIX: Link nativo per svuotare la cache e farti uscire correttamente dalla dashboard */}
+                      <a href="/formazione" className="bg-[#00665E] text-white px-8 py-4 rounded-xl font-black shadow-lg hover:bg-[#004d46] transition flex items-center justify-center gap-2">
                           Esplora il Catalogo <ArrowRight size={18}/>
-                      </Link>
+                      </a>
                   </div>
               </div>
           )
