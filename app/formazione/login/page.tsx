@@ -3,7 +3,6 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
-import Link from 'next/link'
 import { 
     Shield, Mail, Lock, UserCheck, 
     Loader2, User, EyeOff, Eye, AlertTriangle, 
@@ -48,51 +47,12 @@ function AcademyAuthForm() {
 
             const data = await response.json()
 
-            // FIX DEFINITIVO: Facciamo l'assegnazione direttamente qui per evitare l'errore server!
-            if (data.url && data.url.includes('session_id=simulata')) {
-                setCheckoutStatus("Sblocco corso in modalità Test...");
-                
-                let actualId = courseId;
-                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-                
-                // Se viene dalla vetrina, trova il vero ID
-                if (!uuidRegex.test(courseId)) {
-                    const { data: realCourses } = await supabase.from('academy_courses').select('id').limit(1);
-                    if (realCourses && realCourses.length > 0) {
-                        actualId = realCourses[0].id;
-                    } else {
-                        const { data: newCourse } = await supabase.from('academy_courses').insert({
-                            title: 'Corso Autogenerato', description: 'Test', price: 0, status: 'Pubblicato'
-                        }).select().single();
-                        if (newCourse) actualId = newCourse.id;
-                    }
-                }
-                
-                if (actualId) {
-                    const magicToken = `tok_${Date.now()}`; 
-                    
-                    const { data: existingProgress } = await supabase.from('course_progress')
-                        .select('id').eq('course_id', actualId).eq('agent_email', userEmail).single();
-
-                    if (existingProgress) {
-                        await supabase.from('course_progress').update({ access_token: magicToken }).eq('id', existingProgress.id);
-                    } else {
-                        await supabase.from('course_progress').insert({
-                            course_id: actualId, agent_email: userEmail, progress: 0, status: 'assigned', access_token: magicToken
-                        });
-                    }
-                }
-                
-                window.location.href = '/formazione/dashboard';
-                return;
-            }
-
             if (response.ok && data.url) {
+                // AFFIDIAMO IL REDIRECT TOTALMENTE AL BACKEND (Vero Stripe o Finto)
                 window.location.href = data.url
             } else {
                 throw new Error("Stripe non configurato")
             }
-
         } catch (err: any) {
             console.error(err)
             window.location.href = '/formazione/dashboard'
@@ -107,7 +67,6 @@ function AcademyAuthForm() {
                 if (buyParam) {
                     await handleStripeCheckout(user.email || '', buyParam)
                 } else {
-                    // FIX: Reindirizzamento alla dashboard corretta
                     window.location.href = '/formazione/dashboard'
                 }
             } else {
@@ -133,7 +92,6 @@ function AcademyAuthForm() {
                 if (buyParam) {
                     await handleStripeCheckout(formData.email, buyParam)
                 } else {
-                    // FIX: Reindirizzamento alla dashboard corretta
                     window.location.href = '/formazione/dashboard'
                 }
 
@@ -157,7 +115,6 @@ function AcademyAuthForm() {
                         return; 
                     }
                 }
-                // FIX: Reindirizzamento alla dashboard corretta
                 window.location.href = '/formazione/dashboard'
             }
         } catch (err: any) {
@@ -231,11 +188,10 @@ function AcademyAuthForm() {
                         <div className="flex justify-between items-center mb-2 ml-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
                             
-                            {/* FIX DEFINITIVO PASSWORD: Setta lo stato Error mostrando il Banner Rosso nativo React */}
                             {isLoginMode && (
                                 <button 
                                     type="button" 
-                                    onClick={() => setError("⚠️ Avviso di Sicurezza: La funzione di recupero password automatica è disattivata. Contatta l'amministratore dell'azienda per resettare le tue credenziali in modo sicuro.")} 
+                                    onClick={() => setError("⚠️ Avviso Sicurezza: La funzione di recupero password automatica è disattivata. Contatta l'amministratore aziendale per resettare la password.")} 
                                     className="text-[10px] font-bold text-[#00665E] hover:text-[#004d46] transition underline"
                                 >
                                     Password dimenticata?
@@ -313,12 +269,12 @@ export default function AcademyLoginPage() {
 
             <nav className="px-6 md:px-12 py-4 flex justify-between items-center border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
                 <div className="flex items-center gap-4">
-                    <Link href="/" className="text-slate-500 hover:text-slate-800 transition flex items-center gap-2 text-sm font-bold bg-slate-50 border border-slate-200 px-4 py-2 rounded-full hidden sm:flex">
+                    <a href="/" className="text-slate-500 hover:text-slate-800 transition flex items-center gap-2 text-sm font-bold bg-slate-50 border border-slate-200 px-4 py-2 rounded-full hidden sm:flex">
                         <ArrowLeft size={16}/> Torna al Sito
-                    </Link>
-                    <Link href="/formazione" className="flex items-center gap-2 hover:opacity-80 transition border-l border-slate-200 pl-4">
-                        <img src="/logo-integra.png" alt="IntegraOS Academy" className="h-8 md:h-10 object-contain" onError={(e) => e.currentTarget.src='/logo-integraos.png'} />
-                    </Link>
+                    </a>
+                    <a href="/formazione" className="flex items-center gap-2 hover:opacity-80 transition border-l border-slate-200 pl-4">
+                        <img src="/logo-integraos.png" alt="IntegraOS Academy" className="h-8 md:h-10 object-contain" onError={(e) => e.currentTarget.src='/logo-integra.png'} />
+                    </a>
                 </div>
                 <div className="text-xs font-bold text-[#00665E] bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200 flex items-center gap-2 shadow-sm">
                     <Shield size={14}/> Accesso Sicuro

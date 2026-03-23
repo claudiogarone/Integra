@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
         const stripeKey = process.env.STRIPE_SECRET_KEY || '';
 
-        // FALLBACK DI SICUREZZA
+        // FALLBACK DI SICUREZZA: Se manca Stripe, manda alla simulazione (GET)
         if (!stripeKey) {
             console.warn("⚠️ Nessuna STRIPE_SECRET_KEY trovata. Attivo la Simulazione.");
             return NextResponse.json({ url: `${origin}/api/checkout?session_id=simulata&course_id=${courseId}&email=${email}` });
@@ -84,7 +84,6 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const course_id = searchParams.get('course_id');
     const email = searchParams.get('email');
-    const origin = new URL(request.url).origin;
 
     if (course_id && email) {
         const supabase = getSupabase();
@@ -103,7 +102,6 @@ export async function GET(request: Request) {
                      price: 0,
                      status: 'Pubblicato'
                  }).select().single();
-                 
                  actualCourseId = newCourse ? newCourse.id : null;
              }
         }
@@ -111,7 +109,7 @@ export async function GET(request: Request) {
         if (actualCourseId) {
             const magicToken = `tok_${Date.now()}_${Math.floor(Math.random()*1000)}`;
             
-            // FIX: Niente più upsert! Usiamo select e poi insert per evitare crash del Database
+            // QUI AGISCE DA ADMIN (Bypassando i limiti degli studenti)
             const { data: existingProgress } = await supabase.from('course_progress')
                 .select('id').eq('course_id', actualCourseId).eq('agent_email', email).single();
 
@@ -129,6 +127,6 @@ export async function GET(request: Request) {
         }
     }
 
-    // FIX: Ti manda alla TUA vera dashboard studenti, spezzando il loop!
-    return NextResponse.redirect(`${origin}/formazione/dashboard?success=true`);
+    // FIX DEFINITIVO: Redirect robusto per Vercel
+    return NextResponse.redirect(new URL('/formazione/dashboard?success=true', request.url));
 }

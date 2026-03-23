@@ -18,10 +18,8 @@ function DashboardContent() {
     const [loading, setLoading] = useState(true)
     const [user, setUser] = useState<any>(null)
     
-    // Dati reali dal DB
     const [myCourses, setMyCourses] = useState<any[]>([])
     const [availableCourses, setAvailableCourses] = useState<any[]>([])
-    
     const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null)
 
     useEffect(() => {
@@ -29,22 +27,17 @@ function DashboardContent() {
             const { data: { user } } = await supabase.auth.getUser()
             
             if (!user) {
-                // Se non c'è un utente loggato, lo rimanda al login
                 window.location.href = '/formazione/login'
                 return
             }
             setUser(user)
 
-            // 1. Prendi tutti i corsi dal DB
             const { data: allCourses } = await supabase.from('academy_courses').select('*').eq('status', 'Pubblicato')
-            
-            // 2. Prendi gli sblocchi dell'utente
             const { data: progress } = await supabase.from('course_progress').select('*').eq('agent_email', user.email)
             
             if (allCourses && progress) {
                 const enrolledIds = progress.map(p => p.course_id)
                 
-                // Dividi i corsi: quelli che ha e quelli che può comprare
                 const owned = allCourses.filter(c => enrolledIds.includes(c.id)).map(c => {
                     const progInfo = progress.find(p => p.course_id === c.id);
                     return { ...c, progressValue: progInfo?.progress || 0, token: progInfo?.access_token }
@@ -66,12 +59,11 @@ function DashboardContent() {
         window.location.href = '/formazione'
     }
 
-    // FUNZIONE DI ACQUISTO (STRIPE REALE)
     const handleBuyCourse = async (courseId: string) => {
         if (!user || !user.email) return;
         
         try {
-            setCheckoutStatus("Connessione sicura a Stripe in corso...")
+            setCheckoutStatus("Apertura portale di pagamento...")
             
             const response = await fetch('/api/checkout', {
                 method: 'POST',
@@ -81,12 +73,11 @@ function DashboardContent() {
 
             const data = await response.json()
 
-            if (!response.ok) throw new Error(data.error || "Errore di connessione a Stripe")
-
-            if (data.url) {
-                window.location.href = data.url
+            // ORA SI AFFIDA COMPLETAMENTE ALL'URL RICEVUTO DAL BACKEND SICURO
+            if (response.ok && data.url) {
+                window.location.href = data.url;
             } else {
-                throw new Error("URL di checkout mancante")
+                throw new Error("Errore nella generazione del link.")
             }
         } catch (err: any) {
             alert("Errore durante il caricamento del pagamento: " + err.message)
@@ -105,15 +96,12 @@ function DashboardContent() {
 
     return (
         <main className="min-h-screen bg-[#F8FAFC] font-sans selection:bg-[#00665E] selection:text-white pb-24 relative overflow-hidden text-slate-800">
-            
-            {/* EFFETTI LUCE LIGHT THEME */}
             <div className="absolute top-0 left-0 w-full h-[500px] bg-[#00665E] rounded-full blur-[150px] opacity-[0.04] pointer-events-none -z-10"></div>
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] mix-blend-overlay pointer-events-none z-0"></div>
 
-            {/* NAVBAR STUDENTE */}
             <nav className="px-6 md:px-12 py-4 flex justify-between items-center border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-40 shadow-sm">
                 <Link href="/formazione" className="flex items-center gap-2 hover:opacity-80 transition">
-                    <img src="/logo-integraos.png" alt="IntegraOS Academy" className="h-8 md:h-10 object-contain" onError={(e) => e.currentTarget.src='/logo-integra.png'} />
+                    <img src="/logo-integra.png" alt="IntegraOS Academy" className="h-8 md:h-10 object-contain" onError={(e) => e.currentTarget.src='/logo-integraos.png'} />
                     <span className="text-xl font-light text-[#00665E] tracking-tight ml-2 hidden sm:block border-l border-slate-200 pl-4">Academy</span>
                 </Link>
                 <div className="flex items-center gap-4">
@@ -128,8 +116,6 @@ function DashboardContent() {
             </nav>
 
             <div className="max-w-7xl mx-auto px-6 mt-10 relative z-10">
-                
-                {/* SALUTO HEADER */}
                 <div className="mb-12 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                     <div>
                         <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight mb-2">
@@ -142,7 +128,6 @@ function DashboardContent() {
                     </div>
                 </div>
 
-                {/* SEZIONE 1: I MIEI CORSI (ACQUISTATI) */}
                 <div className="mb-16">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
@@ -154,22 +139,14 @@ function DashboardContent() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {myCourses.map(course => (
                                 <div key={course.id} className="bg-white border border-slate-200 rounded-3xl p-6 relative overflow-hidden group hover:border-[#00665E]/50 hover:shadow-xl transition duration-300 flex flex-col">
-                                    
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="w-12 h-12 bg-[#00665E]/10 text-[#00665E] rounded-2xl flex items-center justify-center border border-[#00665E]/20">
                                             <PlayCircle size={24}/>
                                         </div>
-                                        {course.progressValue === 100 && (
-                                            <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase px-2 py-1 rounded-lg flex items-center gap-1">
-                                                <Award size={12}/> Completato
-                                            </span>
-                                        )}
                                     </div>
-                                    
                                     <h3 className="text-xl font-black text-slate-900 mb-2 leading-tight">{course.title}</h3>
                                     <p className="text-slate-500 text-sm mb-6 flex-1 line-clamp-3 font-medium">{course.description}</p>
                                     
-                                    {/* Barra di Progresso */}
                                     <div className="mb-6">
                                         <div className="flex justify-between text-xs font-bold text-slate-500 mb-2">
                                             <span>Progresso</span>
@@ -180,7 +157,6 @@ function DashboardContent() {
                                         </div>
                                     </div>
 
-                                    {/* In futuro: porterà a /learning/[token] o alla classe interna */}
                                     <Link href={`/formazione/classroom/${course.id}`} className="w-full bg-slate-50 hover:bg-[#00665E] text-[#00665E] hover:text-white font-black py-3 rounded-xl transition flex items-center justify-center gap-2 border border-slate-200 hover:border-transparent shadow-sm">
                                         Entra in Classe <ArrowRight size={16}/>
                                     </Link>
@@ -196,7 +172,6 @@ function DashboardContent() {
                     )}
                 </div>
 
-                {/* SEZIONE 2: CATALOGO UPSELL (CORSI DA COMPRARE) */}
                 {availableCourses.length > 0 && (
                     <div>
                         <div className="flex items-center justify-between mb-6">
