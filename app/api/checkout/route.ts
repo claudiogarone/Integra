@@ -17,13 +17,10 @@ function getSupabase() {
 }
 
 function getStripe() {
-    const stripeKey = process.env.STRIPE_SECRET_KEY || 'sk_test_dummy';
+    const stripeKey = process.env.STRIPE_SECRET_KEY || '';
     return new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
 }
 
-// ======================================================================
-// METODO POST: CREA LA SESSIONE E REINDIRIZZA ALLA PAGINA DI STRIPE
-// ======================================================================
 export async function POST(request: Request) {
     try {
         const { courseId, email } = await request.json();
@@ -31,7 +28,7 @@ export async function POST(request: Request) {
 
         const stripeKey = process.env.STRIPE_SECRET_KEY || '';
 
-        // FALLBACK DI SICUREZZA: Se manca la chiave vera, simuliamo
+        // FALLBACK DI SICUREZZA: Se manca la chiave vera, simuliamo passando i parametri al GET
         if (!stripeKey) {
             console.warn("⚠️ Nessuna STRIPE_SECRET_KEY trovata. Attivo la Simulazione di Acquisto.");
             return NextResponse.json({ url: `${origin}/api/checkout?session_id=simulata&course_id=${courseId}&email=${email}` });
@@ -43,7 +40,6 @@ export async function POST(request: Request) {
         let title = 'Corso IntegraOS Academy';
         let price = 99;
 
-        // FIX: Controlliamo se courseId è un UUID reale prima di interrogare Supabase!
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
         
         if (uuidRegex.test(courseId)) {
@@ -53,12 +49,10 @@ export async function POST(request: Request) {
                 price = dbCourse.price || 99;
             }
         } else if (MOCK_COURSES[courseId]) {
-            // Se è un corso finto della vetrina iniziale
             title = MOCK_COURSES[courseId].title;
             price = MOCK_COURSES[courseId].price;
         }
 
-        // CREAZIONE VERA SESSIONE STRIPE
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card', 'paypal'],
             customer_email: email,
@@ -86,9 +80,6 @@ export async function POST(request: Request) {
     }
 }
 
-// ======================================================================
-// METODO GET: RICEVE IL SUCCESSO DA STRIPE E SBLOCCA IL CORSO NEL DB
-// ======================================================================
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const course_id = searchParams.get('course_id');
@@ -104,16 +95,20 @@ export async function GET(request: Request) {
              if (realCourses && realCourses.length > 0) {
                  actualCourseId = realCourses[0].id;
              } else {
-                 actualCourseId = null; // Previene l'inserimento se il database corsi è completamente vuoto
+                 actualCourseId = null; 
              }
         }
 
         if (actualCourseId) {
+            // FIX: GENERIAMO IL TOKEN QUI IN MODO CHE LA DASHBOARD RIESCA A CARICARLO!
+            const magicToken = `tok_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+            
             await supabase.from('course_progress').upsert({
                 course_id: actualCourseId,
                 agent_email: email,
                 progress: 0,
-                status: 'assigned'
+                status: 'assigned',
+                access_token: magicToken // <--- ERA QUESTO CHE MANCAVA!
             }, { onConflict: 'course_id, agent_email' });
         }
     }

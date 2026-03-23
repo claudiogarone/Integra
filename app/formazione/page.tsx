@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import Link from 'next/link'
 import { 
-    Shield, Search, BookOpen, Clock, Star, ArrowRight, 
-    BrainCircuit, MessageSquare, X, CheckCircle2, Play, Cookie,
-    ArrowLeft, CheckCircle
+    Search, Star, BrainCircuit, MessageSquare, X, CheckCircle2, ArrowLeft, CheckCircle
 } from 'lucide-react'
 
 const COURSES = [
@@ -86,13 +85,14 @@ export default function FormazioneCatalogPage() {
             
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[400px] bg-[#00665E] rounded-full blur-[150px] opacity-[0.04] pointer-events-none -z-10"></div>
 
+            {/* NAVBAR */}
             <nav className="px-6 md:px-12 py-4 flex justify-between items-center border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
                 <div className="flex items-center gap-6">
                     <a href="/" className="text-slate-500 hover:text-slate-800 transition flex items-center gap-2 text-sm font-bold bg-slate-50 border border-slate-200 px-4 py-2 rounded-full hover:bg-slate-100">
                         <ArrowLeft size={16}/> Torna a IntegraOS
                     </a>
                     <div className="hidden md:flex items-center gap-2 border-l border-slate-200 pl-6">
-                        <img src="/logo-integraos.png" alt="IntegraOS" className="h-8 object-contain" onError={(e) => e.currentTarget.src='/logo-integra.png'} />
+                        <img src="/logo-integra.png" alt="IntegraOS" className="h-8 object-contain" onError={(e) => e.currentTarget.src='/logo-integraos.png'} />
                         <div className="text-xl font-light text-[#00665E] tracking-tight ml-1">Academy</div>
                     </div>
                 </div>
@@ -101,13 +101,13 @@ export default function FormazioneCatalogPage() {
                     <button onClick={() => setShowContactModal(true)} className="text-sm font-bold text-slate-500 hover:text-[#00665E] transition flex items-center gap-2">
                         <MessageSquare size={16}/> Consulenza
                     </button>
-                    {/* FIX ANTI-LOOP: Link Diretto senza Next.js cache */}
                     <a href="/formazione/login" className="bg-[#00665E] hover:bg-[#004d46] text-white text-sm font-black px-6 py-2.5 rounded-full transition shadow-md">
                         Area Studenti
                     </a>
                 </div>
             </nav>
 
+            {/* HERO */}
             <div className="max-w-7xl mx-auto px-6 mt-16 md:mt-24 relative z-10 text-center mb-16">
                 <div className="inline-flex items-center gap-3 bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-full text-[#00665E] text-xs font-black uppercase tracking-widest mb-8 shadow-sm">
                     Oltre 5.000 Manager Formati
@@ -126,6 +126,7 @@ export default function FormazioneCatalogPage() {
                 </div>
             </div>
 
+            {/* CATALOGO */}
             <div id="catalogo" className="max-w-7xl mx-auto px-6 relative z-10 bg-white rounded-[2.5rem] border border-slate-200 p-8 md:p-12 shadow-xl">
                 
                 <div className="max-w-2xl mx-auto relative group mb-10 -mt-16">
@@ -171,6 +172,7 @@ export default function FormazioneCatalogPage() {
                 </div>
             </div>
 
+            {/* MODALE DETTAGLIO CORSO E ACQUISTO */}
             {selectedCourse && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
                     <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-5xl shadow-2xl relative overflow-hidden my-auto animate-in zoom-in-95">
@@ -206,14 +208,47 @@ export default function FormazioneCatalogPage() {
                                     </div>
                                 </div>
                                 
-                                {/* FIX ANTI-LOOP: Link HTML nativo per pulire la cache al click su ACQUISTA */}
                                 <a href={`/formazione/login?buy=${selectedCourse.id}`} className={`w-full bg-${selectedCourse.color}-600 text-white text-center font-black py-4 rounded-xl shadow-lg hover:-translate-y-1 transition`}>
-                                    Iscriviti e Accedi <ArrowRight size={20} className="inline"/>
+                                    Iscriviti e Accedi
                                 </a>
                             </div>
                         </div>
                     </div>
                 </div>
+            )}
+            
+            {/* FIX: HO RIPRISTINATO IL MODALE CONTATTI CHE AVEVO OMESSO! */}
+            {showContactModal && (
+               <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+                   <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-lg shadow-2xl animate-in zoom-in-95 overflow-hidden">
+                       <div className="bg-slate-50 p-6 border-b border-slate-100 flex justify-between items-center relative overflow-hidden">
+                           <div className="absolute -right-4 -top-4 text-[#00665E]/10"><MessageSquare size={100}/></div>
+                           <div className="relative z-10">
+                               <h3 className="font-black text-slate-900 text-xl">Parla con un Tutor</h3>
+                               <p className="text-sm text-slate-500 mt-1 font-medium">Siamo qui per guidarti verso il corso perfetto.</p>
+                           </div>
+                           <button onClick={() => setShowContactModal(false)} className="text-slate-400 hover:text-slate-700 relative z-10 bg-white border border-slate-200 p-2 rounded-full shadow-sm"><X size={20}/></button>
+                       </div>
+                       <div className="p-8">
+                           {contactFormStatus === 'success' ? (
+                               <div className="text-center py-8">
+                                   <div className="w-20 h-20 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner"><CheckCircle2 size={40}/></div>
+                                   <h4 className="text-2xl font-black text-slate-900 mb-2">Richiesta Inviata!</h4>
+                                   <p className="text-slate-500 font-medium">Un nostro tutor ti contatterà via email.</p>
+                               </div>
+                           ) : (
+                               <form onSubmit={handleContactSubmit} className="space-y-5">
+                                   <input required type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-900 outline-none focus:border-[#00665E] font-bold transition" placeholder="Nome Azienda o Referente" />
+                                   <input required type="email" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-900 outline-none focus:border-[#00665E] font-bold transition" placeholder="Email Lavorativa" />
+                                   <textarea required rows={4} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-900 outline-none focus:border-[#00665E] font-medium transition resize-none" placeholder="Di cosa hai bisogno?"></textarea>
+                                   <button disabled={contactFormStatus === 'sending'} type="submit" className="w-full bg-[#00665E] text-white font-black py-4 rounded-xl hover:bg-[#004d46] transition disabled:opacity-50 shadow-lg shadow-[#00665E]/20">
+                                       {contactFormStatus === 'sending' ? 'Invio in corso...' : 'Invia Richiesta'}
+                                   </button>
+                               </form>
+                           )}
+                       </div>
+                   </div>
+               </div>
             )}
         </main>
     )
