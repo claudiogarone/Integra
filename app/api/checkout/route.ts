@@ -28,9 +28,9 @@ export async function POST(request: Request) {
 
         const stripeKey = process.env.STRIPE_SECRET_KEY || '';
 
-        // FALLBACK DI SICUREZZA: Se manca la chiave vera, simuliamo passando i parametri al GET
+        // FALLBACK DI SICUREZZA
         if (!stripeKey) {
-            console.warn("⚠️ Nessuna STRIPE_SECRET_KEY trovata. Attivo la Simulazione di Acquisto.");
+            console.warn("⚠️ Nessuna STRIPE_SECRET_KEY trovata. Attivo la Simulazione.");
             return NextResponse.json({ url: `${origin}/api/checkout?session_id=simulata&course_id=${courseId}&email=${email}` });
         }
 
@@ -90,22 +90,22 @@ export async function GET(request: Request) {
         const supabase = getSupabase();
         let actualCourseId: string | null = course_id;
         
-        if (['ai-sales-masterclass', 'integraos-zero-to-hero', 'marketing-automation'].includes(course_id)) {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        
+        if (!uuidRegex.test(course_id)) {
              const { data: realCourses } = await supabase.from('academy_courses').select('id').limit(1);
              if (realCourses && realCourses.length > 0) {
                  actualCourseId = realCourses[0].id;
              } else {
-                 // FIX ASSOLUTO: Se il database è vuoto, creiamo un corso finto per spezzare il loop!
+                 // FIX DEFINITIVO LOOP: IL DATABASE È VUOTO! CREIAMO UN CORSO DI TEST!
                  const { data: newCourse } = await supabase.from('academy_courses').insert({
                      title: MOCK_COURSES[course_id]?.title || 'Corso Autogenerato',
-                     description: 'Generato in automatico dal sistema per farti testare il portale.',
+                     description: 'Creato in automatico dal sistema per completare il test di acquisto.',
                      price: 0,
-                     status: 'Pubblicato',
-                     user_id: '00000000-0000-0000-0000-000000000000'
+                     status: 'Pubblicato'
                  }).select().single();
                  
-                 if (newCourse) actualCourseId = newCourse.id;
-                 else actualCourseId = null;
+                 actualCourseId = newCourse ? newCourse.id : null;
              }
         }
 
