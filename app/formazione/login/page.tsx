@@ -48,6 +48,45 @@ function AcademyAuthForm() {
 
             const data = await response.json()
 
+            // FIX DEFINITIVO: Facciamo l'assegnazione direttamente qui per evitare l'errore server!
+            if (data.url && data.url.includes('session_id=simulata')) {
+                setCheckoutStatus("Sblocco corso in modalità Test...");
+                
+                let actualId = courseId;
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+                
+                // Se viene dalla vetrina, trova il vero ID
+                if (!uuidRegex.test(courseId)) {
+                    const { data: realCourses } = await supabase.from('academy_courses').select('id').limit(1);
+                    if (realCourses && realCourses.length > 0) {
+                        actualId = realCourses[0].id;
+                    } else {
+                        const { data: newCourse } = await supabase.from('academy_courses').insert({
+                            title: 'Corso Autogenerato', description: 'Test', price: 0, status: 'Pubblicato'
+                        }).select().single();
+                        if (newCourse) actualId = newCourse.id;
+                    }
+                }
+                
+                if (actualId) {
+                    const magicToken = `tok_${Date.now()}`; 
+                    
+                    const { data: existingProgress } = await supabase.from('course_progress')
+                        .select('id').eq('course_id', actualId).eq('agent_email', userEmail).single();
+
+                    if (existingProgress) {
+                        await supabase.from('course_progress').update({ access_token: magicToken }).eq('id', existingProgress.id);
+                    } else {
+                        await supabase.from('course_progress').insert({
+                            course_id: actualId, agent_email: userEmail, progress: 0, status: 'assigned', access_token: magicToken
+                        });
+                    }
+                }
+                
+                window.location.href = '/formazione/dashboard';
+                return;
+            }
+
             if (response.ok && data.url) {
                 window.location.href = data.url
             } else {
@@ -55,37 +94,8 @@ function AcademyAuthForm() {
             }
 
         } catch (err: any) {
-            setCheckoutStatus("Sblocco corso in modalità Test...");
-            
-            let actualId = null;
-            const { data: realCourses } = await supabase.from('academy_courses').select('id').limit(1);
-            if (realCourses && realCourses.length > 0) {
-                 actualId = realCourses[0].id;
-            } else {
-                 const { data: newCourse } = await supabase.from('academy_courses').insert({
-                     title: 'Corso Autogenerato', description: 'Test', price: 0, status: 'Pubblicato'
-                 }).select().single();
-                 if (newCourse) actualId = newCourse.id;
-            }
-            
-            if (actualId) {
-                const magicToken = `tok_${Date.now()}`; 
-                
-                // FIX: Salvataggio sicuro nel Database bypassando il conflitto di upsert
-                const { data: existingProgress } = await supabase.from('course_progress')
-                    .select('id').eq('course_id', actualId).eq('agent_email', userEmail).single();
-
-                if (existingProgress) {
-                    await supabase.from('course_progress').update({ access_token: magicToken }).eq('id', existingProgress.id);
-                } else {
-                    await supabase.from('course_progress').insert({
-                        course_id: actualId, agent_email: userEmail, progress: 0, status: 'assigned', access_token: magicToken
-                    });
-                }
-            }
-            
-            // FIX: Reindirizzamento alla dashboard corretta
-            window.location.href = '/formazione/dashboard';
+            console.error(err)
+            window.location.href = '/formazione/dashboard'
         }
     }
 
