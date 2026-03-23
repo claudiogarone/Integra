@@ -1,13 +1,12 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
-import Link from 'next/link'
 import { 
-    Shield, Mail, Lock, ArrowRight, UserCheck, 
+    Shield, Mail, Lock, UserCheck, 
     Loader2, User, EyeOff, Eye, AlertTriangle, 
-    CheckCircle, ArrowLeft, Info
+    CheckCircle, ArrowLeft
 } from 'lucide-react'
 
 const COURSES_INFO: Record<string, {title: string, desc: string, price: number, color: string}> = {
@@ -17,7 +16,6 @@ const COURSES_INFO: Record<string, {title: string, desc: string, price: number, 
 }
 
 function AcademyAuthForm() {
-    const router = useRouter()
     const searchParams = useSearchParams()
     const supabase = createClient()
     
@@ -27,11 +25,9 @@ function AcademyAuthForm() {
     const [isLoginMode, setIsLoginMode] = useState(true)
     const [loading, setLoading] = useState(false)
     const [checkingSession, setCheckingSession] = useState(true)
-    
     const [error, setError] = useState<string | null>(null)
-    const [showForgotMsg, setShowForgotMsg] = useState(false) // FIX: Stato nativo per il messaggio password
-    const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null)
     const [showPassword, setShowPassword] = useState(false)
+    const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null)
 
     const [formData, setFormData] = useState({
         fullName: '',
@@ -58,19 +54,19 @@ function AcademyAuthForm() {
             }
 
         } catch (err: any) {
-            // FIX DEL LOOP INFINITO: Ora creiamo il Token (Link Magico) durante la simulazione!
-            setCheckoutStatus("Sblocco corso in corso...");
+            // FIX DEL LOOP: Bypass se Stripe fallisce, assegna il corso col Token!
+            setCheckoutStatus("Sblocco corso in modalità Test...");
             
             const { data: realCourses } = await supabase.from('academy_courses').select('id').limit(1);
             if (realCourses && realCourses.length > 0) {
-                 const magicToken = `tok_${Date.now()}_${Math.floor(Math.random()*1000)}`; // GENERIAMO IL TOKEN!
+                 const magicToken = `tok_${Date.now()}_${Math.floor(Math.random()*1000)}`; 
                  
                  await supabase.from('course_progress').upsert({
                      course_id: realCourses[0].id,
                      agent_email: userEmail,
                      progress: 0,
                      status: 'assigned',
-                     access_token: magicToken // SALVIAMO IL TOKEN NEL DB!
+                     access_token: magicToken 
                  }, { onConflict: 'course_id, agent_email' });
             }
             
@@ -99,7 +95,6 @@ function AcademyAuthForm() {
         e.preventDefault()
         setLoading(true)
         setError(null)
-        setShowForgotMsg(false)
 
         try {
             if (isLoginMode) {
@@ -158,10 +153,10 @@ function AcademyAuthForm() {
             <div className="w-full lg:w-1/2 bg-white border border-slate-200 p-8 md:p-10 rounded-3xl shadow-xl relative animate-in slide-in-from-left-8">
                 
                 <div className="flex p-1.5 bg-slate-50 rounded-xl mb-8 border border-slate-200 shadow-inner">
-                    <button type="button" onClick={() => {setIsLoginMode(true); setError(null); setShowForgotMsg(false);}} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${isLoginMode ? 'bg-white text-[#00665E] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
+                    <button type="button" onClick={() => {setIsLoginMode(true); setError(null);}} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${isLoginMode ? 'bg-white text-[#00665E] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
                         Accedi
                     </button>
-                    <button type="button" onClick={() => {setIsLoginMode(false); setError(null); setShowForgotMsg(false);}} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${!isLoginMode ? 'bg-white text-[#00665E] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
+                    <button type="button" onClick={() => {setIsLoginMode(false); setError(null);}} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${!isLoginMode ? 'bg-white text-[#00665E] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
                         Nuovo Studente
                     </button>
                 </div>
@@ -208,26 +203,17 @@ function AcademyAuthForm() {
                         <div className="flex justify-between items-center mb-2 ml-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
                             
-                            {/* FIX PASSWORD: Bottone che attiva uno stato React (Nessun Alert del browser) */}
+                            {/* IL FIX DELLA PASSWORD E' QUI. Forza lo stato di Error! */}
                             {isLoginMode && (
                                 <button 
                                     type="button" 
-                                    onClick={() => setShowForgotMsg(true)} 
+                                    onClick={() => setError("⚠️ Avviso Sicurezza: La funzione di recupero password automatica è disattivata. Contatta l'amministratore aziendale per resettare la password.")} 
                                     className="text-[10px] font-bold text-[#00665E] hover:text-[#004d46] transition underline"
                                 >
                                     Password dimenticata?
                                 </button>
                             )}
                         </div>
-
-                        {/* MESSAGGIO PASSWORD DIMENTICATA IN PAGINA */}
-                        {showForgotMsg && (
-                            <div className="bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-xl mb-4 text-xs font-bold flex items-start gap-2 shadow-sm animate-in fade-in">
-                                <Info size={16} className="shrink-0 mt-0.5"/>
-                                Per motivi di sicurezza, la funzione di recupero automatico è disattivata. Contatta il tuo amministratore per resettare i dati.
-                            </div>
-                        )}
-
                         <div className="relative">
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
                             <input required type={showPassword ? "text" : "password"} value={formData.password} onChange={e=>setFormData({...formData, password: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-12 text-slate-900 outline-none focus:border-[#00665E] focus:ring-1 focus:ring-[#00665E] transition font-mono font-bold" placeholder="••••••••" />
@@ -299,12 +285,13 @@ export default function AcademyLoginPage() {
 
             <nav className="px-6 md:px-12 py-4 flex justify-between items-center border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
                 <div className="flex items-center gap-4">
-                    <Link href="/" className="text-slate-500 hover:text-slate-800 transition flex items-center gap-2 text-sm font-bold bg-slate-50 border border-slate-200 px-4 py-2 rounded-full hover:bg-slate-100 hidden sm:flex">
+                    {/* FIX ANTI-LOOP: ANCHE QUI USIAMO UN TAG A VERO */}
+                    <a href="/" className="text-slate-500 hover:text-slate-800 transition flex items-center gap-2 text-sm font-bold bg-slate-50 border border-slate-200 px-4 py-2 rounded-full hidden sm:flex">
                         <ArrowLeft size={16}/> Torna al Sito
-                    </Link>
-                    <Link href="/formazione" className="flex items-center gap-2 hover:opacity-80 transition border-l border-slate-200 pl-4">
-                        <img src="/logo-integra.png" alt="IntegraOS Academy" className="h-8 md:h-10 object-contain" onError={(e) => e.currentTarget.src='/logo-integraos.png'} />
-                    </Link>
+                    </a>
+                    <a href="/formazione" className="flex items-center gap-2 hover:opacity-80 transition border-l border-slate-200 pl-4">
+                        <img src="/logo-integraos.png" alt="IntegraOS Academy" className="h-8 md:h-10 object-contain" onError={(e) => e.currentTarget.src='/logo-integra.png'} />
+                    </a>
                 </div>
                 <div className="text-xs font-bold text-[#00665E] bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200 flex items-center gap-2 shadow-sm">
                     <Shield size={14}/> Accesso Sicuro
