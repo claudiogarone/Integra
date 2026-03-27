@@ -1,70 +1,75 @@
-import Anthropic from '@anthropic-ai/sdk'; // O OpenAI, quello che hai scelto
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { Pinecone } from '@pinecone-database/pinecone';
 
-// 1. Configura AI
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
-
-// 2. Configura Supabase ADMIN (per scrivere nel database dal server)
-// NOTA: Ci serve la chiave "SERVICE_ROLE" per modificare i contatori senza permessi utente
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! 
-);
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
-  try {
-    const { message, instructions, website, userId } = await request.json();
+    try {
+        const { prompt, namespace = 'default-company' } = await request.json();
+        
+        const pineconeKey = process.env.PINECONE_API_KEY;
+        const geminiKey = process.env.GEMINI_API_KEY?.replace(/['"]/g, '').trim();
 
-    if (!userId) return NextResponse.json({ error: 'Utente non identificato' }, { status: 401 });
+        if (!pineconeKey || !geminiKey) {
+            return NextResponse.json({ error: 'Chiavi API mancanti' }, { status: 500 });
+        }
 
-    // --- CONTROLLO LIMITI ---
-    // 1. Leggi quanti crediti ha usato l'utente
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('ai_usage_count, ai_max_limit')
-      .eq('id', userId)
-      .single();
+        const pc = new Pinecone({ apiKey: pineconeKey });
+        const index = pc.index('integraos-brain');
 
-    if (profileError || !profile) {
-      // Se non esiste il profilo (utenti vecchi), creiamolo al volo o diamo errore
-      return NextResponse.json({ error: 'Profilo utente non trovato. Prova a registrarti di nuovo.' }, { status: 400 });
+        // 1. Trasforma la domanda dell'utente in un Vettore (Embedding)
+        const embedRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${geminiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: "models/text-embedding-004",
+                content: { parts: [{ text: prompt }] }
+            })
+        });
+        const embedData = await embedRes.json();
+        const queryEmbedding = embedData.embedding.values;
+
+        // 2. Cerca nel database Pinecone i paragrafi che "assomigliano" matematicamente alla domanda
+        const queryResponse = await index.namespace(namespace).query({
+            vector: queryEmbedding,
+            topK: 4, // Prende i 4 paragrafi più rilevanti che gli abbiamo insegnato
+            includeMetadata: true
+        });
+
+        // 3. Estrae il testo trovato
+        const context = queryResponse.matches.map(m => m.metadata?.text).join('\n\n');
+
+        // 4. Invia la domanda + Il contesto a Gemini per generare la risposta perfetta!
+        const finalPrompt = `Sei l'Assistente AI ufficiale dell'azienda. 
+DEVI rispondere alla DOMANDA dell'utente in modo altamente professionale, persuasivo e gentile. 
+REGOLA FONDAMENTALE: Usa ESCLUSIVAMENTE le informazioni contenute nel CONTESTO AZIENDALE fornito qui sotto. Non inventare prezzi, non inventare servizi.
+Se la risposta non è presente nel contesto, rispondi educatamente: "Mi dispiace, ma non ho questa informazione specifica. Ti invito a contattare un nostro operatore umano per i dettagli."
+
+CONTESTO AZIENDALE TROVATO NEL DATABASE:
+${context || 'Nessuna informazione specifica trovata.'}
+
+DOMANDA UTENTE:
+${prompt}`;
+
+        const chatRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ role: "user", parts: [{ text: finalPrompt }] }],
+                generationConfig: { temperature: 0.2 } // Temperatura bassa per renderlo preciso e poco fantasioso
+            })
+        });
+
+        const chatData = await chatRes.json();
+        const responseText = chatData.candidates?.[0]?.content?.parts?.[0]?.text || "Errore nella generazione.";
+
+        return NextResponse.json({ 
+            response: responseText, 
+            contextFound: queryResponse.matches.length > 0 
+        }, { status: 200 });
+
+    } catch (error: any) {
+        console.error("Errore Chat AI:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    // 2. Sei fuori limite?
-    if (profile.ai_usage_count >= profile.ai_max_limit) {
-      return NextResponse.json({ 
-        reply: "⛔ HAI FINITO I CREDITI GRATUITI (100/100).\n\nPer continuare a usare l'assistente, contatta l'amministrazione per passare al piano PRO." 
-      });
-    }
-
-    // --- CHIAMATA AI ---
-    const systemPrompt = `Sei un assistente marketing per il sito ${website}. Istruzioni: ${instructions}`;
-
-    const msg = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20240620",
-      max_tokens: 500, // Riduciamo i token per risparmiare
-      temperature: 0.7,
-      system: systemPrompt,
-      messages: [{ role: "user", content: message }],
-    });
-
-    // @ts-ignore
-    const reply = msg.content[0].text;
-
-    // --- AGGIORNA CONTATORE ---
-    // Incrementiamo di 1 l'uso
-    await supabaseAdmin
-      .from('profiles')
-      .update({ ai_usage_count: profile.ai_usage_count + 1 })
-      .eq('id', userId);
-
-    return NextResponse.json({ reply });
-
-  } catch (error) {
-    console.error("AI Error:", error);
-    return NextResponse.json({ error: 'Errore interno AI' }, { status: 500 });
-  }
 }
