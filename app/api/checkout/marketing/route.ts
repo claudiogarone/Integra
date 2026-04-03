@@ -3,14 +3,14 @@ import Stripe from 'stripe';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-    apiVersion: '2023-10-16' as any,
-});
-
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
     try {
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+            apiVersion: '2023-10-16' as any,
+        });
+
         const { campaignId, amount, channel, recipientsCount } = await request.json();
 
         const cookieStore = await cookies();

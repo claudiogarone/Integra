@@ -2,11 +2,10 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
-
 export async function POST(req: Request) {
     try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
         const { triggerType, payload, userId } = await req.json()
         
         if (!userId || !triggerType) {
@@ -38,7 +37,7 @@ export async function POST(req: Request) {
 
         // 2. Esegui ogni workflow
         for (const workflow of activeWorkflows) {
-            const executionResult = await executeCRMWorkflow(workflow, payload, userId, supabase)
+            const executionResult = await executeCRMWorkflow(workflow, payload, userId, supabase, model)
             results.push({
                 workflowId: workflow.id,
                 result: executionResult
@@ -58,7 +57,7 @@ export async function POST(req: Request) {
     }
 }
 
-async function executeCRMWorkflow(workflow: any, payload: any, userId: string, supabase: any) {
+async function executeCRMWorkflow(workflow: any, payload: any, userId: string, supabase: any, model: any) {
     const flow = workflow.configuration || []
     if (flow.length < 2) return { status: 'skipped', reason: 'Flow too short' }
 
@@ -91,7 +90,7 @@ async function executeCRMWorkflow(workflow: any, payload: any, userId: string, s
                     // Interrompiamo l'esecuzione sincrona qui, riprenderà dal worker
                     return { status: 'waiting', atNode: node.id }
                 case 'ai_processor':
-                    const aiResult = await handleWorkflowAI(node, currentContext)
+        const aiResult = await handleWorkflowAI(node, currentContext, model)
                     currentContext.ai_insights = aiResult
                     break
             }
@@ -120,7 +119,7 @@ function evaluateCRMCondition(node: any, context: any) {
     return true
 }
 
-async function handleWorkflowAI(node: any, context: any) {
+async function handleWorkflowAI(node: any, context: any, model: any) {
     const prompt = `Analizza questo lead e suggerisci un'azione: ${JSON.stringify(context)}`
     const result = await model.generateContent(prompt)
     return result.response.text()

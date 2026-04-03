@@ -2,12 +2,10 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-// Initialize Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
-
 export async function POST(req: Request) {
     try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
         const { triggerType, payload, userId } = await req.json()
         
         if (!userId || !triggerType) {
@@ -39,7 +37,7 @@ export async function POST(req: Request) {
 
         // 2. Esegui ogni workflow
         for (const workflow of activeWorkflows) {
-            const executionResult = await executeWorkflow(workflow, payload, userId, supabase)
+            const executionResult = await executeAutomation(workflow, payload, userId, supabase, model)
             results.push({
                 workflowId: workflow.id,
                 result: executionResult
@@ -59,7 +57,7 @@ export async function POST(req: Request) {
     }
 }
 
-async function executeWorkflow(workflow: any, payload: any, userId: string, supabase: any) {
+async function executeAutomation(workflow: any, payload: any, userId: string, supabase: any, model: any) {
     const flow = workflow.configuration || []
     if (flow.length < 2) return { status: 'skipped', reason: 'Flow too short' }
 
@@ -87,8 +85,8 @@ async function executeWorkflow(workflow: any, payload: any, userId: string, supa
                     console.log(`Pausa simulata: ${node.config?.time} ${node.config?.unit}`)
                     break
                 case 'ai_processor':
-                    const aiOutput = await handleAIProcessor(node, currentContext)
-                    currentContext.ai_processed_data = aiOutput
+                    const aiResult = await handleWorkflowAI(node, currentContext, model)
+                    currentContext.ai_insights = aiResult
                     break
             }
         } catch (err: any) {
@@ -122,8 +120,8 @@ function evaluateCondition(node: any, context: any) {
     return true
 }
 
-async function handleAIProcessor(node: any, context: any) {
-    const prompt = `Analizza questa interazione cliente e genera una risposta personalizzata: ${JSON.stringify(context)}`
+async function handleWorkflowAI(node: any, context: any, model: any) {
+    const prompt = `Analizza questo lead e suggerisci un'azione: ${JSON.stringify(context)}`
     const result = await model.generateContent(prompt)
     return result.response.text()
 }

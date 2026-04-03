@@ -1,11 +1,9 @@
 import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
 
-// Quel punto esclamativo ! dice a TypeScript: "Fidati, la chiave c'è!"
-const resend = new Resend(process.env.RESEND_API_KEY!);
-
 export async function POST(request: Request) {
   try {
+    const resend = new Resend(process.env.RESEND_API_KEY!);
     const { subject, content, emails } = await request.json();
 
     const data = await resend.emails.send({
