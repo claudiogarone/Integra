@@ -92,6 +92,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           items: [
               { name: 'Creative Studio', href: '/dashboard/design', icon: <Palette size={18}/> },
               { name: 'Volantini & Landing', href: '/dashboard/flyer', icon: <ImageIcon size={18}/> },
+              { name: 'Avatar Studio', href: '/dashboard/ai-avatars', icon: <UserCog size={18}/>, badge: 'PRO' },
               { name: 'Agenti AI', href: '/dashboard/ai-agent', icon: <Bot size={18}/> },
               { name: 'Voice & Chat AI', href: '/dashboard/voice', icon: <Mic size={18}/> },
               { name: 'Nurturing Engine', href: '/dashboard/nurturing', icon: <Gift size={18}/>, badge: 'AI' },

@@ -49,7 +49,17 @@ export async function POST(request: Request) {
         }
 
         // ==========================================
-        // 2. INVIO EMAIL AUTOMATICA CON RESEND
+        // 2. RECUPERO AVATAR AI (Se presente)
+        // ==========================================
+        const { data: activeAvatar } = await supabase
+            .from('ai_avatars')
+            .select('name, avatar_img_url, avatar_video_url')
+            .eq('user_id', firstProfile?.id)
+            .eq('is_active', true)
+            .single();
+
+        // ==========================================
+        // 3. INVIO EMAIL AUTOMATICA CON RESEND
         // ==========================================
         if (resendApiKey) {
             
@@ -60,6 +70,17 @@ export async function POST(request: Request) {
                         <h1 style="color: #ffffff; margin: 0;">INTEGRA<span style="color: #64748b; font-weight: 300;">OS</span></h1>
                     </div>
                     <h2 style="color: #10b981; text-align: center;">Benvenuto a bordo! 🚀</h2>
+                    
+                    ${activeAvatar?.avatar_video_url ? `
+                        <div style="text-align: center; margin: 20px 0;">
+                            <p style="font-size: 14px; color: #94a3b8; margin-bottom: 10px;">Messaggio personale da ${activeAvatar.name || 'il tuo assistente'}:</p>
+                            <a href="${activeAvatar.avatar_video_url}" target="_blank">
+                                <img src="${activeAvatar.avatar_img_url || 'https://via.placeholder.com/300'}" style="width: 100%; max-width: 400px; border-radius: 12px; border: 2px solid #10b981;" />
+                            </a>
+                            <p style="font-size: 12px; color: #64748b; margin-top: 5px;">(Clicca sull'immagine per vedere il video messaggio)</p>
+                        </div>
+                    ` : ''}
+
                     <p style="font-size: 16px; line-height: 1.6;">Ciao,</p>
                     <p style="font-size: 16px; line-height: 1.6;">Grazie per aver mostrato interesse per <strong>IntegraOS</strong>. La tua richiesta è stata registrata con successo.</p>
                     <p style="font-size: 16px; line-height: 1.6;">Stai per scoprire il primo Ecosistema basato sull'Intelligenza Artificiale che automatizza le vendite, gestisce il CRM e taglia i costi operativi della tua azienda.</p>

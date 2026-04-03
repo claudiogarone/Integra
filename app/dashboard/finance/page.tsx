@@ -23,7 +23,10 @@ export default function FinanceHubPage() {
 
   // LIMITI FATTURAZIONE
   const invoiceLimits: any = { 'Base': 50, 'Enterprise': 500, 'Ambassador': 'Illimitate' }
-  const [invoicesUsed, setInvoicesUsed] = useState(48)
+  const [invoicesUsed, setInvoicesUsed] = useState(0)
+  const [financeMetrics, setFinanceMetrics] = useState<any[]>([])
+  const [summary, setSummary] = useState({ total_revenue: 0, total_expenses: 0 })
+  const [isSyncing, setIsSyncing] = useState(false)
 
   // STATI TABS PRINCIPALI
   const [activeTab, setActiveTab] = useState<'accounting' | 'invoicing' | 'funding'>('accounting')
@@ -85,11 +88,49 @@ export default function FinanceHubPage() {
           setUser(user)
           const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
           if (profile) setCurrentPlan(profile.plan || 'Base')
+          
+          fetchFinanceData()
       }
       setLoading(false)
     }
     getData()
   }, [])
+
+  const fetchFinanceData = async () => {
+      try {
+          const res = await fetch('/api/finance')
+          const data = await res.json()
+          if (data.success) {
+              setInvoices(data.transactions || [])
+              setInvoicesUsed(data.transactions?.length || 0)
+              setFinanceMetrics(data.metrics || [])
+              setSummary(data.summary || { total_revenue: 0, total_expenses: 0 })
+          }
+      } catch (err) {
+          console.error("Errore fetch finance:", err)
+      }
+  }
+
+  const handleNexusSync = async () => {
+      if (!user) return
+      setIsSyncing(true)
+      try {
+          const res = await fetch('/api/nexus/sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId: user.id })
+          })
+          const data = await res.json()
+          if (data.success) {
+              await fetchFinanceData()
+              alert("✅ Sincronizzazione Nexus (Ads, Meteo, ISTAT) completata!")
+          }
+      } catch (err) {
+          alert("Errore sincronizzazione Nexus")
+      } finally {
+          setIsSyncing(false)
+      }
+  }
 
   // --- FUNZIONI DOCUMENTI & DATABASE ---
   const handleExportExcel = () => {
@@ -198,9 +239,17 @@ export default function FinanceHubPage() {
                   <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Conforme SdI e GDPR</span>
               </div>
               <div className="bg-slate-800 border border-slate-700 px-3 py-1 rounded-lg flex items-center gap-3">
-                  <div className="flex flex-col items-end">
+                  <button 
+                    onClick={handleNexusSync} 
+                    disabled={isSyncing}
+                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded-md text-[10px] font-black transition disabled:opacity-50"
+                  >
+                    {isSyncing ? <Loader2 size={12} className="animate-spin"/> : <Zap size={12}/>}
+                    SYNC NEXUS
+                  </button>
+                  <div className="flex flex-col items-end border-l border-slate-700 pl-3">
                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Doc. Emessi ({currentPlan})</span>
-                      <span className={`font-bold text-sm ${currentPlan === 'Ambassador' ? 'text-purple-400' : invoicesUsed >= invoiceLimits[currentPlan] * 0.9 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      <span className={`font-bold text-sm ${currentPlan === 'Ambassador' ? 'text-purple-400' : invoicesUsed >= (invoiceLimits[currentPlan] || 9999) * 0.9 ? 'text-rose-400' : 'text-emerald-400'}`}>
                           {currentPlan === 'Ambassador' ? <span className="flex items-center gap-1"><Infinity size={14}/> Illimitati</span> : `${invoicesUsed} / ${invoiceLimits[currentPlan]}`}
                       </span>
                   </div>
@@ -224,11 +273,11 @@ export default function FinanceHubPage() {
                 <div className="space-y-8 animate-in fade-in print:hidden">
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm"><p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Wallet size={14}/> Ricavi (Mese)</p><p className="text-3xl font-black text-gray-900">€ {financeData.revenue.toLocaleString()}</p></div>
-                        <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm"><p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1"><TrendingDown size={14}/> Costi Fissi + Var</p><p className="text-3xl font-black text-rose-600">€ {totalCosts.toLocaleString()}</p></div>
+                        <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm"><p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Wallet size={14}/> Ricavi Reali (Mese)</p><p className="text-3xl font-black text-gray-900">€ {summary.total_revenue.toLocaleString()}</p></div>
+                        <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm"><p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1"><TrendingDown size={14}/> Costi Registrati</p><p className="text-3xl font-black text-rose-600">€ {summary.total_expenses.toLocaleString()}</p></div>
                         
                         {/* BOX TARGET MARGINE (EDITABILE) */}
-                        <div className={`p-6 rounded-3xl border shadow-sm relative group ${currentMargin >= targetMargin ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                        <div className={`p-6 rounded-3xl border shadow-sm relative group ${((summary.total_revenue - summary.total_expenses) / (summary.total_revenue || 1)) * 100 >= targetMargin ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
                             <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition cursor-pointer" onClick={() => setIsEditingMargin(!isEditingMargin)}>
                                 <Edit3 size={16} className={currentMargin >= targetMargin ? 'text-emerald-500' : 'text-amber-500'}/>
                             </div>

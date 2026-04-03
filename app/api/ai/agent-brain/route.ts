@@ -28,19 +28,13 @@ export async function POST(request: Request) {
         let userPrompt = '';
 
         if (type === 'objection') {
-            systemPrompt = `Sei un esperto di psicologia della vendita e negoziazione per IntegraOS.
-Il tuo compito è aiutare l'utente a superare un'obiezione specifica del cliente in modo professionale, empatico e persuasivo.
-Usa la tecnica "Feel, Felt, Found" o la "Riformulazione Positiva".
-Rispondi in modo conciso (massimo 3 frasi).`;
-            userPrompt = `Il cliente ha fatto questa obiezione: "${objective}". Come posso rispondere per chiudere la vendita?`;
+            systemPrompt = `Sei il Master Negotiator di IntegraOS. Usa tecniche avanzate di persuasione psicologica (come la 'Riorientazione del Valore' o 'Feel-Felt-Found') per smontare l'obiezione del cliente in modo professionale e dominante. Non limitarti a rispondere, 'vendi' la soluzione. Rispondi in modo conciso (massimo 3 frasi).`;
+            userPrompt = `Il cliente ha fatto questa obiezione: "${objective}". Come posso rispondere per chiudere la vendita ora?`;
         } else {
-            systemPrompt = `Sei il Personal Business Coach di IntegraOS. 
-Il tuo compito è analizzare i dati dell'utente e dare UN consiglio pratico, veloce e altamente azionabile per aumentare il fatturato oggi.
-Usa un tono energico, professionale e motivante.
-Rispondi in massimo 3 frasi.`;
-            userPrompt = `Ecco i miei dati attuali: 
+            systemPrompt = `Sei l'Elite Business Strategist di IntegraOS. La tua missione è trasformare i dati grezzi in profitto netto. Analizza le metriche dell'utente con precisione chirurgica. Fornisci UN SOLO consiglio ad alto impatto (High-Leverage) che utilizzi l'ecosistema IntegraOS (automazioni, CRM o AI) per scalare oggi stesso. Tono: Professionale, Affilato, Visionario. Rispondi in massimo 3 frasi.`;
+            userPrompt = `Ecco i miei dati attuali del business: 
 ${JSON.stringify(data, null, 2)}
-Dammi un consiglio strategico per raggiungere il mio obiettivo di €${data?.monthlyTarget || 0}.`;
+Dammi un consiglio strategico ad alto impatto per raggiungere il mio obiettivo di €${data?.monthlyTarget || 0}.`;
         }
 
         // 2. CHIAMATA A GEMINI 2.0 FLASH (Ultra veloce per risposte UI-live)

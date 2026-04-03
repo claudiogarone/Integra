@@ -40,7 +40,7 @@ export default function AcademyPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
 
-  const [courseForm, setCourseForm] = useState({ title: '', description: '', category: 'Generale', thumbnail_url: '', attachment_url: '', is_mandatory: false, deadline: '' })
+  const [courseForm, setCourseForm] = useState<any>({ title: '', description: '', category: 'Generale', thumbnail_url: '', attachment_url: '', is_mandatory: false, deadline: '', certificate_template: null })
   const [lessonForm, setLessonForm] = useState({ title: '', video_type: 'youtube', video_url: '', notes: '' })
   const [liveForm, setLiveForm] = useState({ title: '', start_time: '', duration_minutes: 60, platform_link: '', description: '' })
   const [certForm, setCertForm] = useState({ title: 'Attestato di Partecipazione', signer: 'La Direzione', logo_show: true })
@@ -52,8 +52,8 @@ export default function AcademyPage() {
   
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [privacyAccepted, setPrivacyAccepted] = useState(false)
-  
   const [sendingEmails, setSendingEmails] = useState(false)
 
   const supabase = createClient()
@@ -87,10 +87,10 @@ export default function AcademyPage() {
         setCertForm(prev => ({...prev, signer: profile.company_name ? `Direzione ${profile.company_name}` : 'La Direzione'}))
     }
 
-    const { data: coursesData } = await supabase.from('courses').select('*, lessons(*), quizzes(*, quiz_questions(*)), course_progress(*)').eq('user_id', currentUser.id).order('created_at', {ascending: false})
+    const { data: coursesData } = await supabase.from('academy_courses').select('*, academy_lessons(*), academy_quizzes(*, academy_quiz_questions(*)), academy_course_progress(*)').eq('user_id', currentUser.id).order('created_at', {ascending: false})
     if(coursesData) setCourses(coursesData)
 
-    const { data: liveData } = await supabase.from('live_events').select('*, live_attendance(*)').eq('user_id', currentUser.id).order('start_time', {ascending: true})
+    const { data: liveData } = await supabase.from('academy_live_events').select('*, academy_live_attendance(*)').eq('user_id', currentUser.id).order('start_time', {ascending: true})
     if(liveData) setLiveEvents(liveData)
 
     const { data: teamData } = await supabase.from('team_members').select('*')
@@ -173,44 +173,46 @@ export default function AcademyPage() {
           setCourseForm({
               title: course.title, description: course.description, category: course.category,
               thumbnail_url: course.thumbnail_url, attachment_url: course.attachment_url,
-              is_mandatory: course.is_mandatory, deadline: course.deadline
+              is_mandatory: course.is_mandatory, deadline: course.deadline, certificate_template: course.certificate_template
           })
       } else {
           setActiveCourse(null)
-          setCourseForm({ title: '', description: '', category: 'Generale', thumbnail_url: '', attachment_url: '', is_mandatory: false, deadline: '' })
+          setCourseForm({ title: '', description: '', category: 'Generale', thumbnail_url: '', attachment_url: '', is_mandatory: false, deadline: '', certificate_template: null })
       }
       setIsCourseModalOpen(true)
   }
 
   const handleSaveCourse = async () => {
-      if(!courseForm.title) return alert("Titolo mancante");
-      setUploading(true)
+      if(!courseForm.title) return alert("Inserisci titolo")
+      setIsSaving(true)
       const payload = { 
-          user_id: user?.id, 
           ...courseForm, 
-          deadline: courseForm.deadline || null,
-          thumbnail_url: courseForm.thumbnail_url || 'https://via.placeholder.com/800x400?text=Corso' 
+          user_id: user.id,
+          certificate_template: courseForm.certificate_template || { title: "Attestato", signer: "Direzione", logo_show: true }
       }
-      let err = null;
-      if (activeCourse) { const res = await supabase.from('courses').update(payload).eq('id', activeCourse.id); err = res.error; } 
-      else { const res = await supabase.from('courses').insert(payload); err = res.error; }
-      if(err) alert("Errore dal DB: " + err.message)
-      else { fetchData(); setIsCourseModalOpen(false); }
-      setUploading(false)
+      const { error } = await supabase.from('academy_courses').upsert(payload, { onConflict: 'id' })
+      if(!error) { 
+          alert("Corso salvato!"); 
+          setIsCourseModalOpen(false); 
+          setCourseForm({ title: '', description: '', category: 'Generale', thumbnail_url: '', attachment_url: '', is_mandatory: false, deadline: '', certificate_template: null }); 
+          fetchData(); 
+      }
+      else alert("Errore: " + error.message)
+      setIsSaving(false)
   }
 
-  const handleDeleteItem = async (table: string, id: number) => {
+  const handleDeleteItem = async (table: string, id: string | number) => {
       if(!confirm("Eliminare definitivamente?")) return;
-      await supabase.from(table).delete().eq('id', id)
+      const realTable = table.startsWith('academy_') ? table : `academy_${table}`;
+      await supabase.from(realTable).delete().eq('id', id)
       fetchData()
       
-      // FIX QUIZ: se eliminiamo una domanda dal database mentre siamo nel modale, aggiorniamo lo stato
-      if(table === 'quiz_questions') {
+      if(table === 'academy_quiz_questions') {
           setQuestions(questions.filter(q => q.id !== id && q.tempId !== id))
       }
-      if(table === 'lessons' && activeCourse) {
-          const updatedLessons = activeCourse.lessons.filter((l:any) => l.id !== id);
-          setActiveCourse({...activeCourse, lessons: updatedLessons});
+      if(table === 'academy_lessons' && activeCourse) {
+          const updatedLessons = activeCourse.academy_lessons.filter((l:any) => l.id !== id);
+          setActiveCourse({...activeCourse, academy_lessons: updatedLessons});
       }
   }
 
@@ -220,8 +222,27 @@ export default function AcademyPage() {
       if (lessonForm.video_type === 'upload' && videoFile) {
           const url = await handleUpload(videoFile, 'video', 100); if(!url) return; finalUrl = url;
       }
-      await supabase.from('lessons').insert({ course_id: activeCourse.id, title: lessonForm.title, video_type: lessonForm.video_type, video_url: finalUrl, notes: lessonForm.notes })
-      fetchData(); setIsLessonModalOpen(false)
+      if(!lessonForm.title || !finalUrl) return alert("Compila i campi")
+      setIsSaving(true)
+      const { data, error } = await supabase.from('academy_lessons').insert({ 
+          user_id: user.id, // Garanzia RLS
+          course_id: activeCourse.id, 
+          title: lessonForm.title, 
+          video_type: lessonForm.video_type,
+          video_url: finalUrl, 
+          notes: lessonForm.notes,
+          order_index: (activeCourse.academy_lessons?.length || 0) + 1
+      }).select().single()
+      
+      if(!error) { 
+          alert("Lezione aggiunta!"); 
+          setIsLessonModalOpen(false); 
+          setLessonForm({ title: '', video_type: 'youtube', video_url: '', notes: '' }); 
+          fetchData();
+      } else {
+          alert("Errore inserimento: " + error.message)
+      }
+      setIsSaving(false)
   }
 
   const openLiveModal = (event?: any) => {
@@ -239,45 +260,61 @@ export default function AcademyPage() {
   }
 
   const handleSaveLive = async () => {
-      if(!liveForm.title || !liveForm.start_time) return alert("Titolo e Data obbligatori");
-      let err = null;
+    if(!liveForm.title || !liveForm.start_time) return alert("Titolo e Data obbligatori");
+    setIsSaving(true);
+    let errorMsg = null;
 
-      if(activeLive) {
-           const res = await supabase.from('live_events').update(liveForm).eq('id', activeLive.id)
-           err = res.error
-      } else {
-          const res = await supabase.from('live_events').insert({ user_id: user.id, ...liveForm }).select().single()
-          err = res.error
-      }
-      if(err) return alert("Errore salvataggio Live: " + err.message);
+    if(activeLive) {
+         const { error } = await supabase.from('academy_live_events').update({
+             user_id: user.id,
+             ...liveForm,
+             start_time: new Date(liveForm.start_time).toISOString()
+         }).eq('id', activeLive.id);
+         errorMsg = error?.message;
+    } else {
+         const { error } = await supabase.from('academy_live_events').insert({ 
+             user_id: user.id, 
+             ...liveForm,
+             start_time: new Date(liveForm.start_time).toISOString()
+         });
+         errorMsg = error?.message;
+    }
 
-      const startDate = new Date(liveForm.start_time);
-      const endDate = new Date(startDate.getTime() + (liveForm.duration_minutes * 60000));
-      
-      const dateString = startDate.toISOString().split('T')[0]; 
-      const startTimeString = startDate.toTimeString().substring(0, 5); 
-      const endTimeString = endDate.toTimeString().substring(0, 5); 
+    if(errorMsg) {
+        setIsSaving(false);
+        return alert("Errore salvataggio Live: " + errorMsg);
+    }
 
-      const { data: existingCalEvent } = await supabase.from('calendar_events')
-          .select('id').eq('title', `🎥 LIVE: ${activeLive?.title || liveForm.title}`).single();
+    const startDate = new Date(liveForm.start_time);
+    const endDate = new Date(startDate.getTime() + (liveForm.duration_minutes * 60000));
+    
+    const dateString = startDate.toISOString().split('T')[0]; 
+    const startTimeString = startDate.toTimeString().substring(0, 5); 
+    const endTimeString = endDate.toTimeString().substring(0, 5); 
 
-      const calPayload = {
-          title: `🎥 LIVE: ${liveForm.title}`,
-          description: `Link Diretta: ${liveForm.platform_link}`,
-          event_date: dateString,
-          start_time: startTimeString,
-          end_time: endTimeString,
-          type: 'live',
-          status: 'Scheduled'
-      };
+    const { data: existingCalEvent } = await supabase.from('calendar_events')
+        .select('id').eq('title', `🎥 LIVE: ${activeLive?.title || liveForm.title}`).single();
 
-      if (existingCalEvent) {
-          await supabase.from('calendar_events').update(calPayload).eq('id', existingCalEvent.id);
-      } else {
-          await supabase.from('calendar_events').insert([calPayload]);
-      }
+    const calPayload = {
+        title: `🎥 LIVE: ${liveForm.title}`,
+        description: `Link Diretta: ${liveForm.platform_link}`,
+        event_date: dateString,
+        start_time: startTimeString,
+        end_time: endTimeString,
+        type: 'live',
+        status: 'Scheduled'
+    };
 
-      fetchData(); setIsLiveModalOpen(false); alert("Evento salvato e sincronizzato in Agenda!")
+    if (existingCalEvent) {
+        await supabase.from('calendar_events').update(calPayload).eq('id', existingCalEvent.id);
+    } else {
+        await supabase.from('calendar_events').insert([calPayload]);
+    }
+
+    await fetchData(); 
+    setIsLiveModalOpen(false); 
+    setIsSaving(false);
+    alert("Evento salvato e sincronizzato in Agenda!");
   }
 
   const sendLiveReminders = async (event: any) => {
@@ -350,7 +387,7 @@ export default function AcademyPage() {
   }
   
   const handleSaveCert = async () => {
-      const table = activeTab === 'courses' ? 'courses' : 'live_events'
+      const table = activeTab === 'courses' ? 'academy_courses' : 'academy_live_events'
       const id = activeTab === 'courses' ? activeCourse.id : activeLive.id
       const { error } = await supabase.from(table).update({ certificate_template: certForm }).eq('id', id)
       if(!error) { alert("Template Attestato Salvato!"); setIsCertModalOpen(false); fetchData(); }
@@ -362,12 +399,12 @@ export default function AcademyPage() {
       
       if (activeTab === 'courses') {
           const assignments = selectedAgents.map(email => ({ course_id: activeCourse.id, agent_email: email, progress: 0, status: 'assigned' }))
-          const { error } = await supabase.from('course_progress').upsert(assignments, { onConflict: 'course_id, agent_email' })
+          const { error } = await supabase.from('academy_course_progress').upsert(assignments, { onConflict: 'course_id, agent_email' })
           if(!error) { alert("Corso assegnato con successo!"); setIsAssignModalOpen(false); fetchData(); setSelectedAgents([]); }
           else alert("Errore dal Database: " + error.message)
       } else {
           const assignments = selectedAgents.map(email => ({ live_event_id: activeLive.id, agent_email: email, present: false, notes: 'Assegnato (Da partecipare)' }))
-          const { error } = await supabase.from('live_attendance').upsert(assignments, { onConflict: 'live_event_id, agent_email' })
+          const { error } = await supabase.from('academy_live_attendance').upsert(assignments, { onConflict: 'live_event_id, agent_email' })
           if(!error) { alert("Agenti iscritti alla diretta con successo!"); setIsAssignModalOpen(false); fetchData(); setSelectedAgents([]); }
           else alert("Errore dal Database: " + error.message)
       }
@@ -402,13 +439,15 @@ export default function AcademyPage() {
 
   const handleSaveAttendance = async () => {
       const attendance = selectedAgents.map(a => ({ 
+          user_id: user.id, // Garanzia RLS
           live_event_id: activeLive.id, 
           agent_email: a.email, 
           present: a.present, 
           notes: a.notes || (a.present ? 'Presente confermato' : 'Assente') 
       }))
+      
       if(attendance.length > 0) {
-          const { error } = await supabase.from('live_attendance').upsert(attendance, { onConflict: 'live_event_id, agent_email' })
+          const { error } = await supabase.from('academy_live_attendance').upsert(attendance, { onConflict: 'live_event_id, agent_email' })
           if(!error) alert("Registro Presenze aggiornato!"); else alert("Errore DB: " + error.message)
       }
       setIsAttendanceModalOpen(false); setSelectedAgents([]); fetchData();
@@ -416,7 +455,7 @@ export default function AcademyPage() {
 
   const getChartData = () => {
       const target = activeTab === 'courses' ? activeCourse : activeLive;
-      const data = activeTab === 'courses' ? target?.course_progress : target?.live_attendance;
+      const data = activeTab === 'courses' ? target?.academy_course_progress : target?.academy_live_attendance;
       if(!data) return [];
       let filtered = data;
       if(statsFilter !== 'all') filtered = data.filter((p:any) => p.agent_email === statsFilter);
@@ -439,9 +478,9 @@ export default function AcademyPage() {
   const openTools = async (item: any) => {
       if(activeTab === 'courses') setActiveCourse(item); else setActiveLive(item);
       const column = activeTab === 'courses' ? 'course_id' : 'live_event_id'
-      const { data: noteData } = await supabase.from('course_materials').select('content').eq(column, item.id).eq('type', 'shared_note').single()
+      const { data: noteData } = await supabase.from('academy_course_materials').select('content').eq(column, item.id).eq('type', 'shared_note').single()
       setNotesContent(noteData?.content || '')
-      const { data: boardData } = await supabase.from('course_materials').select('content').eq(column, item.id).eq('type', 'whiteboard').single()
+      const { data: boardData } = await supabase.from('academy_course_materials').select('content').eq(column, item.id).eq('type', 'whiteboard').single()
       setIsToolsModalOpen(true)
       setTimeout(() => {
           if(boardData?.content && canvasRef.current) {
@@ -458,11 +497,11 @@ export default function AcademyPage() {
       const id = activeTab === 'courses' ? activeCourse.id : activeLive.id
       const canvasData = canvasRef.current?.toDataURL() || ''
 
-      await supabase.from('course_materials').delete().eq(column, id)
+      await supabase.from('academy_course_materials').delete().eq(column, id)
       
-      const { error } = await supabase.from('course_materials').insert([
-          { type: 'shared_note', content: notesContent, [column]: id },
-          { type: 'whiteboard', content: canvasData, [column]: id }
+      const { error } = await supabase.from('academy_course_materials').insert([
+          { user_id: user.id, type: 'shared_note', content: notesContent, [column]: id },
+          { user_id: user.id, type: 'whiteboard', content: canvasData, [column]: id }
       ])
 
       if(!error) alert("Lavagna e Note salvate! Lo studente potrà vederle.")
@@ -482,13 +521,13 @@ export default function AcademyPage() {
       setActiveCourse(course);
       
       // Carica l'ultimo quiz creato per questo corso, se esiste
-      const existingQuiz = course.quizzes && course.quizzes.length > 0 ? course.quizzes[course.quizzes.length - 1] : null;
+      const existingQuiz = course.academy_quizzes && course.academy_quizzes.length > 0 ? course.academy_quizzes[course.academy_quizzes.length - 1] : null;
       
       if (existingQuiz) {
           setQuizForm({ id: existingQuiz.id, title: existingQuiz.title, passing_score: existingQuiz.passing_score });
           // Carica le domande se ci sono
-          if (existingQuiz.quiz_questions) {
-              setQuestions(existingQuiz.quiz_questions);
+          if (existingQuiz.academy_quiz_questions) {
+              setQuestions(existingQuiz.academy_quiz_questions);
           } else {
               setQuestions([]);
           }
@@ -509,14 +548,16 @@ export default function AcademyPage() {
       // 1. Salva o Aggiorna il Quiz principale
       if (quizIdToUse) {
           // Aggiorna esistente
-          const { error } = await supabase.from('quizzes').update({ 
+          const { error } = await supabase.from('academy_quizzes').update({ 
+              user_id: user.id,
               title: quizForm.title, 
               passing_score: quizForm.passing_score 
           }).eq('id', quizIdToUse);
           if (error) return alert("Errore aggiornamento Quiz: " + error.message);
       } else {
           // Crea nuovo
-          const { data: newQuiz, error } = await supabase.from('quizzes').insert({ 
+          const { data: newQuiz, error } = await supabase.from('academy_quizzes').insert({ 
+              user_id: user.id,
               course_id: activeCourse.id, 
               title: quizForm.title, 
               passing_score: quizForm.passing_score 
@@ -526,20 +567,19 @@ export default function AcademyPage() {
           quizIdToUse = newQuiz.id;
       }
 
-      // 2. Salva le domande (cancelliamo le vecchie e inseriamo le nuove per evitare duplicati in questa versione semplificata)
+      // 2. Salva le domande
       if (quizIdToUse) {
-          // Elimina domande vecchie per questo quiz (clean slate)
-          await supabase.from('quiz_questions').delete().eq('quiz_id', quizIdToUse);
+          await supabase.from('academy_quiz_questions').delete().eq('quiz_id', quizIdToUse);
           
-          // Inserisci le nuove
           if (questions.length > 0) {
               const questionsToInsert = questions.map(q => ({ 
+                  user_id: user.id,
                   quiz_id: quizIdToUse, 
                   question_text: q.question_text, 
                   options: q.options, 
                   correct_option_index: q.correct_option_index 
               }));
-              const { error: qError } = await supabase.from('quiz_questions').insert(questionsToInsert);
+              const { error: qError } = await supabase.from('academy_quiz_questions').insert(questionsToInsert);
               if (qError) return alert("Errore salvataggio domande: " + qError.message);
           }
       }
@@ -670,6 +710,7 @@ export default function AcademyPage() {
                                   <button type="button" onClick={() => openTools(course)} className="btn-sec text-purple-600 bg-purple-50 border-purple-200"><PenTool size={14}/> Lavagna</button>
                                   <button type="button" onClick={() => { setActiveCourse(course); setIsStatsModalOpen(true); }} className="btn-sec bg-teal-50 text-teal-700 border-teal-100"><BarChart3 size={14}/> Analitica</button>
                                   <button type="button" onClick={() => { setActiveCourse(course); openCertModal(course); }} className="btn-sec bg-amber-50 text-amber-700 border-amber-200"><Award size={14}/> Modello Attestato</button>
+                                  <button type="button" onClick={() => handleDeleteItem('academy_courses', course.id)} className="btn-sec text-red-500 hover:bg-red-50 ml-auto"><Trash2 size={14}/></button>
                               </div>
                           </div>
                       </div>

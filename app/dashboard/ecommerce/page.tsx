@@ -25,10 +25,11 @@ export default function EcommercePage() {
   const [activeTab, setActiveTab] = useState<'manual' | 'ai_lens'>('manual')
   const [analyzing, setAnalyzing] = useState(false)
 
-  const [formData, setFormData] = useState({ name: '', description: '', price: '', category: 'Prodotti' })
-  const [legalConsent, setLegalConsent] = useState(false) // SPUNTA LEGALE OBBLIGATORIA
+  const [formData, setFormData] = useState({ name: '', description: '', price: '', category: 'Prodotti', ar_model_url: '', ar_enabled: false })
+  const [legalConsent, setLegalConsent] = useState(false)
 
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const [arFile, setArFile] = useState<File | null>(null)
   const [imageUrlPreview, setImageUrlPreview] = useState<string | null>(null)
   
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -57,7 +58,7 @@ export default function EcommercePage() {
 
   const fetchProducts = async (userId: string) => {
       try {
-          const { data, error } = await supabase.from('products').select('*').eq('is_deleted', false).order('created_at', { ascending: false });
+          const { data, error } = await supabase.from('ecommerce_products').select('*').eq('is_deleted', false).order('created_at', { ascending: false });
           if (error) throw error;
           
           setProducts(data || []);
@@ -65,7 +66,7 @@ export default function EcommercePage() {
           const startOfMonth = new Date();
           startOfMonth.setDate(1); startOfMonth.setHours(0,0,0,0);
           
-          const { count, error: countError } = await supabase.from('products').select('*', { count: 'exact', head: true }).gte('created_at', startOfMonth.toISOString());
+          const { count, error: countError } = await supabase.from('ecommerce_products').select('*', { count: 'exact', head: true }).gte('created_at', startOfMonth.toISOString());
           if (!countError) {
               setMonthUsage(count || 0);
           }
@@ -111,7 +112,8 @@ export default function EcommercePage() {
         if (!response.ok || data.error) throw new Error(data.error || "Errore AI Server");
 
         setFormData({
-          name: data.name || '', description: data.description || '', price: data.price || '', category: data.category || 'Prodotti'
+          name: data.name || '', description: data.description || '', price: data.price || '', category: data.category || 'Prodotti',
+          ar_model_url: '', ar_enabled: false
         });
         setActiveTab('manual'); 
       } catch (error: any) {
@@ -139,23 +141,38 @@ export default function EcommercePage() {
     if (!checkLimits()) return;
 
     setSaving(true)
-    let publicUrl = 'https://via.placeholder.com/300x200?text=Senza+Immagine'
+    let publicUrl = imageUrlPreview || 'https://via.placeholder.com/300x200?text=Senza+Immagine'
+    let arUrl = formData.ar_model_url
 
+    // Upload Immagine
     if (imageFile && user) {
-        try {
-            const fileName = `prod_${Date.now()}.${imageFile.name.split('.').pop()}`
-            const { error: uploadError } = await supabase.storage.from('products').upload(fileName, imageFile)
-            if (!uploadError) {
-                const { data: urlData } = supabase.storage.from('products').getPublicUrl(fileName)
-                publicUrl = urlData.publicUrl
-            }
-        } catch(e) {}
+        const fileName = `prod_${Date.now()}.${imageFile.name.split('.').pop()}`
+        const { error: uploadError } = await supabase.storage.from('products').upload(fileName, imageFile)
+        if (!uploadError) {
+            const { data: urlData } = supabase.storage.from('products').getPublicUrl(fileName)
+            publicUrl = urlData.publicUrl
+        }
+    }
+
+    // Upload Modello 3D (AR)
+    if (arFile && user) {
+        const arFileName = `ar_${Date.now()}_${arFile.name.replace(/[^a-zA-Z0-9.]/g, '')}`
+        const { error: arUploadError } = await supabase.storage.from('products').upload(arFileName, arFile)
+        if (!arUploadError) {
+            const { data: arUrlData } = supabase.storage.from('products').getPublicUrl(arFileName)
+            arUrl = arUrlData.publicUrl
+        }
     }
 
     const payload = {
         user_id: user?.id || '00000000-0000-0000-0000-000000000000',
-        name: formData.name, description: formData.description, price: Number(formData.price) || 0, category: formData.category,
+        name: formData.name, 
+        description: formData.description, 
+        price: Number(formData.price) || 0, 
+        category: formData.category,
         image_url: publicUrl,
+        ar_model_url: arUrl,
+        ar_enabled: formData.ar_enabled,
         legal_consent: legalConsent
     }
 
@@ -170,7 +187,7 @@ export default function EcommercePage() {
         
         await fetchProducts(user.id);
         setIsModalOpen(false)
-        setFormData({ name: '', description: '', price: '', category: 'Prodotti' })
+        setFormData({ name: '', description: '', price: '', category: 'Prodotti', ar_model_url: '', ar_enabled: false })
         setImageFile(null); setImageUrlPreview(null); setLegalConsent(false);
     } catch (err: any) {
         alert('Errore: ' + err.message)
@@ -282,11 +299,29 @@ export default function EcommercePage() {
               <img src={product.image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
             </div>
             <div className="p-5 flex-1 flex flex-col">
-              <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">{product.category}</span>
+              <div className="flex justify-between items-start mb-1">
+                  <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{product.category}</span>
+                  {product.ar_enabled && <span className="text-[9px] bg-purple-100 text-purple-600 px-2 py-0.5 rounded font-black uppercase tracking-tighter">AR Ready</span>}
+              </div>
               <h3 className="font-bold text-gray-900 leading-tight mb-2 line-clamp-1">{product.name}</h3>
               <p className="text-gray-500 text-xs line-clamp-2 mb-4 flex-1">{product.description}</p>
+              
+              {product.ar_enabled && (
+                  <div className="mb-4 p-2 bg-gray-50 rounded-xl border border-dashed border-gray-200 flex items-center gap-2">
+                       <div className="w-10 h-10 bg-white p-1 rounded-lg shadow-sm border">
+                           {/* Placeholder QR per demo, in produzione usa QRCode wrapper */}
+                           <div className="w-full h-full bg-gray-100 rounded flex items-center justify-center text-[10px] font-bold">QR</div>
+                       </div>
+                       <div className="flex-1">
+                           <p className="text-[10px] font-black text-gray-400 uppercase">Marker Negozio</p>
+                           <p className="text-[9px] text-gray-500 font-medium">Stampa per scansione AR in loco</p>
+                       </div>
+                  </div>
+              )}
+
               <div className="pt-3 border-t border-gray-50 flex justify-between items-end">
                   <span className="text-[#00665E] font-black text-xl">€ {Number(product.price).toLocaleString('it-IT', {minimumFractionDigits: 2})}</span>
+                  {product.ar_enabled && <button className="p-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition"><X size={14} className="rotate-45"/></button>}
               </div>
             </div>
           </div>
@@ -369,6 +404,34 @@ export default function EcommercePage() {
                         <div>
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-1">Descrizione</label>
                             <textarea required value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl outline-none focus:border-[#00665E] focus:bg-white h-24 text-sm resize-none transition leading-relaxed" />
+                        </div>
+
+                        {/* --- CONFIGURAZIONE AR --- */}
+                        <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-6 rounded-3xl border border-purple-100 shadow-sm">
+                            <div className="flex justify-between items-center mb-4">
+                                <h4 className="text-xs font-black text-purple-900 uppercase tracking-widest flex items-center gap-2">
+                                    <X size={16} className="rotate-45"/> Realtà Aumentata (AR)
+                                </h4>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked={formData.ar_enabled} onChange={e => setFormData({...formData, ar_enabled: e.target.checked})} className="sr-only peer" />
+                                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                </label>
+                            </div>
+                            
+                            {formData.ar_enabled ? (
+                                <div className="space-y-4 animate-in slide-in-from-top-2">
+                                    <div className="border-2 border-dashed border-purple-200 rounded-2xl p-4 bg-white/50 text-center">
+                                        <p className="text-[10px] font-bold text-purple-700 mb-2 uppercase">Modello 3D (.glb)</p>
+                                        <input type="file" accept=".glb" onChange={e => setArFile(e.target.files?.[0] || null)} className="text-xs text-gray-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-black file:bg-purple-600 file:text-white hover:file:bg-purple-700 cursor-pointer" />
+                                        <p className="text-[9px] text-gray-400 mt-2 italic">Supporto AR ottimizzato per il negozio fisico e cataloghi digitali.</p>
+                                    </div>
+                                    <div className="bg-white p-3 rounded-2xl text-[10px] font-medium text-purple-800 border border-purple-200">
+                                        💡 <strong>Ricorda:</strong> Il costo del servizio AR include un sovrapprezzo del 40% già calcolato nel tuo canone mensile IntegraOS.
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-[10px] text-gray-500 italic">Attiva l'interruttore per sbloccare la visualizzazione AR del prodotto per i tuoi clienti.</p>
+                            )}
                         </div>
 
                         {/* --- DISCLAIMER LEGALE ESTESO (RICHIESTO) --- */}
