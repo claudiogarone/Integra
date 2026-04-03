@@ -68,10 +68,16 @@ export default function AcademyPage() {
   useEffect(() => { fetchData() }, [])
 
   const fetchData = async () => {
-    const devUserId = '00000000-0000-0000-0000-000000000000';
-    setUser({ id: devUserId });
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUser = sessionData?.session?.user;
     
-    const { data: profile } = await supabase.from('profiles').select('*').eq('id', devUserId).single()
+    if (!currentUser) {
+        setLoading(false);
+        return;
+    }
+    setUser(currentUser);
+    
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single()
     if(profile) {
         setUserPlan(profile.plan || 'Base')
         setCompanyProfile({
@@ -81,10 +87,10 @@ export default function AcademyPage() {
         setCertForm(prev => ({...prev, signer: profile.company_name ? `Direzione ${profile.company_name}` : 'La Direzione'}))
     }
 
-    const { data: coursesData } = await supabase.from('courses').select('*, lessons(*), quizzes(*, quiz_questions(*)), course_progress(*)').eq('user_id', devUserId).order('created_at', {ascending: false})
+    const { data: coursesData } = await supabase.from('courses').select('*, lessons(*), quizzes(*, quiz_questions(*)), course_progress(*)').eq('user_id', currentUser.id).order('created_at', {ascending: false})
     if(coursesData) setCourses(coursesData)
 
-    const { data: liveData } = await supabase.from('live_events').select('*, live_attendance(*)').eq('user_id', devUserId).order('start_time', {ascending: true})
+    const { data: liveData } = await supabase.from('live_events').select('*, live_attendance(*)').eq('user_id', currentUser.id).order('start_time', {ascending: true})
     if(liveData) setLiveEvents(liveData)
 
     const { data: teamData } = await supabase.from('team_members').select('*')
@@ -179,7 +185,12 @@ export default function AcademyPage() {
   const handleSaveCourse = async () => {
       if(!courseForm.title) return alert("Titolo mancante");
       setUploading(true)
-      const payload = { user_id: user?.id, ...courseForm, thumbnail_url: courseForm.thumbnail_url || 'https://via.placeholder.com/800x400?text=Corso' }
+      const payload = { 
+          user_id: user?.id, 
+          ...courseForm, 
+          deadline: courseForm.deadline || null,
+          thumbnail_url: courseForm.thumbnail_url || 'https://via.placeholder.com/800x400?text=Corso' 
+      }
       let err = null;
       if (activeCourse) { const res = await supabase.from('courses').update(payload).eq('id', activeCourse.id); err = res.error; } 
       else { const res = await supabase.from('courses').insert(payload); err = res.error; }
@@ -275,15 +286,19 @@ export default function AcademyPage() {
       if (!confirm(`Vuoi inviare un'email di promemoria con il link al calendario a ${assignedAgents.length} agenti per l'evento "${event.title}"?`)) return;
       
       setSendingEmails(true);
+      const { data: sessionData } = await supabase.auth.getSession();
+      
       try {
           const res = await fetch('/api/academy/emails', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${sessionData?.session?.access_token || ''}`
+              },
               body: JSON.stringify({
                   type: 'reminder',
                   event: event,
-                  agents: assignedAgents,
-                  companyName: companyProfile.name
+                  agents: assignedAgents
               })
           });
           if(!res.ok) throw new Error("Errore API Invio");
@@ -301,16 +316,20 @@ export default function AcademyPage() {
       
       if (!confirm(`Notificare i ${attendees.length} partecipanti via email che l'attestato è pronto?`)) return;
       setSendingEmails(true);
+      const { data: sessionData } = await supabase.auth.getSession();
+      
       try {
           const agentsToNotify = attendees.map((att:any) => agents.find(a => a.email === att.agent_email)).filter(Boolean);
           const res = await fetch('/api/academy/emails', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${sessionData?.session?.access_token || ''}`
+              },
               body: JSON.stringify({
                   type: 'certificate',
                   event: event,
-                  agents: agentsToNotify,
-                  companyName: companyProfile.name
+                  agents: agentsToNotify
               })
           });
           if(!res.ok) throw new Error("Errore API Invio");

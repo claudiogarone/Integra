@@ -12,10 +12,12 @@ import { Calendar as CalIcon, Link as LinkIcon, Check, X, Bot, Clock, Copy, Chec
 
 export default function AgendaPage() {
   const [user, setUser] = useState<any>(null)
+  const [accessToken, setAccessToken] = useState<string | null>(null)
+  
   const [events, setEvents] = useState<any[]>([])
   const [syncs, setSyncs] = useState<any[]>([]) 
   const [loading, setLoading] = useState(true)
-  const [isSyncingBackground, setIsSyncingBackground] = useState(false) // Stato per la sincronizzazione in background
+  const [isSyncingBackground, setIsSyncingBackground] = useState(false)
   const [publicBaseUrl, setPublicBaseUrl] = useState('')
   
   // Modali
@@ -41,24 +43,37 @@ export default function AgendaPage() {
     if (typeof window !== 'undefined') setPublicBaseUrl(window.location.origin)
     
     const getData = async () => {
-      const devUser = { id: '00000000-0000-0000-0000-000000000000', email: 'admin@integraos.it' };
-      setUser(devUser);
+      // 1. Estrazione utente reale autenticato
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+      const token = sessionData?.session?.access_token || null;
       
-      // 1. Carichiamo gli eventi attualmente nel DB
-      await fetchEvents();
-      
-      // 2. Controlliamo se ci sono calendari esterni e avviamo la Sync in Background!
-      const activeSyncs = await fetchSyncs(devUser.id);
-      if (activeSyncs && activeSyncs.length > 0) {
-          triggerBackgroundSync(activeSyncs, devUser.id);
+      if (user && token) {
+        setUser(user);
+        setAccessToken(token);
+        
+        // 2. Carichiamo gli eventi legati unicamente all'utente autenticato
+        await fetchEvents(token);
+        
+        // 3. Controlliamo calendari e sincronizziamo in background
+        const activeSyncs = await fetchSyncs(user.id, token);
+        if (activeSyncs && activeSyncs.length > 0) {
+            triggerBackgroundSync(activeSyncs, user.id, token);
+        }
+      } else {
+        console.warn("Sessione assente. Eventi non caricati.");
       }
+      setLoading(false);
     }
     getData()
   }, [])
 
-  const fetchEvents = async () => {
+  const fetchEvents = async (token: string) => {
     try {
-      const res = await fetch('/api/calendar/events', { cache: 'no-store' });
+      const res = await fetch('/api/calendar/events', { 
+        cache: 'no-store',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (!res.ok) throw new Error("Errore API");
       const data = await res.json();
 
@@ -68,7 +83,7 @@ export default function AgendaPage() {
         
         if (e.type === 'live' || e.title.includes('🎥')) { color = '#DC2626'; icon = '🎥 '; }
         if (e.status === 'ai_pending') { color = '#F59E0B'; icon = '🤖 '; }
-        if (e.title.includes('📥')) { color = '#7C3AED'; } // Eventi importati (Viola)
+        if (e.title.includes('📥')) { color = '#7C3AED'; }
 
         const startStr = `${e.event_date}T${e.start_time}`;
         const endStr = `${e.event_date}T${e.end_time}`;
@@ -92,12 +107,10 @@ export default function AgendaPage() {
       setEvents(calendarEvents);
     } catch (error) {
       console.error("Errore recupero eventi:", error);
-    } finally {
-      setLoading(false);
     }
   }
 
-  const fetchSyncs = async (userId: string) => {
+  const fetchSyncs = async (userId: string, token: string) => {
       const { data } = await supabase.from('calendar_syncs').select('*').eq('user_id', userId).order('created_at', { ascending: false });
       if (data) {
           setSyncs(data);
@@ -106,8 +119,7 @@ export default function AgendaPage() {
       return [];
   }
 
-  // FUNZIONE MAGICA: AGGIORNA I CALENDARI ESTERNI IN BACKGROUND QUANDO CARICHI LA PAGINA
-  const triggerBackgroundSync = async (activeSyncs: any[], userId: string) => {
+  const triggerBackgroundSync = async (activeSyncs: any[], userId: string, token: string) => {
       setIsSyncingBackground(true);
       let hasUpdates = false;
       
@@ -115,8 +127,11 @@ export default function AgendaPage() {
           try {
               const res = await fetch('/api/calendar/import', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ url: sync.url, userId: userId })
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify({ url: sync.url })
               });
               const result = await res.json();
               if (result.importedCount > 0) hasUpdates = true;
@@ -126,24 +141,28 @@ export default function AgendaPage() {
       }
       
       if (hasUpdates) {
-          await fetchEvents(); // Ricarichiamo gli eventi a schermo se ci sono novità!
+          await fetchEvents(token);
       }
       setIsSyncingBackground(false);
   }
 
   const handleManualSync = async (sync: any) => {
+      if(!accessToken) return;
       setImporting(true);
       try {
           const res = await fetch('/api/calendar/import', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ url: sync.url, userId: user.id })
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+              },
+              body: JSON.stringify({ url: sync.url })
           });
           const result = await res.json();
           if(!res.ok) throw new Error(result.error);
           alert(`✅ Sincronizzazione completata! Trovati ${result.importedCount} nuovi eventi.`);
-          await fetchEvents();
-          await fetchSyncs(user.id);
+          await fetchEvents(accessToken);
+          await fetchSyncs(user.id, accessToken);
       } catch(err: any) {
           alert("❌ Errore: " + err.message);
       } finally {
@@ -152,7 +171,10 @@ export default function AgendaPage() {
   }
 
   const handleSaveEvent = async (e: React.FormEvent) => {
-    e.preventDefault(); setSaving(true);
+    e.preventDefault(); 
+    if(!accessToken) return;
+    setSaving(true);
+    
     const startParts = newEvent.start.split('T');
     const event_date = startParts[0];
     const start_time = startParts[1] || "09:00:00";
@@ -166,9 +188,16 @@ export default function AgendaPage() {
     };
 
     try {
-        const res = await fetch('/api/calendar/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await fetch('/api/calendar/events', { 
+            method: 'POST', 
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+            }, 
+            body: JSON.stringify(payload) 
+        });
         if (!res.ok) throw new Error("Errore salvataggio");
-        await fetchEvents();
+        await fetchEvents(accessToken);
         setIsEventModalOpen(false);
     } catch (error: any) { alert("❌ Errore: " + error.message); } finally { setSaving(false); }
   }
@@ -187,17 +216,20 @@ export default function AgendaPage() {
   }
 
   const handleConfirmAi = async () => {
-      if(!selectedEventInfo) return;
+      if(!selectedEventInfo || !accessToken) return;
       const payload = { id: selectedEventInfo.id, title: selectedEventInfo.title.replace('🤖 ', '✅ '), status: 'Confirmed' };
-      await fetch('/api/calendar/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      setIsDetailsModalOpen(false); fetchEvents(); alert("Appuntamento confermato!");
+      await fetch('/api/calendar/events', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` }, body: JSON.stringify(payload) });
+      setIsDetailsModalOpen(false); fetchEvents(accessToken); alert("Appuntamento confermato!");
   }
 
   const handleDeleteEvent = async () => {
-      if(!selectedEventInfo) return;
+      if(!selectedEventInfo || !accessToken) return;
       if(confirm(`Eliminare definitivamente "${selectedEventInfo.title}"?`)) {
-          const res = await fetch(`/api/calendar/events?id=${selectedEventInfo.id}`, { method: 'DELETE' });
-          if (res.ok) { setIsDetailsModalOpen(false); fetchEvents(); }
+          const res = await fetch(`/api/calendar/events?id=${selectedEventInfo.id}`, { 
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          });
+          if (res.ok) { setIsDetailsModalOpen(false); fetchEvents(accessToken); }
       }
   }
 
@@ -216,12 +248,16 @@ export default function AgendaPage() {
 
   const handleImportCalendar = async () => {
       if (!importUrl) return alert("Inserisci un link iCal valido.");
+      if (!accessToken) return alert("Sessione non valida");
       setImporting(true);
       try {
           const res = await fetch('/api/calendar/import', { 
               method: 'POST', 
-              headers: { 'Content-Type': 'application/json' }, 
-              body: JSON.stringify({ url: importUrl, userId: user?.id }) 
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+              }, 
+              body: JSON.stringify({ url: importUrl }) 
           });
           const result = await res.json();
           if(!res.ok) throw new Error(result.error || "Impossibile importare il calendario.");
@@ -232,12 +268,12 @@ export default function AgendaPage() {
           
           alert(msg);
           setImportUrl(''); setImportConsent(false);
-          await fetchEvents();
-          await fetchSyncs(user.id);
+          await fetchEvents(accessToken);
+          await fetchSyncs(user.id, accessToken);
       } catch (err: any) { alert("❌ Errore: " + err.message); } finally { setImporting(false); }
   }
 
-  if (loading) return <div className="p-10 text-[#00665E] animate-pulse font-bold flex items-center gap-2 h-screen w-screen justify-center bg-white">Caricamento Smart Agenda...</div>
+  if (loading) return <div className="p-10 text-[#00665E] animate-pulse font-bold flex items-center gap-2 h-screen w-screen justify-center bg-white">Avvio Agenda Criptata...</div>
 
   return (
     <main className="flex-1 p-8 overflow-auto bg-[#F8FAFC] text-gray-900 font-sans h-screen flex flex-col pb-20">
@@ -264,7 +300,7 @@ export default function AgendaPage() {
                   <div className="bg-amber-500 text-white p-2 rounded-lg animate-bounce"><Bot size={20}/></div>
                   <div>
                       <h3 className="font-black text-amber-900">Nuove richieste dall'AI</h3>
-                      <p className="text-sm text-amber-700">Hai degli appuntamenti fissati dall'assistente virtuale in attesa di conferma.</p>
+                      <p className="text-sm text-amber-700">Hai degli appuntamenti fissati dall'assistente virtuale in attesa di conferme.</p>
                   </div>
               </div>
           </div>
@@ -288,11 +324,7 @@ export default function AgendaPage() {
          <FullCalendar
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
             initialView="timeGridWeek"
-            headerToolbar={{ 
-                left: 'prev,next today', 
-                center: 'title', 
-                right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
-            }}
+            headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek' }}
             buttonText={{ month: 'Mese', week: 'Settimana', day: 'Giorno', list: 'Lista' }}
             locale={itLocale}
             events={events}
@@ -309,7 +341,6 @@ export default function AgendaPage() {
         />
       </div>
 
-      {/* MODALE: NUOVO EVENTO */}
       {isEventModalOpen && (
         <div className="modal-overlay">
           <div className="bg-white p-8 rounded-3xl w-full max-w-md shadow-2xl relative animate-in zoom-in-95">
@@ -342,7 +373,6 @@ export default function AgendaPage() {
         </div>
       )}
 
-      {/* MODALE: DETTAGLI EVENTO */}
       {isDetailsModalOpen && selectedEventInfo && (
           <div className="modal-overlay">
               <div className="bg-white p-8 rounded-3xl w-full max-w-md shadow-2xl relative animate-in zoom-in-95">
@@ -378,13 +408,9 @@ export default function AgendaPage() {
           </div>
       )}
 
-      {/* ========================================================= */}
-      {/* MODALE: SYNC AVANZATO BIDIREZIONALE                         */}
-      {/* ========================================================= */}
       {isSyncModalOpen && (
           <div className="modal-overlay">
              <div className="bg-white p-0 rounded-3xl max-w-2xl w-full relative shadow-2xl animate-in zoom-in-95 flex flex-col overflow-hidden max-h-[90vh]">
-                
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
                     <div>
                         <h3 className="font-black text-2xl text-[#00665E] flex items-center gap-2"><RefreshCw size={24}/> Sync & Importazione</h3>
@@ -393,7 +419,6 @@ export default function AgendaPage() {
                     <button onClick={() => setIsSyncModalOpen(false)} className="text-gray-400 hover:text-gray-900 bg-gray-200 p-2 rounded-full"><X size={20}/></button>
                 </div>
                 
-                {/* TABS MODALE */}
                 <div className="flex bg-white border-b border-gray-200 text-sm font-bold shrink-0">
                     <button onClick={() => setSyncTab('export')} className={`flex-1 py-4 transition flex items-center justify-center gap-2 ${syncTab === 'export' ? 'text-[#00665E] border-b-2 border-[#00665E] bg-[#00665E]/5' : 'text-gray-500 hover:bg-gray-50'}`}>📤 Esporta in Google</button>
                     <button onClick={() => setSyncTab('import')} className={`flex-1 py-4 transition flex items-center justify-center gap-2 ${syncTab === 'import' ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50' : 'text-gray-500 hover:bg-gray-50'}`}>📥 Connessioni Attive</button>
@@ -401,13 +426,11 @@ export default function AgendaPage() {
                 </div>
                 
                 <div className="p-8 overflow-y-auto custom-scrollbar flex-1 bg-white">
-                    
-                    {/* TAB 1: ESPORTA */}
                     {syncTab === 'export' && (
                         <div className="space-y-6 animate-in fade-in">
                             <div className="bg-gray-50 border border-gray-200 p-6 rounded-2xl">
                                 <h4 className="font-black text-gray-900 mb-2">Opzione A: Download Istantaneo (Consigliato)</h4>
-                                <p className="text-xs text-gray-600 mb-4 leading-relaxed">Scarica il file .ics e fai doppio click per aprirlo su Google Calendar, Apple o Outlook. Gli eventi appariranno immediatamente senza attese.</p>
+                                <p className="text-xs text-gray-600 mb-4 leading-relaxed">Scarica il file .ics e fai doppio click per aprirlo su Google Calendar, Apple o Outlook.</p>
                                 <a href={`/api/ical?userId=${user?.id}`} className="bg-[#00665E] text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md hover:bg-[#004d46] transition w-full md:w-auto inline-flex">
                                     <Download size={18}/> Scarica Calendario (.ics)
                                 </a>
@@ -415,7 +438,7 @@ export default function AgendaPage() {
 
                             <div className="border border-gray-200 p-6 rounded-2xl">
                                 <h4 className="font-black text-gray-900 mb-2">Opzione B: Sincronizzazione Tramite Link</h4>
-                                <p className="text-xs text-gray-600 mb-3 leading-relaxed">Copia il link qui sotto e aggiungilo al tuo software alla voce "Aggiungi da URL".</p>
+                                <p className="text-xs text-gray-600 mb-3 leading-relaxed">Copia il link e aggiungilo alla voce "Aggiungi da URL".</p>
                                 <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200 mb-4">
                                     <input readOnly value={`${publicBaseUrl}/api/ical?userId=${user?.id}`} className="w-full bg-transparent border-none text-xs font-mono text-gray-600 focus:outline-none px-2" />
                                     <button onClick={copySyncLink} className="bg-gray-800 text-white p-2.5 rounded-lg hover:bg-black transition flex-shrink-0 font-bold text-xs shadow-md">
@@ -424,21 +447,18 @@ export default function AgendaPage() {
                                 </div>
                                 <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl flex gap-3 text-orange-800 text-xs font-medium leading-relaxed">
                                     <ShieldAlert size={20} className="shrink-0 mt-0.5 text-orange-500"/>
-                                    <span><b>Avviso su Google Calendar:</b> Google può impiegare fino a 12-24 ore per aggiornare i calendari collegati tramite URL. Se hai fretta, usa l'Opzione A qui sopra. Apple e Outlook si aggiornano invece subito.</span>
+                                    <span><b>Avviso:</b> Google può impiegare fino a 12-24 ore per l'aggiornamento automatico.</span>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* TAB 2: IMPORTA E CONNESSIONI */}
                     {syncTab === 'import' && (
                         <div className="space-y-8 animate-in fade-in">
-                            
-                            {/* ELENCO CONNESSIONI ATTIVE E SINCRONIZZAZIONE MANUALE */}
                             <div>
                                 <h4 className="font-bold text-gray-800 text-sm mb-3 flex items-center gap-2"><LinkIcon size={16} className="text-[#00665E]"/> Calendari Esterni Collegati</h4>
                                 {syncs.length === 0 ? (
-                                    <p className="text-xs text-gray-500 italic bg-gray-50 p-4 rounded-xl border border-gray-100">Nessun calendario esterno collegato.</p>
+                                    <p className="text-xs text-gray-500 italic bg-gray-50 p-4 rounded-xl border border-gray-100">Nessun calendario collegato.</p>
                                 ) : (
                                     <div className="space-y-3">
                                         {syncs.map(sync => (
@@ -449,7 +469,7 @@ export default function AgendaPage() {
                                                     </div>
                                                     <div>
                                                         <p className="font-bold text-sm text-gray-900">{sync.provider}</p>
-                                                        <p className="text-[10px] text-gray-500 font-medium mt-0.5">Ultimo aggiornamento automatico: {new Date(sync.last_sync).toLocaleString('it-IT')}</p>
+                                                        <p className="text-[10px] text-gray-500 font-medium mt-0.5">Ultimo sync: {new Date(sync.last_sync).toLocaleString('it-IT')}</p>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
@@ -466,47 +486,24 @@ export default function AgendaPage() {
 
                             <div className="bg-purple-50 border border-purple-200 p-6 rounded-2xl">
                                 <h4 className="font-black text-purple-900 mb-2">Aggiungi un Nuovo Calendario</h4>
-                                <p className="text-xs text-purple-800 mb-4 leading-relaxed">Incolla qui l'<strong>Indirizzo Segreto iCal (.ics)</strong> del tuo calendario esterno per connetterlo a IntegraOS.</p>
-                                <input 
-                                    type="url" 
-                                    placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" 
-                                    className="w-full bg-white border border-purple-200 p-3.5 rounded-xl outline-none focus:border-purple-600 text-sm font-mono mb-4 transition shadow-inner"
-                                    value={importUrl}
-                                    onChange={(e) => setImportUrl(e.target.value)}
-                                />
-                                <label className="flex items-center gap-3 mb-6 cursor-pointer bg-white p-3 rounded-xl border border-purple-100 shadow-sm hover:bg-purple-100/50">
-                                    <input type="checkbox" className="w-5 h-5 accent-purple-600" checked={importConsent} onChange={(e) => setImportConsent(e.target.checked)}/>
-                                    <span className="text-xs font-bold text-gray-700 leading-tight">Acconsento all'importazione dei dati nel DB aziendale.</span>
+                                <input type="url" placeholder="URL iCal / Indirizzo segreto Google..." className="w-full bg-white border border-purple-200 p-3.5 rounded-xl outline-none focus:border-purple-600 text-sm font-mono mb-4 transition shadow-inner" value={importUrl} onChange={e => setImportUrl(e.target.value)} />
+                                <label className="flex items-center gap-3 mb-6 cursor-pointer bg-white p-3 rounded-xl border border-purple-100 shadow-sm">
+                                    <input type="checkbox" className="w-5 h-5 accent-purple-600" checked={importConsent} onChange={e => setImportConsent(e.target.checked)}/>
+                                    <span className="text-xs font-bold text-gray-700">Acconsento all'importazione dei dati nel DB aziendale sicuro.</span>
                                 </label>
                                 <button onClick={handleImportCalendar} disabled={!importUrl || !importConsent || importing} className="w-full bg-purple-600 text-white font-black py-4 rounded-xl shadow-lg hover:bg-purple-700 transition disabled:opacity-50 flex items-center justify-center gap-2">
-                                    {importing ? <Loader2 size={18} className="animate-spin"/> : <LinkIcon size={18}/>} {importing ? 'Connessione in corso...' : 'Collega Calendario'}
+                                    {importing ? <Loader2 size={18} className="animate-spin"/> : <LinkIcon size={18}/>} Collega Calendario
                                 </button>
-                            </div>
-
-                            <div className="border border-gray-200 rounded-2xl p-5 bg-gray-50">
-                                <h4 className="font-bold text-gray-800 text-sm mb-3 flex items-center gap-2"><HelpCircle size={16} className="text-gray-400"/> Come trovare il link segreto?</h4>
-                                <div className="space-y-4 text-xs text-gray-600 leading-relaxed">
-                                    <div><b className="text-gray-900">Google Calendar:</b> Impostazioni &gt; Impostazioni per i miei calendari &gt; (Scegli calendario) &gt; Integra calendario &gt; Copia l'"Indirizzo segreto in formato iCal".</div>
-                                    <div><b className="text-gray-900">Apple Calendar (Mac):</b> Tasto destro sul calendario &gt; Condividi calendario &gt; Spunta "Calendario Pubblico" &gt; Copia l'URL che appare.</div>
-                                    <div><b className="text-gray-900">Outlook:</b> Impostazioni &gt; Visualizza tutte le impostazioni &gt; Calendario &gt; Calendari condivisi &gt; Pubblica un calendario &gt; Crea link ICS.</div>
-                                </div>
                             </div>
                         </div>
                     )}
 
-                    {/* TAB 3: SOCIAL */}
                     {syncTab === 'social' && (
                         <div className="space-y-6 animate-in fade-in text-center py-6">
                             <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6"><Share2 size={40}/></div>
                             <h3 className="text-2xl font-black text-gray-900 mb-4">Eventi Social & Webinar</h3>
-                            <p className="text-sm text-gray-600 mb-8 max-w-md mx-auto leading-relaxed">
-                                Vuoi far comparire i tuoi eventi di <b>Facebook Page</b> o <b>LinkedIn</b> direttamente nella Smart Agenda di IntegraOS?
-                            </p>
-                            
                             <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-left text-sm text-gray-700 space-y-4 shadow-sm max-w-lg mx-auto">
-                                <p><b>1. Crea l'evento sul Social:</b> Configura il tuo evento o webinar direttamente su Facebook o LinkedIn come fai di solito.</p>
-                                <p><b>2. Esporta l'evento:</b> Sulla pagina dell'evento social, clicca sui tre puntini (...) o su "Condividi" e seleziona <b>"Esporta come file .ics"</b> o "Aggiungi al Calendario".</p>
-                                <p><b>3. Importa in IntegraOS:</b> Vai nel tab <span className="font-bold text-purple-600 px-1">📥 Importa</span> qui sopra. Incolla il link fornito dal social, oppure scarica il file dal social e aprilo dal tuo PC (se il PC è già sincronizzato tramite l'Opzione A).</p>
+                                <p>Crea l'evento su Facebook o LinkedIn, esporta il file ".ics" (o copia l'url), e incollalo nella voce "Importa".</p>
                             </div>
                         </div>
                     )}
@@ -515,7 +512,6 @@ export default function AgendaPage() {
           </div>
       )}
 
-      {/* CSS FIX TESTO BIANCO QUANDO SELEZIONATO */}
       <style dangerouslySetInnerHTML={{ __html: `
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px); padding: 1rem; }
         .input { width: 100%; padding: 0.875rem; border: 1px solid #e2e8f0; border-radius: 0.75rem; outline: none; transition: all 0.2s; font-size: 0.875rem; background-color: #f8fafc; }
@@ -523,25 +519,8 @@ export default function AgendaPage() {
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        
-        .fc { 
-            --fc-today-bg-color: #F0FDFA; 
-            --fc-button-active-bg-color: #00665E; 
-            --fc-button-active-border-color: #00665E; 
-            --fc-button-bg-color: #ffffff; 
-            --fc-button-border-color: #e2e8f0; 
-            --fc-button-text-color: #475569; 
-            --fc-button-hover-bg-color: #f8fafc; 
-            --fc-button-hover-border-color: #cbd5e1; 
-        }
-        
-        /* FIX DEFINITIVO: Testo bianco puro sui bottoni FullCalendar attivi */
-        .fc .fc-button-primary:not(:disabled).fc-button-active, 
-        .fc .fc-button-primary:not(:disabled):active { 
-            color: #ffffff !important; 
-            font-weight: 900 !important;
-            text-shadow: none !important;
-        }
+        .fc { --fc-today-bg-color: #F0FDFA; --fc-button-active-bg-color: #00665E; --fc-button-active-border-color: #00665E; }
+        .fc .fc-button-primary:not(:disabled).fc-button-active, .fc .fc-button-primary:not(:disabled):active { color: #ffffff !important; font-weight: 900 !important; }
         .fc-toolbar-title { font-size: 1.5rem !important; font-weight: 900 !important; color: #1e293b; text-transform: capitalize; }
       `}} />
     </main>

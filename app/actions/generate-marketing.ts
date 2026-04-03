@@ -1,37 +1,51 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
-import Anthropic from '@anthropic-ai/sdk'
 
 export async function generateMarketingContent(prompt: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) return { error: 'Utente non loggato' }
 
-  // 1. Controllo Crediti (Opzionale: scommenta se vuoi scalare i crediti)
-  /*
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-  if (profile.ai_usage_count >= profile.ai_max_limit) {
-    return { error: 'Crediti AI esauriti. Fai l\'upgrade!' }
-  }
-  await supabase.from('profiles').update({ ai_usage_count: profile.ai_usage_count + 1 }).eq('id', user.id)
-  */
-
-  // 2. Chiamata AI
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  const apiKey = process.env.GEMINI_API_KEY?.replace(/['"]/g, '').trim();
+  if (!apiKey) return { error: 'Chiave AI mancante.' };
 
   try {
-    const msg = await anthropic.messages.create({
-      model: "claude-3-haiku-20240307",
-      max_tokens: 500,
-      system: "Sei un esperto di Copywriting e Marketing per piccole imprese. Il tuo compito è suggerire Titoli e Testi persuasivi per Landing Page e Volantini. Sii breve, diretto e usa un tono commerciale accattivante. Rispondi in Italiano.",
-      messages: [{ role: "user", content: prompt }],
-    })
+    const payload = {
+      contents: [{
+        role: "user",
+        parts: [{ text: `Sei un esperto di Copywriting e Marketing per piccole imprese. Il tuo compito è suggerire Titoli e Testi persuasivi per Landing Page e Volantini. Sii breve, diretto e usa un tono commerciale accattivante. Rispondi in Italiano.\n\nRichiesta: ${prompt}` }]
+      }],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 500,
+      }
+    };
 
-    const text = msg.content[0].type === 'text' ? msg.content[0].text : ''
-    return { text }
-  } catch (err) {
-    return { error: 'Errore AI: Riprova più tardi.' }
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await res.json();
+    
+    if (result.error) {
+      throw new Error(`Google API Error: ${result.error.message}`);
+    }
+
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!text) {
+      console.error("❌ [GEMINI-EMPTY-RES]:", JSON.stringify(result));
+      const reason = result.promptFeedback?.blockReason || "Motivo sconosciuto (probabile filtro sicurezza o quota)";
+      throw new Error(`L'IA non ha restituito testo. Motivo: ${reason}`);
+    }
+
+    return { text };
+  } catch (err: any) {
+    console.error("❌ [AI-MARKETING-ERROR]:", err.message);
+    return { error: 'Errore AI: ' + err.message }
   }
 }

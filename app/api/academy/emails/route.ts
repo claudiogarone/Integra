@@ -1,12 +1,33 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
     try {
+        const authHeader = request.headers.get('Authorization');
+        const token = authHeader?.split('Bearer ')[1];
+
+        if (!token) return NextResponse.json({ error: 'Token non fornito' }, { status: 401 });
+
+        const cookieStore = await cookies();
+        const supabase = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            { cookies: { getAll() { return cookieStore.getAll() } } }
+        );
+        
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !user) return NextResponse.json({ error: 'Utente non autorizzato' }, { status: 401 });
+
         const body = await request.json();
-        const { type, event, agents, companyName } = body;
+        const { type, event, agents } = body;
+
+        // Recupero Sicuro Profilo (Company Name non si fida del frontend)
+        const { data: profile } = await supabase.from('profiles').select('company_name').eq('id', user.id).single();
+        const companyName = profile?.company_name || 'IntegraOS';
 
         const apiKey = process.env.RESEND_API_KEY?.trim();
         if (!apiKey) return NextResponse.json({ error: 'Manca la chiave RESEND' }, { status: 500 });

@@ -132,10 +132,18 @@ export default function LoyaltyReportPage() {
           targetContactId = newContact.id;
           targetName = newContact.name;
           targetEmail = newContact.email || '';
+          
+          // Forza lo stato VIP alla creazione
+          await supabase.from('contacts').update({ status: 'VIP' }).eq('id', targetContactId);
       } else {
           if (!targetContactId) { setCreating(false); return alert("Seleziona un contatto."); }
           const existingCrmContact = crmContacts.find(c => c.id.toString() === targetContactId.toString());
-          if(existingCrmContact) { targetName = existingCrmContact.name; targetEmail = existingCrmContact.email; }
+          if(existingCrmContact) { 
+              targetName = existingCrmContact.name; 
+              targetEmail = existingCrmContact.email; 
+              // Aggiorna lo stato a VIP per i contatti esistenti
+              await supabase.from('contacts').update({ status: 'VIP' }).eq('id', targetContactId);
+          }
       }
 
       const existing = cards.find(c => c.contact_id?.toString() === targetContactId.toString());

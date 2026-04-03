@@ -1,13 +1,35 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { triggerWorkflow } from '@/utils/workflow-trigger';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
     try {
-        // NOVITÀ: Riceviamo company_logo e quote_number
-        const { client_email, client_name, company_name, company_logo, quote_details, quote_id, quote_number, base_url } = await request.json();
+        const authHeader = request.headers.get('Authorization');
+        const token = authHeader?.split('Bearer ')[1];
+
+        if (!token) return NextResponse.json({ error: 'Token non fornito' }, { status: 401 });
+
+        const cookieStore = await cookies();
+        const supabase = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            { cookies: { getAll() { return cookieStore.getAll() } } }
+        );
         
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !user) return NextResponse.json({ error: 'Utente non autorizzato' }, { status: 401 });
+
+        // company_name e company_logo non vengono più presi dal request, ma li prendiamo dal backend
+        const { client_email, client_name, quote_details, quote_id, quote_number, base_url } = await request.json();
+        
+        const { data: profile } = await supabase.from('profiles').select('company_name, logo_url').eq('id', user.id).single();
+        const finalCompanyName = profile?.company_name || 'IntegraOS';
+        const company_logo = profile?.logo_url || '';
+
         const apiKey = process.env.RESEND_API_KEY?.trim();
         if (!apiKey) return NextResponse.json({ error: 'Manca la chiave RESEND' }, { status: 500 });
         const resend = new Resend(apiKey);
@@ -53,9 +75,8 @@ export async function POST(request: Request) {
         `;
 
         // =========================================================
-        // HEADER AZIENDALE INFALLIBILE (Come nel modulo Marketing)
+        // HEADER AZIENDALE INFALLIBILE
         // =========================================================
-        const finalCompanyName = company_name || 'La Tua Azienda';
         const firstLetter = finalCompanyName.charAt(0).toUpperCase();
         
         const topHeaderHtml = `
@@ -84,7 +105,7 @@ export async function POST(request: Request) {
         await resend.emails.send({
             from: `${finalCompanyName} <onboarding@resend.dev>`, 
             to: client_email,
-            subject: `Preventivo ${quote_number} da ${finalCompanyName}`,
+            subject: `Preventivo N° ${quote_number} - ${finalCompanyName}`,
             html: `
                 <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
                     
@@ -110,7 +131,7 @@ export async function POST(request: Request) {
 
                     <!-- FOOTER POWERED BY INTEGRAOS -->
                     <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #e2e8f0; text-align: center;">
-                        <p style="margin: 0 0 12px 0; font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Gestione commerciale generata tramite</p>
+                        <p style="margin: 0 0 12px 0; font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Gestione commerciale generata ed inviata tramite</p>
                         <a href="https://integraos.it" target="_blank" style="text-decoration: none; display: inline-block;">
                             <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
                                 <tr>
@@ -126,6 +147,16 @@ export async function POST(request: Request) {
                 </div>
             `
         });
+
+        // Trigger Workflow Automazione CRM
+        await triggerWorkflow('Preventivo Creato', {
+            id: quote_id,
+            number: quote_number,
+            client_name,
+            client_email,
+            total: quote_details.total,
+            status: 'Aperto'
+        }, user.id);
 
         return NextResponse.json({ success: true });
     } catch (error: any) {

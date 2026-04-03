@@ -40,7 +40,7 @@ export default function EcommercePage() {
   useEffect(() => {
     const getData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      const currentUser = user || { id: 'dev-user-id', email: 'admin@integraos.it' }
+      const currentUser = user || { id: '00000000-0000-0000-0000-000000000000', email: 'admin@integraos.it' }
       setUser(currentUser)
 
       if (user) {
@@ -57,11 +57,17 @@ export default function EcommercePage() {
 
   const fetchProducts = async (userId: string) => {
       try {
-          const res = await fetch(`/api/products?userId=${userId}`, { cache: 'no-store' });
-          if (res.ok) {
-              const data = await res.json();
-              setProducts(data.products || []);
-              setMonthUsage(data.monthUsage || 0); // Aggiorna il consumo reale del mese
+          const { data, error } = await supabase.from('products').select('*').eq('is_deleted', false).order('created_at', { ascending: false });
+          if (error) throw error;
+          
+          setProducts(data || []);
+          
+          const startOfMonth = new Date();
+          startOfMonth.setDate(1); startOfMonth.setHours(0,0,0,0);
+          
+          const { count, error: countError } = await supabase.from('products').select('*', { count: 'exact', head: true }).gte('created_at', startOfMonth.toISOString());
+          if (!countError) {
+              setMonthUsage(count || 0);
           }
       } catch (err) {
           console.error(err);
@@ -147,10 +153,10 @@ export default function EcommercePage() {
     }
 
     const payload = {
-        user_id: user.id,
-        name: formData.name, description: formData.description, price: formData.price, category: formData.category,
+        user_id: user?.id || '00000000-0000-0000-0000-000000000000',
+        name: formData.name, description: formData.description, price: Number(formData.price) || 0, category: formData.category,
         image_url: publicUrl,
-        legal_consent: legalConsent // Salvataggio della firma digitale nel DB
+        legal_consent: legalConsent
     }
 
     try {
@@ -160,7 +166,7 @@ export default function EcommercePage() {
             body: JSON.stringify(payload)
         });
 
-        if (!res.ok) throw new Error("Errore durante il salvataggio");
+        if (!res.ok) throw new Error("Errore durante il salvataggio via API");
         
         await fetchProducts(user.id);
         setIsModalOpen(false)
@@ -173,7 +179,6 @@ export default function EcommercePage() {
     }
   }
 
-  // --- ELIMINAZIONE SOFT ---
   const handleDelete = async (id: string) => {
     if(!confirm('Spostare questo prodotto nel cestino? (ATTENZIONE: Il sistema conteggerà comunque questo caricamento nel calcolo dei tuoi limiti mensili).')) return
     const res = await fetch(`/api/products?id=${id}`, { method: 'DELETE' });
@@ -203,13 +208,13 @@ export default function EcommercePage() {
             }
 
             const newProducts = rows.map((row: any) => ({
-                user_id: user.id,
+                user_id: user?.id || '00000000-0000-0000-0000-000000000000',
                 name: row.Nome || row.Name || 'Prodotto Importato',
                 description: row.Descrizione || row.Description || '',
-                price: row.Prezzo || row.Price || '0',
+                price: Number(row.Prezzo || row.Price || 0),
                 category: row.Categoria || 'Prodotti',
                 image_url: 'https://via.placeholder.com/300x200?text=Senza+Foto',
-                legal_consent: true, // Da CSV si presume ci sia un DPA a monte con l'azienda
+                legal_consent: true, 
                 is_deleted: false
             }))
             

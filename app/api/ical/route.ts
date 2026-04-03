@@ -8,13 +8,18 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('userId');
 
+        if (!userId) {
+            return new NextResponse("Mancante: userId", { status: 400 });
+        }
+
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
         const { data: events, error } = await supabase
             .from('calendar_events')
-            .select('*');
+            .select('*')
+            .eq('employee_id', userId); // SICUREZZA MULTITENANT: Ritorna SOLO il calendario di questo utente
 
         if (error) throw error;
 

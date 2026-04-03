@@ -1,6 +1,7 @@
 'use client'
 
 import { createClient } from '../../../utils/supabase/client'
+import { EcosystemBridge } from '../../../utils/ecosystem-bridge'
 import { useEffect, useState, useRef, useMemo } from 'react'
 import Papa from 'papaparse'
 import { 
@@ -74,7 +75,7 @@ export default function CRMPage() {
       if (user) {
         setUser(user)
       } else {
-        setUser({ id: 'dev', email: 'admin' });
+        setUser({ id: '00000000-0000-0000-0000-000000000000', email: 'admin@integraos.it' });
       }
       fetchContacts()
     }
@@ -83,16 +84,17 @@ export default function CRMPage() {
 
   const fetchContacts = async () => {
     try {
-        const res = await fetch('/api/crm/leads', { cache: 'no-store' })
-        if (res.ok) {
-            const data = await res.json()
+        const { data, error } = await supabase.from('contacts').select('*, orders(*)').order('created_at', { ascending: false });
+        if (error) throw error;
+
+        if (data) {
             const enrichedData = data.map((c: any) => ({
                 ...c,
-                name: c.name || 'Senza Nome', // ORA LEGGE IL NOME CORRETTO!
-                ltv: Number(c.value) || Number(c.ltv) || 0,
-                orders: c.orders || (Math.random() > 0.5 ? [
-                    { id: `ORD-${Math.floor(Math.random()*1000)}`, date: new Date().toISOString(), amount: Math.floor(Math.random()*300)+50, channel: Math.random() > 0.5 ? 'Ecommerce' : 'Store', category: 'Elettronica', items: 'Prodotto Demo' }
-                ] : [])
+                name: c.name || 'Senza Nome',
+                // Calcola il Lifetime Value reale in base agli ordini E-Commerce agganciati, oppure fallo ripiegare sul valore generico B2B
+                ltv: c.orders?.reduce((acc: number, o: any) => acc + (Number(o.amount) || 0), 0) || Number(c.value) || 0,
+                total_orders: c.orders?.length || 0,
+                orders: c.orders || []
             }))
             setContacts(enrichedData)
         }
@@ -159,8 +161,11 @@ export default function CRMPage() {
     e.preventDefault();
     setSaving(true)
     
+    // In assenza di auth reale, usiamo un fallback per lo sviluppo
+    const uuid = user?.id === 'dev' ? '00000000-0000-0000-0000-000000000000' : (user?.id || '00000000-0000-0000-0000-000000000000');
+
     const payload = { 
-        id: editingId,
+        user_id: uuid,
         name: formData.name, 
         email: formData.email, 
         phone: formData.phone,
@@ -183,7 +188,16 @@ export default function CRMPage() {
             throw new Error(errorData.error || `Errore HTTP: ${res.status}`);
         }
         
-        await fetchContacts(); 
+        const resultData = await res.json();
+        const finalId = editingId || resultData?.lead?.id;
+
+        // ECOSYSTEM BRIDGE: Auto-Nurturing if lead is lost
+        if (finalId && (formData.status === 'Perso' || formData.status === 'Abbandono')) {
+            console.log("Triggering Auto-Nurturing for:", finalId);
+            await EcosystemBridge.triggerAutoNurturing(uuid, finalId, formData.name, formData.status)
+        }
+
+        await fetchContacts();
         setIsModalOpen(false)
     } catch (error: any) { 
         alert("Errore salvataggio: " + error.message) 
@@ -228,10 +242,12 @@ export default function CRMPage() {
         header: true, skipEmptyLines: true,
         complete: async (results) => {
           const rows: any[] = results.data
+          const uuid = user?.id === 'dev' ? '00000000-0000-0000-0000-000000000000' : (user?.id || '00000000-0000-0000-0000-000000000000');
           const newContacts = rows.map((row: any) => ({
             name: row.Nome || row.Name || 'Senza Nome',
             email: row.Email || '', phone: row.Telefono || '', source: 'Import CSV',
-            status: 'Nuovo'
+            status: 'Nuovo',
+            user_id: uuid
           })).filter((c: any) => c.name !== 'Senza Nome')
           
           if (newContacts.length === 0) return alert("Nessun contatto valido trovato nel CSV.")

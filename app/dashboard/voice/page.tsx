@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { 
     PhoneCall, Mic, Settings, FileText, PhoneForwarded, 
     Infinity, PlayCircle, PauseCircle, Calendar, Clock, Volume2, Power, 
-    Lock, Headphones, Zap, Loader2, BrainCircuit, Sparkles, User, Save
+    Lock, Headphones, Zap, Loader2, BrainCircuit, Sparkles, User, Save, DollarSign
 } from 'lucide-react'
 
 export default function VoiceAgentPage() {
@@ -14,12 +14,13 @@ export default function VoiceAgentPage() {
   const [user, setUser] = useState<any>(null)
   const [currentPlan, setCurrentPlan] = useState('Base')
   const [loading, setLoading] = useState(true)
+  const [minutesUsed, setMinutesUsed] = useState(0)
+  const [totalCost, setTotalCost] = useState(0)
 
   const supabase = createClient()
 
   // --- LIMITI PIANO (Minuti Mensili Consentiti) ---
-  const limits: any = { 'Base': 100, 'Enterprise': 500, 'Ambassador': 'Illimitati' }
-  const minutesUsed = 45 // Simulazione utilizzo attuale
+  const limits: any = { 'Base': 30, 'Enterprise': 200, 'Ambassador': 1000 }
 
   // STATI UI
   const [agentActive, setAgentActive] = useState(false)
@@ -48,21 +49,43 @@ export default function VoiceAgentPage() {
 
   useEffect(() => {
     const getData = async () => {
+      setLoading(true)
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
           setUser(user)
-          const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
-          if (profile) setCurrentPlan(profile.plan || 'Base')
+          
+          // 1. Carica Profilo e Utilizzo Reale
+          const { data: profile } = await supabase.from('profiles').select('plan, usage_voice').eq('id', user.id).single()
+          if (profile) {
+              setCurrentPlan(profile.plan || 'Base')
+              setMinutesUsed(profile.usage_voice || 0)
+          }
+
+          // 2. Carica Costi Extra (se presenti)
+          const { data: metrics } = await supabase
+            .from('usage_metrics')
+            .select('cost_user')
+            .eq('user_id', user.id)
+            .eq('resource_type', 'voice_min')
+            .eq('is_free', false)
+
+          if (metrics) {
+              const extra = metrics.reduce((acc: number, m: any) => acc + (m.cost_user || 0), 0)
+              setTotalCost(extra)
+          }
       }
       setLoading(false)
     }
     getData()
   }, [])
 
-  // FUNZIONI LOGICHE
-  const toggleAgent = () => {
-      if (!agentActive && currentPlan !== 'Ambassador' && minutesUsed >= limits[currentPlan]) {
-          return alert(`Hai esaurito i ${limits[currentPlan]} minuti vocali mensili del piano ${currentPlan}. Fai l'upgrade per ricaricare.`)
+  const toggleAgent = async () => {
+      if (!agentActive) {
+          // Verifica se ha ancora credito o minuti
+          const planLimit = limits[currentPlan] || 0
+          if (minutesUsed >= planLimit && totalCost <= 0) {
+              return alert(`⚠️ Hai esaurito i ${planLimit} minuti gratuiti del piano ${currentPlan}. Le prossime chiamate saranno tariffate a consumo (+40% markup). Configura un metodo di pagamento in Upgrade.`)
+          }
       }
       setAgentActive(!agentActive)
   }
@@ -118,23 +141,35 @@ Regola d'oro: Sii conciso. Usa frasi brevi, adatte a una conversazione telefonic
           <p className="text-gray-500 text-sm mt-1">Centralino intelligente che risponde, fissa appuntamenti e smista le chiamate 24/7.</p>
         </div>
         
-        <div className="flex items-center gap-4 mt-4 md:mt-0">
-            {/* INDICATORE LIMITI UTILIZZO */}
-            <div className="bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl flex items-center gap-3">
-                <Volume2 className={currentPlan === 'Ambassador' ? "text-purple-500" : "text-[#00665E]"} size={20}/>
-                <div className="flex flex-col items-start">
-                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Minuti Inclusi ({currentPlan})</span>
-                    <span className={`font-bold text-sm ${currentPlan === 'Ambassador' ? 'text-purple-600' : 'text-gray-800'}`}>
-                        {currentPlan === 'Ambassador' ? <span className="flex items-center gap-1"><Infinity size={14}/> Illimitati</span> : `${minutesUsed} / ${limits[currentPlan]} min`}
-                    </span>
+            <div className="flex items-center gap-4 mt-4 md:mt-0">
+                {/* INDICATORE LIMITI UTILIZZO */}
+                <div className="bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl flex items-center gap-3">
+                    <Volume2 className={currentPlan === 'Ambassador' ? "text-purple-500" : "text-[#00665E]"} size={20}/>
+                    <div className="flex flex-col items-start text-[11px]">
+                        <span className="font-bold text-gray-400 uppercase tracking-widest">Minuti Inclusi ({currentPlan})</span>
+                        <span className={`font-bold ${currentPlan === 'Ambassador' ? 'text-purple-600 border-purple-200' : (minutesUsed >= limits[currentPlan] ? 'text-amber-500' : 'text-gray-800')}`}>
+                            {currentPlan === 'Ambassador' ? <span className="flex items-center gap-1"><Infinity size={14}/> Illimitati</span> : `${minutesUsed} / ${limits[currentPlan]} min`}
+                        </span>
+                    </div>
                 </div>
+
+                {/* COSTI EXTRA MATURATI (+40% Markup) */}
+                {totalCost > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 px-4 py-2 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-right-4">
+                        <DollarSign className="text-amber-600" size={18}/>
+                        <div className="flex flex-col items-start">
+                            <span className="text-[9px] font-bold text-amber-600 uppercase tracking-widest leading-none">Costi Extra (Pay-as-you-go)</span>
+                            <span className="font-black text-sm text-gray-900 leading-tight">€ {totalCost.toFixed(2)}</span>
+                        </div>
+                    </div>
+                )}
+
+                {currentPlan !== 'Ambassador' && (
+                    <button onClick={() => router.push('/dashboard/upgrade?plan=Ambassador')} className="bg-gray-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-black transition shadow-md">
+                        {totalCost > 0 ? 'Gestisci Saldo' : 'Ricarica Minuti'}
+                    </button>
+                )}
             </div>
-            {currentPlan !== 'Ambassador' && (
-                <button onClick={() => router.push('/dashboard/upgrade?plan=Ambassador')} className="bg-gray-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-black transition shadow-md">
-                    Ricarica Minuti
-                </button>
-            )}
-        </div>
       </div>
 
       {/* CONTROLLO PRINCIPALE E TABS */}

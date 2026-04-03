@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { 
     Users, Plus, Edit, Trash2, Target, BrainCircuit, 
     Share2, MapPin, Phone, Mail, Activity, AlertTriangle, ArrowRight, 
-    UserCheck, CheckCircle, Zap, X, Calendar, TrendingUp
+    UserCheck, CheckCircle, Zap, X, Calendar, TrendingUp, Loader2
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts'
 
@@ -197,18 +197,45 @@ export default function AgentsPage() {
       router.push(pipelineMetrics.aiInsight.route)
   }
 
-  const openAiCoach = (member: any) => {
-      const winRate = Math.floor(Math.random() * 30) + 10; 
-      const mainProblem = winRate < 20 ? 'Obiezioni sul Prezzo' : 'Follow-up Lento';
+  const openAiCoach = async (member: any) => {
+      // Calcoliamo metriche specifiche per l'agente (Filtriamo i contatti assegnati)
+      // Nota: In un sistema reale, dovremmo filtrare per 'assigned_to'. 
+      // Qui usiamo le pipelineMetrics globali filtrate se l'agente è selezionato.
       
-      setCoachData({
-          agent: member, winRate: winRate, problem: mainProblem,
-          strategy: mainProblem === 'Follow-up Lento' 
-              ? "Hai un tempo di risposta medio di 4 ore. I lead si raffreddano. Imposta un timer di 15 minuti appena entra il lead. La prima frase deve essere: 'Ho visto la tua richiesta, ti chiamo subito o preferisci WhatsApp?'"
-              : "Perdi troppi clienti in chiusura. Non inviare il preventivo via mail e basta. Fissa una videocall di 10 minuti per presentarlo. Usa questa frase: 'Per garantirti il prezzo migliore, ti mostro il preventivo a schermo in 5 minuti.'",
-          task: mainProblem === 'Follow-up Lento' ? "Rispondi entro 15 minuti ai prossimi 5 lead." : "Fissa 3 videocall di presentazione preventivo oggi."
-      })
+      const metrics = {
+          leads: pipelineMetrics.stages[0].count,
+          inNegotiationPerc: pipelineMetrics.stages[2].perc.toFixed(1),
+          won: pipelineMetrics.stages[3].count,
+          winRate: pipelineMetrics.stages[3].perc.toFixed(1)
+      }
+
       setCoachModalOpen(true)
+      setCoachData(null) // Reset per mostrare caricamento
+
+      try {
+          const res = await fetch('/api/ai/coach', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  agentName: member.name,
+                  metrics: metrics
+              })
+          })
+          const data = await res.json()
+          if (!data.strategy) throw new Error("AI non ha risposto.")
+          
+          setCoachData({
+              agent: member,
+              winRate: data.winRate,
+              problem: data.problem,
+              strategy: data.strategy,
+              task: data.task
+          })
+      } catch(e: any) {
+          console.error("AI Coach Error:", e)
+          alert("Errore nel caricamento del Coach AI: " + e.message)
+          setCoachModalOpen(false)
+      }
   }
 
   const socialSellingData = team.map(t => ({
@@ -465,27 +492,36 @@ export default function AgentsPage() {
                       </div>
                   </div>
                   
-                  <div className="p-8 space-y-6 bg-slate-50">
-                      <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                          <div>
-                              <p className="text-xs font-bold text-gray-400 uppercase">Win Rate Personale</p>
-                              <p className="text-2xl font-black text-gray-900">{coachData.winRate}%</p>
+                  <div className="p-8 space-y-6 bg-slate-50 min-h-[300px]">
+                      {!coachData ? (
+                          <div className="flex flex-col items-center justify-center py-20 text-indigo-500 gap-4">
+                              <Loader2 className="animate-spin" size={40}/>
+                              <p className="font-bold animate-pulse">L'AI sta analizzando i dati di vendita...</p>
                           </div>
-                          <div className="text-right">
-                              <p className="text-xs font-bold text-gray-400 uppercase">Area di Miglioramento</p>
-                              <p className="text-lg font-black text-red-500">{coachData.problem}</p>
-                          </div>
-                      </div>
+                      ) : (
+                          <>
+                              <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                  <div>
+                                      <p className="text-xs font-bold text-gray-400 uppercase">Win Rate Aziendale/Agente</p>
+                                      <p className="text-2xl font-black text-gray-900">{coachData.winRate}%</p>
+                                  </div>
+                                  <div className="text-right">
+                                      <p className="text-xs font-bold text-gray-400 uppercase">Analisi Comportamentale</p>
+                                      <p className="text-lg font-black text-red-500">{coachData.problem}</p>
+                                  </div>
+                              </div>
 
-                      <div className="bg-indigo-50 border border-indigo-100 p-6 rounded-2xl">
-                          <h4 className="font-bold text-indigo-900 mb-2 flex items-center gap-2"><BrainCircuit size={18}/> Strategia Generata</h4>
-                          <p className="text-sm text-indigo-800 leading-relaxed font-medium">"{coachData.strategy}"</p>
-                      </div>
+                              <div className="bg-indigo-50 border border-indigo-100 p-6 rounded-2xl">
+                                  <h4 className="font-bold text-indigo-900 mb-2 flex items-center gap-2"><BrainCircuit size={18}/> Feedback Coach Gemini</h4>
+                                  <p className="text-sm text-indigo-800 leading-relaxed font-medium">"{coachData.strategy}"</p>
+                              </div>
 
-                      <div className="bg-white border-2 border-dashed border-emerald-200 p-6 rounded-2xl">
-                          <h4 className="font-bold text-emerald-800 mb-2 flex items-center gap-2"><CheckCircle size={18}/> Task Assegnato</h4>
-                          <p className="text-sm text-emerald-700 font-bold">{coachData.task}</p>
-                      </div>
+                              <div className="bg-white border-2 border-dashed border-emerald-200 p-6 rounded-2xl">
+                                  <h4 className="font-bold text-emerald-800 mb-2 flex items-center gap-2"><CheckCircle size={18}/> Task Assegnato</h4>
+                                  <p className="text-sm text-emerald-700 font-bold">{coachData.task}</p>
+                              </div>
+                          </>
+                      )}
                   </div>
 
                   <div className="p-4 border-t border-gray-100 bg-white flex justify-end">

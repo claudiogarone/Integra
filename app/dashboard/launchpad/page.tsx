@@ -6,7 +6,7 @@ import { toPng } from 'html-to-image'
 import { 
     Settings, Download, Share2, MapPin, 
     Image as ImageIcon, Type, Sparkles, Send, 
-    Loader2, CheckCircle2, Copy, Radio, Tv, Map as MapIcon, Newspaper, BrainCircuit, Activity, Search, Plus, Trash2, Globe, X, Edit3, Target, Calendar
+    Loader2, CheckCircle2, Copy, Radio, Tv, Map as MapIcon, Newspaper, BrainCircuit, Activity, Search, Plus, Trash2, Globe, X, Edit3, Target, Calendar, ShieldAlert
 } from 'lucide-react'
 
 export default function LaunchpadPage() {
@@ -233,6 +233,30 @@ export default function LaunchpadPage() {
           // Animazione per far capire dove guardare
           plannerFormRef.current.classList.add('ring-4', 'ring-indigo-500', 'ring-offset-2', 'rounded-xl');
           setTimeout(() => plannerFormRef.current?.classList.remove('ring-4', 'ring-indigo-500', 'ring-offset-2', 'rounded-xl'), 1500);
+      }
+  }
+
+  const handleDiscoverPartner = async (media: any) => {
+      try {
+          const res = await fetch('/api/launchpad/discover', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  partnerId: media.id,
+                  displayName: media.display_name,
+                  type: media.type,
+                  city: searchCity,
+                  companyName: userData.company_name
+              })
+          });
+          const data = await res.json();
+          if (data.success) {
+              alert("📩 RICHIESTA INVIATA!\n\nAbbiamo ricevuto la tua richiesta per scoprire l'identità di: " + media.display_name + ".\n\nIl team di IntegraOS ti contatterà via email entro 24h con i dettagli e il listino prezzi aggiornato.");
+          } else {
+              throw new Error(data.error);
+          }
+      } catch (err: any) {
+          alert("Errore invio richiesta: " + err.message);
       }
   }
 
@@ -697,7 +721,15 @@ export default function LaunchpadPage() {
                                               {media.icon || <Globe size={20}/>}
                                           </div>
                                           <div>
-                                              <h4 className="font-bold text-gray-900 text-sm leading-tight line-clamp-2" title={media.name}>{media.name}</h4>
+                                              <h4 className="font-bold text-gray-900 text-sm leading-tight line-clamp-2" title={media.is_sponsored ? media.name : media.display_name}>
+                                                  {media.is_sponsored ? (
+                                                      <span className="flex items-center gap-1.5 text-blue-600">
+                                                          <ShieldAlert size={14}/> {media.name}
+                                                      </span>
+                                                  ) : (
+                                                      media.display_name
+                                                  )}
+                                              </h4>
                                               <p className="text-[10px] text-gray-500 font-medium mt-1 uppercase tracking-widest">{media.type}</p>
                                           </div>
                                       </div>
@@ -708,10 +740,16 @@ export default function LaunchpadPage() {
                                           <div className="flex justify-between"><span className="text-gray-500">Match AI:</span><span className="font-black text-indigo-600">{media.match}%</span></div>
                                       </div>
                                       
-                                      {/* BOTTONE CHIARO E INTUITIVO */}
-                                      <button onClick={() => handleSelectPartner(media.name)} className="w-full bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 hover:border-transparent font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2 text-xs shadow-sm">
-                                          <Target size={14}/> Includi nel Piano
-                                      </button>
+                                      {/* BOTTONE DINAMICO: SPONSOR VS LEAD */}
+                                      {media.is_sponsored ? (
+                                          <button onClick={() => handleSelectPartner(media.name)} className="w-full bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 hover:border-transparent font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2 text-xs shadow-sm">
+                                              <Target size={14}/> Includi nel Piano
+                                          </button>
+                                      ) : (
+                                          <button onClick={() => handleDiscoverPartner(media)} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2 text-xs shadow-lg shadow-indigo-200">
+                                              <Search size={14}/> Richiedi Identità Partner
+                                          </button>
+                                      )}
                                   </div>
                               ))}
                           </div>

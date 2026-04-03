@@ -14,7 +14,7 @@ import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
 
-type NodeType = 'trigger' | 'action' | 'condition' | 'delay';
+type NodeType = 'trigger' | 'action' | 'condition' | 'delay' | 'ai_processor';
 
 interface FlowNode { 
     id: string; 
@@ -90,27 +90,37 @@ export default function AutomationsPage() {
           const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
           if (profile) setCurrentPlan(profile.plan || 'Base')
           
-          // Tenta di caricare le automazioni REALI dal database
-          try {
-              const { data: dbAutomations } = await supabase.from('automations').select('*').eq('user_id', user.id)
-              if (dbAutomations && dbAutomations.length > 0) {
-                  setSavedWorkflows(dbAutomations)
-                  setUsageStats(prev => ({...prev, zaps: dbAutomations.length}))
-              } else {
-                  // Fallback se il DB è vuoto
-                  setSavedWorkflows([
-                      { id: 'wf_1', name: 'Recupero Carrello Abbandonato', status: true, runs: 342, nodes: 3 },
-                      { id: 'wf_2', name: 'Follow-up Preventivo', status: true, runs: 90, nodes: 4 }
-                  ])
-                  setUsageStats(prev => ({...prev, zaps: 2}))
-              }
-          } catch(e) { console.log("Tabella automations non ancora configurata, uso i mock") }
+          // Carica le automazioni REALI dal database
+          const { data: dbAutomations } = await supabase
+            .from('automations')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+
+          if (dbAutomations) {
+              setSavedWorkflows(dbAutomations)
+              setUsageStats(prev => ({...prev, zaps: dbAutomations.length}))
+          }
+
+          // Carica i Log REALI
+          const { data: dbLogs } = await supabase
+            .from('automation_logs')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('time_stamp', { ascending: false })
+            .limit(10)
+
+          if (dbLogs) {
+              setRealLogs(dbLogs)
+          }
       }
-      handleFilterChange('7') // Inizializza grafici
+      handleFilterChange('7')
       setLoading(false)
     }
     getData()
   }, [])
+
+  const [realLogs, setRealLogs] = useState<any[]>([])
 
   // ==========================================
   // LOGICA FILTRI MONITORAGGIO
@@ -171,31 +181,33 @@ export default function AutomationsPage() {
   }
 
   const saveWorkflow = async () => {
+      if (!user) return alert("Devi essere loggato per salvare.")
       setIsSaving(true)
       
-      // SALVATAGGIO REALE IN SUPABASE (Se configurato)
       try {
-          if (user) {
-              await supabase.from('automations').insert({
-                  user_id: user.id,
-                  name: workflowName,
-                  status: true,
-                  nodes: flow.length,
-                  runs: 0,
-                  configuration: flow
-              })
-          }
-      } catch(e) { console.log("Salvataggio DB fallito, procedo localmente.") }
+          const { data, error } = await supabase.from('automations').upsert({
+              user_id: user.id,
+              name: workflowName,
+              status: true,
+              nodes: flow.length,
+              runs: 0,
+              configuration: flow,
+              updated_at: new Date().toISOString()
+          }).select().single()
 
-      setTimeout(() => {
-          const newWf = { id: `wf_${Date.now()}`, name: workflowName, status: true, runs: 0, nodes: flow.length }
-          setSavedWorkflows([newWf, ...savedWorkflows])
+          if (error) throw error
+
+          setSavedWorkflows([data, ...savedWorkflows.filter(w => w.id !== data.id)])
           setUsageStats(prev => ({...prev, zaps: prev.zaps + 1}))
           setIsSaving(false)
           setIsEditing(false)
           setEditingNodeId(null)
-          alert("✅ Automazione salvata e attivata con successo! Inizierà a monitorare gli eventi reali.")
-      }, 1500)
+          alert("✅ Automazione salvata e attivata con successo!")
+      } catch(e: any) { 
+          console.error("Salvataggio fallito:", e)
+          alert("Errore durante il salvataggio: " + e.message)
+          setIsSaving(false)
+      }
   }
 
   const openNodeSelector = (index: number) => {
@@ -552,7 +564,7 @@ export default function AutomationsPage() {
                           {/* Tabella Log */}
                           <div className="bg-white border border-gray-200 rounded-3xl shadow-sm overflow-hidden">
                               <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                                  <h3 className="font-bold text-gray-800">Registro Attività Recenti (Log)</h3>
+                                  <h3 className="font-bold text-gray-800">Registro Attività Recenti (Log REALI)</h3>
                               </div>
                               <table className="w-full text-left text-sm">
                                   <thead className="bg-gray-50 border-b border-gray-100 text-gray-500 font-bold uppercase tracking-wider text-[10px]">
@@ -565,11 +577,16 @@ export default function AutomationsPage() {
                                       </tr>
                                   </thead>
                                   <tbody className="divide-y divide-gray-100">
-                                      {executionLogs.map((log) => (
+                                      {realLogs.length === 0 && (
+                                          <tr><td colSpan={5} className="p-10 text-center text-gray-400 font-bold">Nessun log reale ancora registrato.</td></tr>
+                                      )}
+                                      {realLogs.map((log) => (
                                           <tr key={log.id} className="hover:bg-gray-50/50 transition">
-                                              <td className="p-4 text-gray-500 font-medium">{log.time}</td>
-                                              <td className="p-4 font-bold text-gray-900">{log.wf}</td>
-                                              <td className="p-4 text-gray-600">{log.trigger}</td>
+                                              <td className="p-4 text-gray-500 font-medium">
+                                                  {new Date(log.time_stamp).toLocaleString('it-IT')}
+                                              </td>
+                                              <td className="p-4 font-bold text-gray-900">{log.workflow_name}</td>
+                                              <td className="p-4 text-gray-600">{log.trigger_event}</td>
                                               <td className="p-4 text-center">
                                                   {log.status === 'success' ? (
                                                       <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-md text-xs font-bold"><CheckCircle2 size={12}/> Eseguito</span>
@@ -577,7 +594,7 @@ export default function AutomationsPage() {
                                                       <span className="inline-flex items-center gap-1 bg-rose-100 text-rose-700 px-2.5 py-1 rounded-md text-xs font-bold"><AlertCircle size={12}/> Fallito</span>
                                                   )}
                                               </td>
-                                              <td className="p-4 text-right text-emerald-600 font-bold">{log.savedTime}</td>
+                                              <td className="p-4 text-right text-emerald-600 font-bold">{log.saved_time || '-'}</td>
                                           </tr>
                                       ))}
                                   </tbody>
@@ -637,6 +654,10 @@ export default function AutomationsPage() {
                               <button onClick={() => addNode('action', 'Invia Campagna Email', 'Dal modulo DEM', <Mail size={20}/>, 'bg-blue-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-blue-500 hover:shadow-md transition text-left group">
                                   <div className="bg-blue-100 text-blue-600 p-3 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition"><Mail size={18}/></div>
                                   <div><p className="font-bold text-sm text-gray-900">Notifica Email</p></div>
+                              </button>
+                              <button onClick={() => addNode('ai_processor', 'AI Agent Processor', 'Elabora dati con Gemini', <BrainCircuit size={20}/>, 'bg-purple-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-purple-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-purple-100 text-purple-600 p-3 rounded-xl group-hover:bg-purple-600 group-hover:text-white transition"><BrainCircuit size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">AI Logic (Gemini)</p></div>
                               </button>
                               
                               <div className="col-span-1 md:col-span-2 mb-2 mt-4"><p className="text-xs font-black text-gray-400 uppercase tracking-widest">Logica di Controllo</p></div>

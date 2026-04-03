@@ -1,19 +1,46 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-// GET: Recupera tutti gli appuntamenti
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        const { data, error } = await supabase
+        const authHeader = request.headers.get('Authorization');
+        const token = authHeader?.split('Bearer ')[1];
+
+        if (!token) {
+            return NextResponse.json({ error: 'Token non fornito dal client.' }, { status: 401 });
+        }
+
+        const cookieStore = await cookies();
+        const supabase = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            {
+                cookies: { getAll() { return cookieStore.getAll() }, setAll() {} }
+            }
+        );
+        
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Non autorizzato o token scaduto. Ricarica la pagina.' }, { status: 401 });
+        }
+
+        // Recuperiamo gli eventi solo dell'utente che ha fatto la richiesta (employee_id)
+        const supabaseWithAuth = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            {
+                cookies: { getAll() { return cookieStore.getAll() }, setAll() {} },
+                global: { headers: { Authorization: `Bearer ${token}` } }
+            }
+        );
+
+        const { data, error } = await supabaseWithAuth
             .from('calendar_events')
             .select('*')
-            // Ordiniamo per data e ora per averli cronologici
+            .eq('employee_id', user.id)
             .order('event_date', { ascending: true })
             .order('start_time', { ascending: true });
 
@@ -25,9 +52,23 @@ export async function GET() {
     }
 }
 
-// POST: Crea o Modifica un appuntamento
 export async function POST(request: Request) {
     try {
+        const authHeader = request.headers.get('Authorization');
+        const token = authHeader?.split('Bearer ')[1];
+
+        if (!token) return NextResponse.json({ error: 'Token mancante' }, { status: 401 });
+
+        const cookieStore = await cookies();
+        const supabase = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
+        );
+        
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !user) return NextResponse.json({ error: 'Utente non valido' }, { status: 401 });
+
         const body = await request.json();
         const { id, title, description, event_date, start_time, end_time, type, status } = body;
 
@@ -35,11 +76,18 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Titolo, data, ora di inizio e fine sono obbligatori' }, { status: 400 });
         }
 
-        let eventData;
+        const supabaseWithAuth = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            {
+                cookies: { getAll() { return cookieStore.getAll() }, setAll() {} },
+                global: { headers: { Authorization: `Bearer ${token}` } }
+            }
+        );
 
-        // MODIFICA
+        let eventData;
         if (id) {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseWithAuth
                 .from('calendar_events')
                 .update({ 
                     title, 
@@ -51,17 +99,17 @@ export async function POST(request: Request) {
                     status: status || 'Scheduled' 
                 })
                 .eq('id', id)
+                .eq('employee_id', user.id) // Sicurezza aggiuntiva per impedire la modifica di eventi altrui
                 .select()
                 .single();
 
             if (error) throw error;
             eventData = data;
-        } 
-        // CREAZIONE NUOVO
-        else {
-            const { data, error } = await supabase
+        } else {
+            const { data, error } = await supabaseWithAuth
                 .from('calendar_events')
                 .insert([{ 
+                    employee_id: user.id, // Viene associato l'evento all'utente reale!
                     title, 
                     description: description || '', 
                     event_date, 
@@ -84,20 +132,48 @@ export async function POST(request: Request) {
     }
 }
 
-// DELETE: Elimina un appuntamento
 export async function DELETE(request: Request) {
     try {
+        const authHeader = request.headers.get('Authorization');
+        const token = authHeader?.split('Bearer ')[1];
+
+        if (!token) return NextResponse.json({ error: 'Token mancante' }, { status: 401 });
+
+        const cookieStore = await cookies();
+        const supabase = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
+        );
+        
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !user) return NextResponse.json({ error: 'Utente non valido' }, { status: 401 });
+
         const url = new URL(request.url);
         const id = url.searchParams.get('id');
 
         if (!id) return NextResponse.json({ error: 'ID mancante' }, { status: 400 });
 
-        const { error } = await supabase.from('calendar_events').delete().eq('id', id);
+        const supabaseWithAuth = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            {
+                cookies: { getAll() { return cookieStore.getAll() }, setAll() {} },
+                global: { headers: { Authorization: `Bearer ${token}` } }
+            }
+        );
+
+        const { error } = await supabaseWithAuth
+            .from('calendar_events')
+            .delete()
+            .eq('id', id)
+            .eq('employee_id', user.id); // L'utente può eliminare solo i propri eventi
+            
         if (error) throw error;
         
         return NextResponse.json({ success: true }, { status: 200 });
     } catch (error: any) {
-        console.error("Errore DELETE Calendar Events:", error);
+        console.error("Errore DELETE:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

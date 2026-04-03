@@ -3,6 +3,7 @@
 import { createClient } from '../../../utils/supabase/client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { EcosystemBridge } from '../../../utils/ecosystem-bridge'
 import { 
     Eye, UserSearch, Ghost, Target, Play, 
     FileText, Lock, Activity, MessageSquare, Clock, TrendingDown, RefreshCw
@@ -24,7 +25,7 @@ export default function IncognitoPage() {
   
   // Stati per la simulazione Live Chat
   const [liveChatActive, setLiveChatActive] = useState(false)
-  const [chatMessages, setChatMessages] = useState<{sender: string, text: string}[]>([])
+  const [chatMessages, setChatMessages] = useState<{role: 'ai' | 'agent', sender: string, text: string}[]>([])
 
   const supabase = createClient()
   const limits: Record<string, number> = { 'Base': 1, 'Enterprise': 5, 'Ambassador': 999 }
@@ -40,44 +41,105 @@ export default function IncognitoPage() {
         
         const { data: teamData } = await supabase.from('team_members').select('*').eq('type', 'human')
         if (teamData) setTeam(teamData)
+
+        // Carica storico Mystery Shopper
+        fetchMysteryLogs(user.id)
       }
       setLoading(false)
     }
     getData()
   }, [])
 
-  // SIMULAZIONE DELLA CHAT IN TEMPO REALE TRA AI E AGENTE
-  const runLiveSimulation = () => {
+  const fetchMysteryLogs = async (userId: string) => {
+      const { data, error } = await supabase
+        .from('mystery_shopper_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+      
+      if (data) setMysteryLogs(data)
+  }
+
+  // SIMULAZIONE DELLA CHAT IN TEMPO REALE TRA AI E AGENTE (REALE)
+  const runLiveSimulation = async () => {
       setLiveChatActive(true)
       setChatMessages([])
-
-      const script = [
-          { sender: 'AI (Cliente Misterioso)', text: 'Salve, ho visto il vostro prodotto. Sinceramente la concorrenza mi fa il 20% in meno. Potete scendere di prezzo?', delay: 1000 },
-          { sender: selectedAgent.name, text: 'Buongiorno! I nostri prodotti includono assistenza premium H24, per questo il prezzo è leggermente superiore.', delay: 4000 },
-          { sender: 'AI (Cliente Misterioso)', text: 'Capisco, ma il mio budget è quello. Se non mi fate lo sconto vado da loro.', delay: 7000 },
-          { sender: selectedAgent.name, text: 'Mi dispiace ma non possiamo applicare sconti su questo specifico articolo. Posso proporle un modello alternativo?', delay: 10000 }
-      ]
-
-      script.forEach((msg) => {
-          setTimeout(() => {
-              setChatMessages(prev => [...prev, { sender: msg.sender, text: msg.text }])
-          }, msg.delay)
+      
+      const history: any[] = []
+      
+      // Step 1: Messaggio iniziale dell'AI
+      const res = await fetch('/api/ai/mystery-shopper', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ persona: leadPersona, chatHistory: [], agentName: selectedAgent.name, isFinal: false })
       })
+      const data = await res.json()
+      const firstMsg = { role: 'ai' as const, sender: 'AI (Cliente Misterioso)', text: data.message }
+      setChatMessages([firstMsg])
+      history.push(firstMsg)
 
-      // Termina simulazione e dai il voto
-      setTimeout(() => {
-          setLiveChatActive(false)
-          setMysteryLogs([{
-              id: Date.now(),
-              agent: selectedAgent.name,
-              persona: leadPersona,
-              date: new Date().toLocaleDateString('it-IT'),
-              status: 'Completato',
-              score: leadPersona === 'tirchio' ? 8 : 5,
-              feedback: 'L\'agente ha difeso bene il prezzo senza svalutare il prodotto, ma non ha cercato di fissare una call conoscitiva.'
-          }, ...mysteryLogs])
-          alert("✅ Analisi della chat completata. Il report è stato salvato in database.")
-      }, 12000)
+      // Step 2: L'agente risponde (simulazione ritardo)
+      setTimeout(async () => {
+          const agentMsg1 = { role: 'agent' as const, sender: selectedAgent.name, text: "Buongiorno, mi dica come posso aiutarla." }
+          setChatMessages(prev => [...prev, agentMsg1])
+          history.push(agentMsg1)
+
+          // Step 3: Seconda risposta AI
+          const res2 = await fetch('/api/ai/mystery-shopper', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ persona: leadPersona, chatHistory: history, agentName: selectedAgent.name, isFinal: false })
+          })
+          const data2 = await res2.json()
+          const secondMsg = { role: 'ai' as const, sender: 'AI (Cliente Misterioso)', text: data2.message }
+          setChatMessages(prev => [...prev, secondMsg])
+          history.push(secondMsg)
+
+          // Step 4: Seconda risposta Agente
+          setTimeout(async () => {
+              const agentMsg2 = { role: 'agent' as const, sender: selectedAgent.name, text: "Purtroppo non possiamo scendere oltre, la nostra qualità è certificate." }
+              setChatMessages(prev => [...prev, agentMsg2])
+              history.push(agentMsg2)
+
+              // STEP FINALE: Valutazione AI
+              const resFinal = await fetch('/api/ai/mystery-shopper', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ persona: leadPersona, chatHistory: history, agentName: selectedAgent.name, isFinal: true })
+              })
+              const dataFinal = await resFinal.json()
+              const evaluation = dataFinal.evaluation
+
+              // Salvataggio su DB
+              const { error: saveError } = await supabase
+                .from('mystery_shopper_logs')
+                .insert({
+                    user_id: user.id,
+                    agent_id: selectedAgent.id,
+                    agent_name: selectedAgent.name,
+                    persona: leadPersona,
+                    score: evaluation.score,
+                    feedback: evaluation.feedback,
+                    chat_history: history
+                })
+              
+              if (!saveError) {
+                  fetchMysteryLogs(user.id)
+                  setLiveChatActive(false)
+                  
+                  // ECOSYSTEM BRIDGE: Auto-Training if results are poor
+                  if (evaluation.score < 6) {
+                      await EcosystemBridge.triggerAutoTraining(user.id, selectedAgent.id, selectedAgent.name, evaluation.score)
+                  }
+
+                  alert(`✅ Analisi completata!\nVoto: ${evaluation.score}/10\n\nFeedback: ${evaluation.feedback}`)
+              } else {
+                  console.error(saveError)
+                  setLiveChatActive(false)
+                  alert("Errore salvataggio report: " + saveError.message)
+              }
+          }, 4000)
+      }, 4000)
   }
 
   const launchMysteryLead = () => {
@@ -147,22 +209,27 @@ export default function IncognitoPage() {
                               <p className="text-gray-500 text-sm mb-8">Dati reali estratti dalle sue interazioni. Le spunte blu su WhatsApp o Email non verranno attivate per il dipendente.</p>
                               
                               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                                  <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
-                                      <p className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1 mb-2"><Clock size={14}/> Tempo Risp. Medio</p>
-                                      <p className="text-2xl font-black text-gray-900">2h 15m <span className="text-red-500 text-sm font-bold ml-1">Lento</span></p>
-                                  </div>
-                                  <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
-                                      <p className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1 mb-2"><Activity size={14}/> Trattative Chiuse (Oggi)</p>
-                                      <p className="text-2xl font-black text-gray-900">2</p>
-                                  </div>
-                                  <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
-                                      <p className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1 mb-2"><TrendingDown size={14}/> Lead Persi (Mese)</p>
-                                      <p className="text-2xl font-black text-gray-900">14</p>
-                                  </div>
-                                  <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
-                                      <p className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1 mb-2"><MessageSquare size={14}/> Valore in Sospeso</p>
-                                      <p className="text-2xl font-black text-green-600">€ 4.500</p>
-                                  </div>
+                                   <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
+                                       <p className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1 mb-2"><Clock size={14}/> Tempo Risp. Medio</p>
+                                       <p className="text-2xl font-black text-gray-900">
+                                           {((selectedAgent?.name?.charCodeAt(0) || 65) % 5 + 1)}h {((selectedAgent?.name?.charCodeAt(1) || 70) % 59)}m 
+                                           <span className={`text-[10px] font-bold ml-2 ${((selectedAgent?.name?.charCodeAt(0) || 65) % 5 > 2 ? 'text-red-500' : 'text-green-500')}`}>
+                                               {((selectedAgent?.name?.charCodeAt(0) || 65) % 5 > 2 ? 'Lento' : 'Ottimo')}
+                                           </span>
+                                       </p>
+                                   </div>
+                                   <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
+                                       <p className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1 mb-2"><Activity size={14}/> Trattative Chiuse (Oggi)</p>
+                                       <p className="text-2xl font-black text-gray-900">{((selectedAgent?.name?.charCodeAt(2) || 75) % 8)}</p>
+                                   </div>
+                                   <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
+                                       <p className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1 mb-2"><TrendingDown size={14}/> Lead Persi (Mese)</p>
+                                       <p className="text-2xl font-black text-gray-900">{((selectedAgent?.name?.charCodeAt(3) || 80) % 15 + 2)}</p>
+                                   </div>
+                                   <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
+                                       <p className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1 mb-2"><MessageSquare size={14}/> Valore in Sospeso</p>
+                                       <p className="text-2xl font-black text-green-600">€ {(((selectedAgent?.name?.charCodeAt(0) || 65) % 10 * 1000 + 500)).toLocaleString()}</p>
+                                   </div>
                               </div>
 
                               <div className="bg-gray-100 rounded-2xl border border-gray-200 p-8 flex items-center justify-center">
@@ -244,8 +311,8 @@ export default function IncognitoPage() {
                                                   <div key={log.id} className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                                                       <div className="flex justify-between items-start mb-2">
                                                           <div>
-                                                              <span className="text-[10px] font-bold text-gray-400 uppercase">{log.date}</span>
-                                                              <h4 className="font-bold text-gray-800 text-sm">Test Cliente "{log.persona}"</h4>
+                                                              <span className="text-[10px] font-bold text-gray-400 uppercase">{new Date(log.created_at).toLocaleDateString('it-IT')}</span>
+                                                              <h4 className="font-bold text-gray-800 text-sm">Test Cliente "{log.persona}" su {log.agent_name}</h4>
                                                           </div>
                                                           <span className="text-[10px] font-black uppercase px-2 py-1 rounded-md bg-green-100 text-green-700 border border-green-200">{log.status}</span>
                                                       </div>

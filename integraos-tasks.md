@@ -1,36 +1,24 @@
 TASKS DA COMPLETARE IN ORDINE DI PRIORITÀ
 
-TASK 1: Aggiornamento Navigazione (Sidebar)
+TASK 1: Aggiornamento Navigazione (Sidebar) - ✅ COMPLETATO
 
-Azione: Nel file app/dashboard/layout.tsx, localizza l'array menuGroups. Sotto la sezione "Sistema & Formazione", aggiungi questa voce per collegare la pagina di addestramento:
-{ name: 'Addestramento AI', href: '/dashboard/ai-training', icon: <BrainCircuit size={18}/>, badge: 'RAG' }
+La voce "Addestramento AI" è stata aggiunta.
 
-TASK 2: RISOLVERE BUG CRITICO GEMINI EMBEDDING (Errore 404)
+TASK 2: RISOLVERE BUG CRITICO GEMINI EMBEDDING E PINECONE - ✅ COMPLETATO
 
-Contesto: I file app/api/ai/train/route.ts e app/api/ai/rag-chat/route.ts restituiscono l'errore 404 Not Found quando tentano di chiamare i modelli text-embedding-004 o embedding-001. Questo è un noto blocco regionale (EU) per alcuni account gratuiti di Google AI Studio.
+Implementato sistema di Fallback infallibile su HuggingFace con filtraggio dei vettori nulli. Pinecone riceve correttamente i dati.
+
+TASK 3: Completamento Backend Sicuro e Webhook Stripe - ✅ COMPLETATO
+
+Implementato checkout ibrido (corsi + abbonamenti SaaS) e webhook robusto protetto da HMAC. Gestione automatica del Fallback per lo sviluppo locale in assenza di chiavi Stripe.
+
+TASK 4: Checkup Totale Backend & Completamento Funzioni Mancanti - ⏳ IN CORSO
+
+Contesto: Il "telaio" grafico è solido, ma il backend non è allineato. Ad esempio, il Webhook di Stripe cerca di aggiornare la colonna subscription_status nella tabella profiles, ma questa colonna (insieme ad altre in altre sezioni) non esiste nel database Supabase. Anche alcune funzioni nel CRM e nell'E-commerce usano ancora dati mockati.
 Azione per l'AI:
 
-Analizza i file delle route RAG.
+Analisi Strutturale: Fai una scansione completa di tutti i file in app/dashboard/... e app/api/... per capire quali colonne e tabelle Supabase mancano all'appello rispetto alle query che facciamo.
 
-Cerca di correggere la sintassi della richiesta REST (assicurandoti che il body contenga il campo "model" corretto).
+Allineamento Supabase: Genera uno script SQL (che posso eseguire nel pannello SQL Editor di Supabase) per creare tutte le tabelle e le colonne mancanti, incluse le policy RLS per la sicurezza B2B. Assicurati di includere subscription_status in profiles.
 
-Soluzione Alternativa: Se le API di Embedding di Google continuano a dare 404, valuta l'implementazione di un sistema di "Fallback" che utilizzi un modello gratuito open-source alternativo per generare i vettori (es. HuggingFace.js o API gratuite alternative), mantenendo Gemini 1.5 Flash solo per la generazione del testo finale. L'obiettivo è salvare correttamente i vettori su Pinecone.
-
-TASK 3: Completamento Backend Sicuro e Webhook Stripe
-
-Contesto (Dall'analisi del codice): Il file app/api/checkout/route.ts crea la sessione Stripe, ma manca il Webhook per ricevere la conferma di pagamento.
-Azione per l'AI:
-
-Crea il file app/api/webhooks/stripe/route.ts.
-
-Implementa l'ascolto dell'evento checkout.session.completed di Stripe.
-
-Al completamento del pagamento, aggiorna il database Supabase: imposta subscription_status = 'active' nella tabella profiles per l'utente che ha pagato, e salva i dettagli della transazione.
-
-TASK 4: Completamento Funzioni Mancanti
-
-Contesto: Pagine come E-commerce, Campagne Marketing e Launchpad hanno UI perfette ma alcune funzioni mancano di logica backend.
-Azione per l'AI:
-Analizzare i componenti React e, dove trovi funzioni mockate (es. importazioni CSV fittizie, salvataggi senza Supabase), scrivi l'API di Next.js corrispondente e aggiorna la UI per riflettere i veri stati di caricamento.
-
-Tieni presente che il costo totale per modelli Ai di Gemini ed APi e costi a consumo che posso spendere per ogni azienda che si regista alla piattaforma IntegraOS è di 15 euro al mese.
+Implementazione Modulo per Modulo: Una volta allineato il DB, procedi a rimuovere i dati mockati dal codice frontend e scrivi le chiamate fetch reali verso le API di Next.js per CRM, E-commerce e Marketing.

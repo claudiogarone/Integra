@@ -1,12 +1,27 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
     try {
+        const authHeader = request.headers.get('Authorization');
+        const token = authHeader?.split('Bearer ')[1];
+        if (!token) return NextResponse.json({ error: 'Token non fornito' }, { status: 401 });
+
+        const cookieStore = await cookies();
+        const baseSupabase = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
+        );
+        
+        const { data: { user }, error: authError } = await baseSupabase.auth.getUser(token);
+        if (authError || !user) return NextResponse.json({ error: 'Autorizzazione fallita o token scaduto' }, { status: 401 });
+
         const body = await request.json();
-        const { url, userId } = body; // Ora riceviamo anche l'ID dell'utente
+        const { url } = body; 
 
         if (!url || (!url.startsWith('http') && !url.startsWith('webcal'))) {
             return NextResponse.json({ error: 'URL del calendario non valido' }, { status: 400 });
@@ -70,6 +85,7 @@ export async function POST(request: Request) {
 
                     if (startObj) {
                         eventsToInsert.push({
+                            employee_id: user.id, // Collegato obbligatoriamente all'utente vero!
                             title: `📥 ${currentEvent.summary.substring(0, 100)}`, 
                             description: currentEvent.description ? currentEvent.description.substring(0, 400) : 'Sincronizzato da calendario esterno',
                             event_date: startObj.date,
@@ -92,44 +108,53 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Calendario vuoto o formato non leggibile. Assicurati che il link contenga eventi.' }, { status: 400 });
         }
 
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        const supabaseWithAuth = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            {
+                cookies: { getAll() { return cookieStore.getAll() }, setAll() {} },
+                global: { headers: { Authorization: `Bearer ${token}` } }
+            }
+        );
 
-        // 3. DEDUPLICAZIONE INTELLIGENTE (EVITA I DOPPIONI)
-        const { data: existingEvents } = await supabase.from('calendar_events').select('title, event_date');
+        // 3. DEDUPLICAZIONE INTELLIGENTE PER IL SINGOLO UTENTE
+        // L'API carica solo gli eventi dell'utente evitando collisioni cross-account
+        const { data: existingEvents } = await supabaseWithAuth
+            .from('calendar_events')
+            .select('title, event_date')
+            .eq('employee_id', user.id); 
         
         const uniqueEventsToInsert = eventsToInsert.filter(newEvent => {
             const isDuplicate = existingEvents?.some(ex => {
-                // Rimuoviamo emoji e loghi per fare un confronto "puro"
                 const cleanExTitle = ex.title.replace(/[🎥✅🤖📥]/g, '').trim();
                 const cleanNewTitle = newEvent.title.replace(/[🎥✅🤖📥]/g, '').trim();
-                
-                // Un evento è considerato doppione se ha stesso giorno e stesso titolo
                 return ex.event_date === newEvent.event_date && cleanExTitle === cleanNewTitle;
             });
             return !isDuplicate;
         });
 
         if (uniqueEventsToInsert.length > 0) {
-            const { error } = await supabase.from('calendar_events').insert(uniqueEventsToInsert);
+            const { error } = await supabaseWithAuth.from('calendar_events').insert(uniqueEventsToInsert);
             if (error) throw error;
         }
 
         // 4. SALVATAGGIO DELLA CONNESSIONE
-        if (userId) {
-            const { data: existingSyncs } = await supabase.from('calendar_syncs').select('id').eq('url', url).eq('user_id', userId);
-            if (!existingSyncs || existingSyncs.length === 0) {
-                let provider = 'Esterno';
-                if (url.includes('google.com')) provider = 'Google Calendar';
-                else if (url.includes('apple.com') || url.includes('icloud.com')) provider = 'Apple Calendar';
-                else if (url.includes('outlook.com') || url.includes('office365.com')) provider = 'Outlook Microsoft';
+        const { data: existingSyncs } = await supabaseWithAuth
+            .from('calendar_syncs')
+            .select('id')
+            .eq('url', url)
+            .eq('user_id', user.id);
+
+        if (!existingSyncs || existingSyncs.length === 0) {
+            let provider = 'Esterno';
+            if (url.includes('google.com')) provider = 'Google Calendar';
+            else if (url.includes('apple.com') || url.includes('icloud.com')) provider = 'Apple Calendar';
+            else if (url.includes('outlook.com') || url.includes('office365.com')) provider = 'Outlook Microsoft';
                 
-                await supabase.from('calendar_syncs').insert({ user_id: userId, provider, url });
-            } else {
-                // Se esiste già, aggiorniamo solo l'orario dell'ultima sincronizzazione
-                await supabase.from('calendar_syncs').update({ last_sync: new Date().toISOString() }).eq('id', existingSyncs[0].id);
-            }
+            await supabaseWithAuth.from('calendar_syncs').insert({ user_id: user.id, provider, url });
+        } else {
+            // Aggiorniamo ultima sincronizzazione
+            await supabaseWithAuth.from('calendar_syncs').update({ last_sync: new Date().toISOString() }).eq('id', existingSyncs[0].id);
         }
 
         return NextResponse.json({ 

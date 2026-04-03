@@ -143,15 +143,34 @@ export default function AffiliationPage() {
       setAffiliates(affiliates.filter(a => a.id !== id))
   }
 
-  const handleCrossPromotion = (affiliate: any) => {
+  const handleCrossPromotion = async (affiliate: any) => {
       setPublishingId(affiliate.id)
-      const postText = `Siamo fieri di far parte dello stesso Network di eccellenze con ${affiliate.name}! 🤝\n\n${affiliate.description}\n\n👇 Scopri di più su di loro guardando questa intervista esclusiva o visitando il loro sito!\n${affiliate.video_url || affiliate.website}\n\n#Network #Eccellenza #${profile.company_name?.replace(/\s/g,'') || 'Business'} #${affiliate.name.replace(/\s/g,'')}`;
+      
+      try {
+          const res = await fetch('/api/affiliation/post-suggest', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  affiliateName: affiliate.name,
+                  affiliateDesc: affiliate.description,
+                  hostName: profile.company_name || 'La nostra azienda',
+                  hostIndustry: profile.industry || 'Business'
+              })
+          })
+          const data = await res.json()
+          if (!data.postText) throw new Error("AI non ha risposto.")
 
-      setTimeout(async () => {
-          await navigator.clipboard.writeText(postText)
+          await navigator.clipboard.writeText(data.postText)
           setPublishingId(null)
-          alert(`✅ CONTENUTO PRONTO!\n\nAbbiamo generato il post perfetto e lo abbiamo copiato nei tuoi appunti.\n\nTesto generato:\n"${postText.substring(0,100)}..."\n\n👉 Apri i tuoi social e fai 'Incolla' per promuovere il tuo partner!`)
-      }, 1500)
+          alert(`✅ POST AI GENERATO!\n\nIl post perfetto è stato copiato negli appunti.\n\nEsempio testo:\n"${data.postText.substring(0,100)}..."\n\n👉 Incollalo sui tuoi social per promuovere il partner!`)
+      } catch(e: any) {
+          console.error("AI Post Error:", e)
+          // Fallback al testo statico se l'AI fallisce
+          const fallback = `Siamo fieri di collaborare con ${affiliate.name}! 🤝\n${affiliate.description}`;
+          await navigator.clipboard.writeText(fallback)
+          setPublishingId(null)
+          alert("Post standard copiato (AI non disponibile).")
+      }
   }
 
   // --- LOGICA VIDEO PLAYER ---

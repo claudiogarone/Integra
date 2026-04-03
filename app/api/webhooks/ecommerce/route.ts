@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { triggerAutomation } from '@/utils/automation-trigger'
 
 // Usiamo le variabili d'ambiente per connetterci a Supabase dal server
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -66,6 +67,16 @@ export async function POST(request: Request) {
                 status: 'Chiuso' // Dato che ha comprato, lo passiamo a Vinto/Chiuso
             }).eq('id', existingContact.id)
 
+            // 5. Trigger delle Automazioni
+            await triggerAutomation('Nuovo Ordine E-commerce', {
+                ...newOrder,
+                email,
+                name: fullName,
+                phone,
+                total_orders: updatedTotalOrders,
+                ltv: updatedLtv
+            }, userId)
+
             return NextResponse.json({ message: 'Cliente aggiornato con successo' }, { status: 200 })
 
         } else {
@@ -82,6 +93,14 @@ export async function POST(request: Request) {
                 last_order_date: new Date().toISOString(),
                 orders: [newOrder]
             })
+
+            // 5. Trigger delle Automazioni
+            await triggerAutomation('Nuovo Ordine E-commerce', {
+                ...newOrder,
+                email,
+                name: fullName,
+                phone
+            }, userId)
 
             return NextResponse.json({ message: 'Nuovo cliente creato da E-commerce' }, { status: 200 })
         }

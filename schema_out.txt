@@ -1,0 +1,2 @@
+calendar_events columns: id, company_id, employee_id, lead_id, title, description, event_date, start_time, end_time, type, status, created_at
+calendar_syncs columns: id, user_id, provider, url, last_sync, created_at

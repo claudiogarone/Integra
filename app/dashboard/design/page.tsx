@@ -46,18 +46,24 @@ export default function DesignStudioPage() {
   // RISULTATI GENERATI
   const [generatedResults, setGeneratedResults] = useState<any>(null)
 
+  const [projects, setProjects] = useState<any[]>([])
+
   useEffect(() => {
     const getData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
           setUser(user)
-          const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
+          const { data: profile } = await supabase.from('profiles').select('plan, company_name').eq('id', user.id).single()
           if (profile) setCurrentPlan(profile.plan || 'Base')
+          
+          // Carica progetti esistenti
+          const { data: projData } = await supabase.from('creative_projects').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+          if (projData) setProjects(projData)
       }
       setLoading(false)
     }
     getData()
-  }, [])
+  }, [supabase])
 
   // GESTORI UPLOAD FILE FINTI
   const handleLogoUpload = (e: any) => {
@@ -100,8 +106,8 @@ Grazie per aver utilizzato IntegraOS!`;
       document.body.removeChild(a);
   }
 
-  // MOTORE GENERATIVO
-  const handleGenerate = (e: React.FormEvent) => {
+  // MOTORE GENERATIVO REALE
+  const handleGenerate = async (e: React.FormEvent) => {
       e.preventDefault()
       
       if (currentPlan !== 'Ambassador' && creditsUsed >= aiCreditsLimit[currentPlan]) {
@@ -110,48 +116,48 @@ Grazie per aver utilizzato IntegraOS!`;
 
       setIsGenerating(true)
       
-      if (activeTab === 'packaging') setGenerationStep('Analisi mercato e rendering 3D...')
-      else if (activeTab === 'rebranding') setGenerationStep('Vettorializzazione e studio font...')
-      else setGenerationStep('Eye-Tracking predittivo in corso...')
-      
-      setTimeout(() => {
-          setIsGenerating(false)
-          setCreditsUsed(prev => prev + 5)
+      const generationTexts = {
+          packaging: 'Analisi mercato e rendering 3D...',
+          rebranding: 'Vettorializzazione e studio font...',
+          neuromarketing: 'Eye-Tracking predittivo in corso...'
+      };
+      setGenerationStep(generationTexts[activeTab]);
+
+      try {
+          const resp = await fetch('/api/ai/creative', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  type: activeTab,
+                  companyName: user.user_metadata?.company_name || 'La Tua Azienda',
+                  inputs: activeTab === 'packaging' ? { productType, targetAudience, vibe } : 
+                          activeTab === 'rebranding' ? { brandValues, rebrandStyle, oldLogo } : 
+                          { selectedCampaign, fileName: neuroFile }
+              })
+          });
+
+          const aiResult = await resp.json();
+          if (aiResult.error) throw new Error(aiResult.error);
+
+          const finalResult = { ...aiResult, type: activeTab };
+          setGeneratedResults(finalResult);
+
+          // SALVATAGGIO SU SUPABASE
+          await supabase.from('creative_projects').insert({
+              user_id: user.id,
+              type: activeTab,
+              input_params: { productType, targetAudience, vibe, brandValues, rebrandStyle, selectedCampaign },
+              result_json: finalResult
+          });
+
+          // Aggiorna crediti locali (e potenzialmente nel profilo DB)
+          setCreditsUsed(prev => prev + 5);
           
-          if (activeTab === 'packaging') {
-              setGeneratedResults({
-                  type: 'packaging',
-                  title: 'Design Packaging Proposti',
-                  score: 92,
-                  rationale: "Il design minimalista con toni pastello aumenta la percezione 'premium'. Il font sans-serif garantisce massima leggibilità a scaffale rispetto ai competitor diretti.",
-                  images: [
-                      'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&q=80&w=600&h=600',
-                      'https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?auto=format&fit=crop&q=80&w=600&h=600'
-                  ]
-              })
-          } else if (activeTab === 'rebranding') {
-              setGeneratedResults({
-                  type: 'rebranding',
-                  title: 'Proposte di Rebranding Vettoriale',
-                  score: 88,
-                  rationale: "Abbiamo mantenuto i colori storici del tuo brand per mantenere la riconoscibilità, ma abbiamo eliminato le grazie dal font per un look più 'Tech' e 'Innovativo' come da te richiesto.",
-                  images: [
-                      'https://images.unsplash.com/photo-1626785774573-4b799315345d?auto=format&fit=crop&q=80&w=600&h=600', 
-                      'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?auto=format&fit=crop&q=80&w=600&h=600'  
-                  ]
-              })
-          } else if (activeTab === 'neuromarketing') {
-              setGeneratedResults({
-                  type: 'neuromarketing',
-                  title: 'Analisi Impatto Visivo (Heatmap)',
-                  score: 64,
-                  rationale: "ATTENZIONE: La mappa di calore mostra che l'occhio del cliente (zone rosse) cade sul volto della modella e sul titolo grande, ma ignora completamente la 'Call to Action' e il bottone 'Acquista'. Si consiglia di spostare il bottone o aumentarne il contrasto.",
-                  images: [
-                      'https://images.unsplash.com/photo-1558655146-d09347e92766?auto=format&fit=crop&q=80&w=800&h=500' 
-                  ]
-              })
-          }
-      }, 3500)
+      } catch (err: any) {
+          alert("Errore AI Creative Studio: " + err.message);
+      } finally {
+          setIsGenerating(false)
+      }
   }
 
   if (loading) return <div className="p-10 text-indigo-600 font-bold animate-pulse">Avvio Motore Grafico AI...</div>
@@ -293,6 +299,30 @@ Grazie per aver utilizzato IntegraOS!`;
                       Sapevi che un restyling del packaging o un layout analizzato dal neuromarketing aumenta le conversioni a scaffale dell'<b>11.5%</b>? Usa questo strumento prima di mandare in stampa i materiali e sprecare soldi.
                   </p>
               </div>
+
+              {/* CRONOLOGIA PROGETTI */}
+              {projects.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm">
+                    <h3 className="text-sm font-black text-gray-900 mb-4 flex items-center gap-2">
+                        <RefreshCw size={16} className="text-indigo-600"/> Progetti Recenti
+                    </h3>
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                        {projects.map((p) => (
+                            <button 
+                                key={p.id} 
+                                onClick={() => setGeneratedResults(p.result_json)}
+                                className="w-full text-left p-3 rounded-xl hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition group"
+                            >
+                                <div className="flex justify-between items-start mb-1">
+                                    <span className="text-[10px] font-black uppercase text-indigo-600">{p.type}</span>
+                                    <span className="text-[9px] text-gray-400">{new Date(p.created_at).toLocaleDateString()}</span>
+                                </div>
+                                <p className="text-xs font-bold text-gray-800 truncate group-hover:text-indigo-900">{p.result_json.title || 'Senza Titolo'}</p>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+              )}
           </div>
 
           {/* COLONNA DESTRA: L'AREA DI RENDER / RISULTATI */}

@@ -39,11 +39,17 @@ export default function QuotesPage() {
 
   useEffect(() => {
     const fetchAllData = async () => {
-      const devUserId = '00000000-0000-0000-0000-000000000000'
-      setUser({ id: devUserId })
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUser = sessionData?.session?.user;
+      
+      if (!currentUser) {
+          setLoading(false);
+          return;
+      }
+      setUser(currentUser);
 
       try {
-          const { data: profile } = await supabase.from('profiles').select('*').eq('id', devUserId).single()
+          const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single()
           if (profile) {
               setCompanyProfile({
                   name: profile.company_name || 'La Tua Azienda',
@@ -64,7 +70,7 @@ export default function QuotesPage() {
           const { data: prods } = await supabase.from('products').select('*').neq('is_deleted', true)
           if (prods) setProducts(prods)
 
-          const { data: dbQuotes } = await supabase.from('quotes').select('*').order('created_at', { ascending: false })
+          const { data: dbQuotes } = await supabase.from('quotes').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false })
           if (dbQuotes) {
               setQuotes(dbQuotes)
               // CALCOLO NUMERAZIONE AUTOMATICA (Anno corrente)
@@ -123,9 +129,15 @@ export default function QuotesPage() {
 
           if (error) throw error;
 
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData?.session?.access_token || '';
+
           const res = await fetch('/api/send-quote', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}` 
+              },
               body: JSON.stringify({
                   quote_id: savedQuote.id,
                   quote_number: quoteNumber, // Passiamo il numero all'email!
@@ -203,7 +215,7 @@ export default function QuotesPage() {
       {/* TAB NAVIGAZIONE */}
       <div className="flex bg-white p-1.5 rounded-xl border border-gray-200 w-fit mb-8 shadow-sm print:hidden">
           <button onClick={() => setActiveTab('new')} className={`px-6 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 ${activeTab === 'new' ? 'bg-[#00665E] text-white shadow' : 'text-gray-500 hover:bg-gray-50'}`}><Plus size={16}/> Nuovo Documento</button>
-          <button onClick={() => { setActiveTab('archive'); setLoading(true); supabase.from('quotes').select('*').order('created_at', { ascending: false }).then(({data}) => {if(data) setQuotes(data); setLoading(false)}) }} className={`px-6 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 ${activeTab === 'archive' ? 'bg-[#00665E] text-white shadow' : 'text-gray-500 hover:bg-gray-50'}`}><BarChart3 size={16}/> Analitica & Archivio</button>
+          <button onClick={() => { setActiveTab('archive'); setLoading(true); supabase.from('quotes').select('*').eq('user_id', user?.id).order('created_at', { ascending: false }).then(({data}) => {if(data) setQuotes(data); setLoading(false)}) }} className={`px-6 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 ${activeTab === 'archive' ? 'bg-[#00665E] text-white shadow' : 'text-gray-500 hover:bg-gray-50'}`}><BarChart3 size={16}/> Analitica & Archivio</button>
       </div>
 
       {/* ========================================================================= */}

@@ -8,7 +8,7 @@ import {
     Settings, Trash2, CheckCircle2, UserPlus, CreditCard, X, Infinity, Loader2, BrainCircuit, Sparkles, Activity, Edit3, FileText
 } from 'lucide-react'
 
-type NodeType = 'trigger' | 'action' | 'condition' | 'delay';
+type NodeType = 'trigger' | 'action' | 'condition' | 'delay' | 'ai_processor';
 
 interface FlowNode { 
     id: string; 
@@ -37,9 +37,8 @@ export default function WorkflowsPage() {
   const supabase = createClient()
   const limits: any = { 'Base': 3, 'Enterprise': 20, 'Ambassador': 'Illimitate' }
 
-  const [savedWorkflows, setSavedWorkflows] = useState<any[]>([
-      { id: 'wf_1', name: 'Follow-up Negozio Fisico', status: 'active', runs: 342, nodes: 4 }
-  ])
+  const [savedWorkflows, setSavedWorkflows] = useState<any[]>([])
+  const [aiSuggestion, setAiSuggestion] = useState('Analisi dei lead in corso...')
 
   useEffect(() => {
     const getData = async () => {
@@ -48,11 +47,43 @@ export default function WorkflowsPage() {
           setUser(user)
           const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
           if (profile) setCurrentPlan(profile.plan || 'Base')
+          
+          // Caricamento Workflow REALI
+          const { data: dbWorkflows } = await supabase
+            .from('workflows')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+          
+          if (dbWorkflows) {
+              setSavedWorkflows(dbWorkflows)
+          }
+
+          // Caricamento Log REALI
+          const { data: dbLogs } = await supabase
+            .from('workflow_logs')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('time_stamp', { ascending: false })
+            .limit(10)
+          
+          if (dbLogs) {
+              setRealLogs(dbLogs)
+          }
+
+          // Caricamento Suggerimento AI
+          try {
+              const res = await fetch('/api/ai/workflows/suggest')
+              const data = await res.json()
+              if (data.suggestion) setAiSuggestion(data.suggestion)
+          } catch(e) {}
       }
       setLoading(false)
     }
     getData()
   }, [])
+
+  const [realLogs, setRealLogs] = useState<any[]>([])
 
   const createNewWorkflow = () => {
       if (currentPlan !== 'Ambassador' && savedWorkflows.length >= limits[currentPlan]) {
@@ -64,16 +95,33 @@ export default function WorkflowsPage() {
       setEditingNodeId(null)
   }
 
-  const saveWorkflow = () => {
+  const saveWorkflow = async () => {
+      if (!user) return alert("Devi essere loggato per salvare.")
       setIsSaving(true)
-      setTimeout(() => {
-          const newWf = { id: `wf_${Date.now()}`, name: workflowName, status: 'active', runs: 0, nodes: flow.length }
-          setSavedWorkflows([newWf, ...savedWorkflows])
+      
+      try {
+          const { data, error } = await supabase.from('workflows').upsert({
+              user_id: user.id,
+              name: workflowName,
+              status: true,
+              nodes: flow.length,
+              runs: 0,
+              configuration: flow,
+              updated_at: new Date().toISOString()
+          }).select().single()
+
+          if (error) throw error
+
+          setSavedWorkflows([data, ...savedWorkflows.filter(w => w.id !== data.id)])
           setIsSaving(false)
           setIsEditing(false)
           setEditingNodeId(null)
           alert("✅ Workflow salvato e attivato con successo!")
-      }, 1500)
+      } catch(e: any) {
+          console.error("Salvataggio fallito:", e)
+          alert("Errore durante il salvataggio: " + e.message)
+          setIsSaving(false)
+      }
   }
 
   const addNode = (type: NodeType, title: string, desc: string, icon: any, color: string, defaultTitle?: string) => {
@@ -172,9 +220,9 @@ export default function WorkflowsPage() {
                   {/* AI ADVISOR */}
                   <div className="bg-gradient-to-br from-[#00665E] to-teal-600 p-5 rounded-2xl mb-8 text-white shadow-lg relative overflow-hidden">
                       <div className="absolute top-0 right-0 p-4 opacity-20"><BrainCircuit size={80}/></div>
-                      <h3 className="font-black flex items-center gap-2 mb-2 relative z-10"><Sparkles size={16} className="text-amber-300"/> AI Advisor</h3>
-                      <p className="text-xs text-teal-100 mb-4 relative z-10">Ho notato che hai 15 preventivi aperti da più di 3 giorni senza risposta.</p>
-                      <button onClick={() => handleAIAction('Follow-up Preventivi Dormienti')} className="w-full bg-white text-[#00665E] font-bold py-2 rounded-lg text-xs hover:bg-teal-50 transition relative z-10">
+                      <h3 className="font-black flex items-center gap-2 mb-2 relative z-10"><Sparkles size={16} className="text-amber-300"/> AI CRM Advisor</h3>
+                      <p className="text-xs text-teal-100 mb-4 relative z-10">{aiSuggestion}</p>
+                      <button onClick={() => handleAIAction('Automazione Suggerita')} className="w-full bg-white text-[#00665E] font-bold py-2 rounded-lg text-xs hover:bg-teal-50 transition relative z-10">
                           Genera Automazione Recupero
                       </button>
                   </div>
@@ -367,6 +415,11 @@ export default function WorkflowsPage() {
                               <button onClick={() => addNode('action', 'Invia Email', 'Invia offerta DEM', <Mail size={20}/>, 'bg-blue-600')} className="bg-white border border-gray-200 p-4 rounded-2xl flex items-center gap-3 hover:border-blue-500 text-left">
                                   <div className="bg-blue-100 text-blue-600 p-2 rounded-xl"><Mail size={18}/></div>
                                   <div><p className="font-bold text-sm">Invia Email</p></div>
+                              </button>
+
+                              <button onClick={() => addNode('ai_processor', 'AI Agent Processor', 'Elabora dati con Gemini', <BrainCircuit size={20}/>, 'bg-purple-600')} className="bg-white border border-gray-200 p-4 rounded-2xl flex items-center gap-3 hover:border-purple-500 text-left">
+                                  <div className="bg-purple-100 text-purple-600 p-2 rounded-xl"><BrainCircuit size={18}/></div>
+                                  <div><p className="font-bold text-sm">AI Logic (Gemini)</p></div>
                               </button>
                               
                               <div className="col-span-1 md:col-span-2 mb-2 mt-4"><p className="text-xs font-black text-gray-400 uppercase tracking-widest">Controllo e Logica</p></div>

@@ -10,7 +10,7 @@ import {
 import { 
   Users, Calendar, ArrowUpRight, DollarSign, Activity, Zap, ShoppingCart, 
   Target, Megaphone, CreditCard, BrainCircuit, Bot, HeartPulse,
-  Radar as RadarIcon, Copy, Check // <-- AGGIUNGI Copy e Check
+  Radar as RadarIcon, Copy, Check, Bell, Info, AlertTriangle, CheckCircle // <-- AGGIUNGI Icone Notifiche
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -38,6 +38,7 @@ export default function Dashboard() {
   const [trendData, setTrendData] = useState<any[]>([])
   const [ecosystemRadar, setEcosystemRadar] = useState<any[]>([])
   const [marketingData, setMarketingData] = useState<any[]>([])
+  const [notifications, setNotifications] = useState<any[]>([]) // <-- STATO NOTIFICHE
 
   const supabase = createClient()
   const MONTHLY_TARGET = 75000; 
@@ -58,9 +59,18 @@ export default function Dashboard() {
           const { data: contacts } = await supabase.from('contacts').select('*').eq('user_id', user.id)
           const { data: appointments } = await supabase.from('appointments').select('*').eq('user_id', user.id)
           
-          // Sicurezza per la tabella fidelity (se non esiste non crasha)
           const fidRes = await supabase.from('fidelity_cards').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
           const fidCount = fidRes.error ? 0 : (fidRes.count || 0)
+
+          // 2.a RECUPERA NOTIFICHE REALI
+          const { data: notifs } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(5)
+          
+          if (notifs) setNotifications(notifs)
 
           // --- CALCOLO KPI REALI (Senza Dati Finti) ---
           // Se l'array contacts esiste, calcoliamo; altrimenti tutto è 0.
@@ -379,6 +389,48 @@ export default function Dashboard() {
               <Link href="/dashboard/wellness" className="w-full bg-rose-600 text-white font-bold py-3 rounded-xl hover:bg-rose-700 transition flex items-center justify-center gap-2 shadow-md">
                   Apri Valutazioni Team
               </Link>
+          </div>
+
+          {/* NUOVO: CENTRO NOTIFICHE INTELLIGENTE (ECOSYSTEM BRIDGE) */}
+          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col">
+              <div className="flex justify-between items-center mb-6">
+                  <h3 className="font-black text-gray-900 text-lg flex items-center gap-2"><Bell className="text-indigo-600"/> Feed Attività AI</h3>
+                  <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md uppercase">Real-time</span>
+              </div>
+              
+              <div className="flex-1 space-y-4 overflow-y-auto max-h-80 pr-2">
+                  {notifications.length === 0 ? (
+                      <div className="text-center py-10">
+                          <Info className="mx-auto text-gray-300 mb-2" size={32}/>
+                          <p className="text-gray-400 text-xs italic">Nessun evento rilevato dall'Ecosistema.</p>
+                      </div>
+                  ) : (
+                      notifications.map((n) => (
+                          <div key={n.id} className="flex gap-4 p-3 rounded-2xl hover:bg-gray-50 transition border border-transparent hover:border-gray-100 group">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                  n.type === 'alert' || n.type === 'warning' ? 'bg-amber-100 text-amber-600' : 
+                                  n.type === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'
+                              }`}>
+                                  {n.type === 'warning' ? <AlertTriangle size={18}/> : n.type === 'success' ? <CheckCircle size={18}/> : <Info size={18}/>}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                  <div className="flex justify-between items-start mb-0.5">
+                                      <h4 className="font-bold text-gray-900 text-xs truncate">{n.title}</h4>
+                                      <span className="text-[9px] text-gray-400 font-medium">{new Date(n.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                  </div>
+                                  <p className="text-[11px] text-gray-500 line-clamp-2 leading-relaxed">{n.message}</p>
+                                  {n.link && (
+                                      <Link href={n.link} className="text-[10px] font-bold text-indigo-600 mt-2 inline-block hover:underline">Visualizza Dettagli →</Link>
+                                  )}
+                              </div>
+                          </div>
+                      ))
+                  )}
+              </div>
+              
+              <div className="mt-6 pt-4 border-t border-gray-50">
+                  <p className="text-[10px] text-gray-400 text-center italic">L'AI Bridge monitora costantemente CRM, Incognito e Academy.</p>
+              </div>
           </div>
 
       </div>

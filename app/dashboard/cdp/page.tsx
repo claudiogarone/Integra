@@ -32,19 +32,21 @@ export default function CDPPage() {
 
   useEffect(() => {
     const getData = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-          setUser(user)
+      const { data: sessionData } = await supabase.auth.getSession()
+      const currentUser = sessionData?.session?.user
+
+      if (currentUser) {
+          setUser(currentUser)
           // 1. Prendo il piano dell'azienda
-          const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
+          const { data: profile } = await supabase.from('profiles').select('plan').eq('id', currentUser.id).single()
           if (profile) setCurrentPlan(profile.plan || 'Base')
       } else {
-          // Bypass locale in caso di test senza login
-          setUser({ id: 'dev', email: 'admin' })
+          setLoading(false);
+          return;
       }
           
-      // 2. PRENDO I CONTATTI DALLA TABELLA CORRETTA 'contacts'
-      const { data: contactsData, error } = await supabase.from('contacts').select('*').order('created_at', { ascending: false })
+      // 2. PRENDO I CONTATTI DALLA TABELLA CORRETTA 'contacts' ISOLANDOLI RIGOROSAMENTE PER AZIENDA
+      const { data: contactsData, error } = await supabase.from('contacts').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false })
       
       if (contactsData && contactsData.length > 0) {
           // Formatto i dati reali per farli leggere alla CDP

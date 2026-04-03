@@ -42,23 +42,29 @@ export default function LoyaltyConfigPage() {
   useEffect(() => { loadData() }, [])
 
   const loadData = async () => {
-    const devUser = { id: '00000000-0000-0000-0000-000000000000', email: 'admin@integraos.it' }
-    setUser(devUser)
+    const { data: sessionData } = await supabase.auth.getSession()
+    const currentUser = sessionData?.session?.user
 
-    const { data: profile } = await supabase.from('profiles').select('company_name').eq('id', devUser.id).single()
+    if (!currentUser) {
+        setLoading(false);
+        return;
+    }
+    setUser(currentUser)
+
+    const { data: profile } = await supabase.from('profiles').select('company_name').eq('id', currentUser.id).single()
     if (profile && profile.company_name) setCompanyName(profile.company_name)
 
-    let { data: settings } = await supabase.from('loyalty_settings').select('*').eq('user_id', devUser.id).single()
+    let { data: settings } = await supabase.from('loyalty_settings').select('*').eq('user_id', currentUser.id).single()
     if (!settings) {
-        const { data } = await supabase.from('loyalty_settings').insert({ user_id: devUser.id }).select().single()
+        const { data } = await supabase.from('loyalty_settings').insert({ user_id: currentUser.id }).select().single()
         settings = data
     }
     if (settings) setConfig(settings)
 
-    const { data: storeList } = await supabase.from('loyalty_stores').select('*').eq('user_id', devUser.id).order('created_at', {ascending: true})
+    const { data: storeList } = await supabase.from('loyalty_stores').select('*').eq('user_id', currentUser.id).order('created_at', {ascending: true})
     setStores(storeList || [])
 
-    const { count } = await supabase.from('loyalty_cards').select('*', { count: 'exact', head: true }).eq('user_id', devUser.id)
+    const { count } = await supabase.from('loyalty_cards').select('*', { count: 'exact', head: true }).eq('user_id', currentUser.id)
     setCardsIssued(count || 0)
     
     setLoading(false)
@@ -87,6 +93,7 @@ export default function LoyaltyConfigPage() {
   };
 
   const handleSaveConfig = async () => {
+      if (!user) return alert("Errore: Utente non autenticato. Ricarica la pagina.");
       setSaving(true)
       const { error } = await supabase.from('loyalty_settings').upsert({ user_id: user.id, ...config })
       if (error) alert("Errore Database: " + error.message)
@@ -111,6 +118,7 @@ export default function LoyaltyConfigPage() {
   }
 
   const handleSaveStore = async () => {
+      if (!user) return alert("Errore: Utente non autenticato. Ricarica la pagina.");
       if (!newStore.name || !newStore.address) return alert("Inserisci almeno Nome Insegna e Indirizzo.")
       
       setSaving(true)

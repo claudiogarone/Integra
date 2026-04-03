@@ -8,7 +8,7 @@ import {
     CalendarCheck, ShoppingBag, Copy, CheckCircle, Plus, Trash2, Bot, Handshake,
     Receipt, Leaf, Palette, Gift, Workflow, FileText, CreditCard, 
     Mic, Database, HeartPulse, EyeOff, Link2, Radar, Target, LayoutTemplate, Activity,
-    MessageCircle, Users, BrainCircuit 
+    MessageCircle, Users, BrainCircuit, Loader2, Zap, AlertTriangle, Info, SkipForward, XCircle
 } from 'lucide-react'
 
 export default function SettingsPage() {
@@ -20,6 +20,11 @@ export default function SettingsPage() {
   const [publicBaseUrl, setPublicBaseUrl] = useState('')
   const [copied, setCopied] = useState(false)
   const [affiliatesCount, setAffiliatesCount] = useState(0)
+
+  // --- CHATWOOT AUTO-CONFIG ---
+  const [chatwootConfiguring, setChatwootConfiguring] = useState(false)
+  const [chatwootResults, setChatwootResults] = useState<any[]>([])
+  const [chatwootSummary, setChatwootSummary] = useState<any>(null)
 
   const defaultHours = {
       lunedì: { open: '09:00', close: '18:00', closed: false },
@@ -167,6 +172,48 @@ export default function SettingsPage() {
   const updateWebsite = (type: string, value: string) => setFormData(prev => ({...prev, websites: {...prev.websites, [type]: value}}))
   const updateHour = (day: string, field: string, value: any) => setFormData(prev => ({...prev, business_hours: {...prev.business_hours, [day]: {...(prev.business_hours as any)[day], [field]: value}}}))
 
+  // --- CHATWOOT AUTO-CONFIGURAZIONE ---
+  const handleChatwootAutoConfig = async () => {
+      setChatwootConfiguring(true)
+      setChatwootResults([])
+      setChatwootSummary(null)
+
+      try {
+          // Prima salva i dati correnti nelle impostazioni
+          await handleSave({ preventDefault: () => {} } as any)
+          
+          const res = await fetch('/api/chatwoot/setup-inbox', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId: user?.id })
+          })
+          
+          const data = await res.json()
+          
+          if (!res.ok) {
+              throw new Error(data.error || 'Errore durante la configurazione')
+          }
+          
+          setChatwootResults(data.results || [])
+          setChatwootSummary(data.summary || null)
+      } catch (err: any) {
+          alert('❌ Errore auto-configurazione: ' + err.message)
+      } finally {
+          setChatwootConfiguring(false)
+      }
+  }
+
+  const getStatusIcon = (status: string) => {
+      switch(status) {
+          case 'ok': return <CheckCircle size={16} className="text-emerald-500" />
+          case 'skip': return <SkipForward size={16} className="text-blue-400" />
+          case 'warning': case 'partial': return <AlertTriangle size={16} className="text-amber-500" />
+          case 'manual': return <Info size={16} className="text-purple-500" />
+          case 'error': return <XCircle size={16} className="text-red-500" />
+          default: return null
+      }
+  }
+
   if (loading) return <div className="p-10 text-[#00665E] animate-pulse font-bold">Caricamento Hub Aziendale...</div>
 
   return (
@@ -292,6 +339,55 @@ export default function SettingsPage() {
                               </div>
                           ))}
                       </div>
+                  </div>
+
+                  {/* CHATWOOT AUTO-CONFIGURAZIONE */}
+                  <div className="bg-gradient-to-br from-teal-50 to-emerald-50 p-8 rounded-3xl border-2 border-teal-200 shadow-sm relative overflow-hidden">
+                      <div className="flex items-center gap-4 mb-4">
+                          <div className="bg-[#00665E] text-white p-3 rounded-xl shadow-lg"><Zap size={24}/></div>
+                          <div>
+                              <h3 className="text-xl font-black text-[#00665E]">Auto-Configurazione Canali Inbox</h3>
+                              <p className="text-sm text-gray-600">Collega automaticamente Email, Telegram, Live Chat e tutti i canali compilati qui sopra alla tua Inbox Unificata.</p>
+                          </div>
+                      </div>
+                      <p className="text-xs text-gray-500 mb-6 leading-relaxed bg-white/60 p-4 rounded-xl border border-teal-100">Cliccando il pulsante, IntegraOS leggerà i dati che hai inserito in questa pagina (email, WhatsApp, social links) e creerà automaticamente i canali di comunicazione su Chatwoot. I canali già configurati non verranno duplicati.</p>
+                      
+                      <button 
+                          onClick={handleChatwootAutoConfig} 
+                          disabled={chatwootConfiguring}
+                          className="bg-[#00665E] text-white font-black px-8 py-4 rounded-xl shadow-xl hover:bg-[#004d46] hover:scale-[1.02] transition-all flex items-center gap-3 disabled:opacity-50 disabled:hover:scale-100"
+                      >
+                          {chatwootConfiguring ? <Loader2 size={20} className="animate-spin"/> : <Zap size={20}/>}
+                          {chatwootConfiguring ? 'Configurazione in corso...' : '⚡ Configura Tutti i Canali Automaticamente'}
+                      </button>
+
+                      {/* RISULTATI AUTO-CONFIG */}
+                      {chatwootResults.length > 0 && (
+                          <div className="mt-6 space-y-3 animate-in fade-in slide-in-from-bottom-4">
+                              {chatwootSummary && (
+                                  <div className="flex gap-4 text-xs font-bold mb-4">
+                                      {chatwootSummary.created > 0 && <span className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg border border-emerald-200">✅ {chatwootSummary.created} creati</span>}
+                                      {chatwootSummary.skipped > 0 && <span className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg border border-blue-200">⏭️ {chatwootSummary.skipped} già esistenti</span>}
+                                      {chatwootSummary.warnings > 0 && <span className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg border border-amber-200">⚠️ {chatwootSummary.warnings} da completare</span>}
+                                      {chatwootSummary.errors > 0 && <span className="bg-red-100 text-red-700 px-3 py-1.5 rounded-lg border border-red-200">❌ {chatwootSummary.errors} errori</span>}
+                                  </div>
+                              )}
+                              {chatwootResults.map((r: any, i: number) => (
+                                  <div key={i} className={`flex items-start gap-3 p-4 rounded-xl border ${
+                                      r.status === 'ok' ? 'bg-emerald-50 border-emerald-200' :
+                                      r.status === 'skip' ? 'bg-blue-50 border-blue-200' :
+                                      r.status === 'error' ? 'bg-red-50 border-red-200' :
+                                      'bg-amber-50 border-amber-200'
+                                  }`}>
+                                      <div className="mt-0.5 shrink-0">{getStatusIcon(r.status)}</div>
+                                      <div>
+                                          <p className="font-bold text-sm text-gray-900">{r.channel}</p>
+                                          <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">{r.detail}</p>
+                                      </div>
+                                  </div>
+                              ))}
+                          </div>
+                      )}
                   </div>
 
                   <div className="bg-white p-8 rounded-3xl border shadow-sm relative overflow-hidden">

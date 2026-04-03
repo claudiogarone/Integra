@@ -7,7 +7,7 @@ import {
   MessageSquare, Phone, Mail, User, DollarSign, Award, 
   Search, Filter, Send, Loader2, CheckCircle2, Clock, 
   ExternalLink, Smartphone, Facebook, Globe, ShieldCheck, 
-  MoreVertical, Info, Zap, Settings, X, ShieldAlert, PhoneCall
+  MoreVertical, Info, Zap, Settings, X, ShieldAlert, PhoneCall, Sparkles
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -22,7 +22,7 @@ type ChatwootConversation = {
       thumbnail?: string;
     };
   };
-  messages: Array<{ content: string; created_at: number }>;
+  messages?: Array<{ content: string; created_at: number }>;
   channel: string;
   unread_count: number;
 };
@@ -54,12 +54,35 @@ export default function InboxPage() {
   const [voipConfig, setVoipConfig] = useState({ provider: 'Twilio', sid: '', token: '', phone: '' })
   const [voipSaving, setVoipSaving] = useState(false)
 
+  const [chatUsage, setChatUsage] = useState(0)
+  const [totalCost, setTotalCost] = useState(0)
+  const [aiEnabled, setAiEnabled] = useState(false)
+  const [currentPlan, setCurrentPlan] = useState('Base')
+  const chatLimits: any = { 'Base': 100, 'Enterprise': 1000, 'Ambassador': 5000 }
+
   const supabase = createClient()
 
-  // 1. CARICAMENTO INIZIALE CHAT E CRM
+  // 1. CARICAMENTO INIZIALE CHAT, CRM E BILLING
   useEffect(() => {
     const initInbox = async () => {
       setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+          // Carica Profilo e Utilizzo
+          const { data: profile } = await supabase.from('profiles').select('plan, usage_chat, ai_reply_enabled').eq('id', user.id).single()
+          if (profile) {
+              setCurrentPlan(profile.plan || 'Base')
+              setChatUsage(profile.usage_chat || 0)
+              setAiEnabled(profile.ai_reply_enabled || false)
+          }
+
+          // Carica Costi Extra
+          const { data: metrics } = await supabase.from('usage_metrics').select('cost_user').eq('user_id', user.id).eq('resource_type', 'chat_message').eq('is_free', false)
+          if (metrics) {
+              setTotalCost(metrics.reduce((acc: number, m: any) => acc + (m.cost_user || 0), 0))
+          }
+      }
+
       try {
         const data = await getConversations();
         if (Array.isArray(data)) setConversations(data);
@@ -80,6 +103,19 @@ export default function InboxPage() {
     }, 15000);
     return () => clearInterval(interval);
   }, []);
+
+  const toggleAiReply = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const newValue = !aiEnabled
+      const { error } = await supabase.from('profiles').update({ ai_reply_enabled: newValue }).eq('id', user.id)
+      
+      if (!error) {
+          setAiEnabled(newValue)
+          if (newValue) alert("🤖 AI Auto-Reply attivata! Ogni risposta automatica costerà 1 credito (Base + 40% markup dopo la soglia gratuita).")
+      }
+  }
 
   // 2. CARICA MESSAGGI E TROVA CONTATTO CRM
   useEffect(() => {
@@ -170,9 +206,31 @@ export default function InboxPage() {
             <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1"><Zap size={10} fill="currentColor"/> Real-time Nexus Active</p>
           </div>
         </div>
-        <div className="flex bg-gray-100 p-1 rounded-xl border border-gray-200">
-            <button onClick={() => setActiveTab('inbox')} className={`px-5 py-2 rounded-lg text-xs font-black transition flex items-center gap-2 ${activeTab === 'inbox' ? 'bg-white shadow text-[#00665E]' : 'text-gray-500 hover:text-gray-700'}`}><MessageSquare size={14}/> MESSAGGI</button>
-            <button onClick={() => setActiveTab('voip')} className={`px-5 py-2 rounded-lg text-xs font-black transition flex items-center gap-2 ${activeTab === 'voip' ? 'bg-white shadow text-[#00665E]' : 'text-gray-500 hover:text-gray-700'}`}><Phone size={14}/> TELEFONO</button>
+        <div className="flex items-center gap-6">
+            {/* INDICATORE LIMITI CHAT */}
+            <div className="hidden md:flex items-center gap-3 bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl">
+                <MessageSquare className={currentPlan === 'Ambassador' ? "text-purple-500" : "text-[#00665E]"} size={16}/>
+                <div className="flex flex-col">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none">Messaggi AI Inclusi</span>
+                    <span className="text-xs font-black text-gray-800">{chatUsage} / {chatLimits[currentPlan]}</span>
+                </div>
+            </div>
+
+            {/* COSTO EXTRA CHAT */}
+            {totalCost > 0 && (
+                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-4 py-2 rounded-xl scale-95 origin-right">
+                    <DollarSign className="text-amber-600" size={14}/>
+                    <div className="flex flex-col">
+                        <span className="text-[8px] font-bold text-amber-600 uppercase tracking-widest leading-none">Consumo Extra (+40%)</span>
+                        <span className="text-xs font-black text-gray-900">€ {totalCost.toFixed(2)}</span>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex bg-gray-100 p-1 rounded-xl border border-gray-200 shadow-inner">
+                <button onClick={() => setActiveTab('inbox')} className={`px-5 py-2 rounded-lg text-xs font-black transition flex items-center gap-2 ${activeTab === 'inbox' ? 'bg-white shadow text-[#00665E]' : 'text-gray-500 hover:text-gray-700'}`}><MessageSquare size={14}/> MESSAGGI</button>
+                <button onClick={() => setActiveTab('voip')} className={`px-5 py-2 rounded-lg text-xs font-black transition flex items-center gap-2 ${activeTab === 'voip' ? 'bg-white shadow text-[#00665E]' : 'text-gray-500 hover:text-gray-700'}`}><Phone size={14}/> TELEFONO</button>
+            </div>
         </div>
       </div>
 
@@ -303,6 +361,25 @@ export default function InboxPage() {
 
               {/* 3. SIDEBAR INTELLIGENCE CRM (DESTRA) */}
               <div className="w-80 bg-white border-l border-gray-200 overflow-y-auto hidden xl:flex flex-col p-6 shadow-[-4px_0_24px_rgba(0,0,0,0.02)]">
+                  
+                  {/* ASSISTENTE AI AUTO-REPLY */}
+                  <div className="mb-6 p-4 bg-gradient-to-br from-[#00665E] to-teal-600 rounded-3xl text-white shadow-xl relative overflow-hidden group shrink-0">
+                      <div className="absolute -right-4 -top-4 opacity-10 group-hover:rotate-12 transition-transform duration-500"><Zap size={80} fill="white"/></div>
+                      <div className="relative z-10">
+                          <div className="flex items-center justify-between mb-3">
+                              <h3 className="font-black text-xs uppercase tracking-wider flex items-center gap-2"><Sparkles size={16}/> AI Assistant</h3>
+                              <button 
+                                onClick={toggleAiReply}
+                                className={`w-10 h-5 rounded-full relative transition-colors duration-300 ${aiEnabled ? 'bg-white' : 'bg-white/20'}`}
+                              >
+                                  <div className={`absolute top-0.5 w-4 h-4 rounded-full transition-all duration-300 ${aiEnabled ? 'right-0.5 bg-[#00665E]' : 'left-0.5 bg-white'}`}></div>
+                              </button>
+                          </div>
+                          <p className="text-[10px] font-medium leading-relaxed opacity-90">Auto-risposta intelligente 24/7 attiva su tutti i canali.</p>
+                          <p className="text-[9px] mt-2 font-black bg-black/20 px-2 py-1 rounded inline-block">Markup: +40% (Post-Soglia)</p>
+                      </div>
+                  </div>
+
                   <div className="flex items-center gap-2 mb-8 pb-4 border-b border-gray-50 text-gray-800">
                       <Info size={18} className="text-[#00665E]"/>
                       <h3 className="font-black text-sm uppercase tracking-wider">Intelligence CRM</h3>

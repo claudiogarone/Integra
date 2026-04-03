@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { triggerWorkflow } from '@/utils/workflow-trigger';
 
 // Variabili d'ambiente
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -34,6 +35,18 @@ export async function POST(request: Request) {
             .select();
 
         if (error) throw error;
+
+        // Trigger Workflow Automazione CRM (Nuovo Lead)
+        // Nota: In un sistema reale, dovremmo passare il userId dell'azienda proprietaria del form.
+        // Simuliamo usando il primo utente trovato o un ID di test.
+        const { data: firstProfile } = await supabase.from('profiles').select('id').limit(1).single();
+        if (firstProfile) {
+            await triggerWorkflow('Nuovo Lead Creato', {
+                email: email,
+                source: 'Landing Page Principale',
+                status: 'Nuovo'
+            }, firstProfile.id);
+        }
 
         // ==========================================
         // 2. INVIO EMAIL AUTOMATICA CON RESEND

@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 // Questa funzione gestisce le richieste di tipo POST (Invio dati)
 export async function POST(request: Request) {
   // 1. Inizializziamo il client Supabase
-  const supabase = createClient()
+  const supabase = await createClient()
 
   try {
     // 2. Leggiamo i dati inviati dal sito (il "pacchetto")

@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react'
 import { 
   Megaphone, Mail, Users, TrendingUp, Calendar, Send, Plus, Loader2, 
   Sparkles, CheckSquare, Square, X, Clock, ShoppingBag, ArrowRight, 
-  ShieldAlert, Eye, MousePointerClick, Activity, RotateCcw
+  ShieldAlert, Eye, MousePointerClick, Activity, RotateCcw,
+  MessageCircle, Smartphone, Share2, Layers, CreditCard
 } from 'lucide-react'
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer 
@@ -22,6 +23,7 @@ export default function MarketingPage() {
   const [step, setStep] = useState(1) 
   const [viewCampaign, setViewCampaign] = useState<any>(null)
 
+  const [channel, setChannel] = useState<'email' | 'whatsapp' | 'sms' | 'social' | 'telegram'>('email')
   const [subject, setSubject] = useState('')
   const [content, setContent] = useState('Ciao {{name}},\n\nAbbiamo delle novità fantastiche pensate apposta per te...')
   const [scheduleDate, setScheduleDate] = useState('') 
@@ -38,18 +40,29 @@ export default function MarketingPage() {
   const [activeFilter, setActiveFilter] = useState<'all' | 'dormant' | 'vip' | 'new' | 'engaged' | 'retarget'>('all')
   const [retargetCampaignId, setRetargetCampaignId] = useState<string>('')
   
+  // Costi per singolo messaggio (Markup 40% applicato)
+  const channelCosts: Record<string, number> = {
+    email: 0.00,
+    whatsapp: 0.09,
+    sms: 0.06,
+    social: 0.014,
+    telegram: 0.007
+  }
+
   const [sending, setSending] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
     const getData = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      // FIX: Abbiamo sostituito 'dev-user-id' con un UUID valido pieno di zeri. 
-      // Così il database lo accetta senza andare in errore di sintassi.
-      const currentUser = user || { id: '00000000-0000-0000-0000-000000000000', email: 'admin@integraos.it' }
+      const { data: sessionData } = await supabase.auth.getSession()
+      const currentUser = sessionData?.session?.user
+      
+      if (!currentUser) {
+          setLoading(false);
+          return;
+      }
       setUser(currentUser)
       
-      // NOVITÀ: Recupero info azienda (logo e nome) dal profilo
       const { data: profile } = await supabase.from('profiles').select('company_name, logo_url').eq('id', currentUser.id).single()
       if (profile) {
           setCompanyInfo({
@@ -59,9 +72,9 @@ export default function MarketingPage() {
       }
 
       await Promise.all([
-          fetchCampaigns(),
-          fetchContacts(),
-          fetchProducts()
+          fetchCampaigns(currentUser.id),
+          fetchContacts(currentUser.id),
+          fetchProducts(currentUser.id)
       ])
       
       setLoading(false)
@@ -71,20 +84,38 @@ export default function MarketingPage() {
     // Imposta un timer per ricaricare le statistiche ogni 15 secondi
     const interval = setInterval(() => fetchCampaigns(), 15000);
     return () => clearInterval(interval);
-  }, [])
+  }, [supabase])
 
-  const fetchCampaigns = async () => {
-      const { data } = await supabase.from('campaigns').select('*').order('created_at', { ascending: false })
+  // --- GESTIONE RITORNO DA STRIPE ---
+  useEffect(() => {
+    const checkPayment = async () => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('success') === 'true' && params.get('campaign_id')) {
+            const campId = params.get('campaign_id');
+            await supabase.from('campaigns').update({ status: 'Pagata' }).eq('id', campId);
+            window.history.replaceState({}, '', '/dashboard/marketing');
+            fetchCampaigns();
+            alert("✅ Pagamento riuscito! La campagna è ora pronta per l'invio fisico.");
+        }
+    }
+    checkPayment();
+  }, [supabase])
+
+  const fetchCampaigns = async (userId = user?.id) => {
+      if(!userId) return;
+      const { data } = await supabase.from('campaigns').select('*').eq('user_id', userId).order('created_at', { ascending: false })
       if(data) setCampaigns(data)
   }
 
-  const fetchContacts = async () => {
-      const { data } = await supabase.from('contacts').select('*')
+  const fetchContacts = async (userId = user?.id) => {
+      if(!userId) return;
+      const { data } = await supabase.from('contacts').select('*').eq('user_id', userId)
       if(data) { setContacts(data); setFilteredContacts(data); }
   }
 
-  const fetchProducts = async () => {
-      const { data } = await supabase.from('products').select('*').neq('is_deleted', true).order('created_at', { ascending: false })
+  const fetchProducts = async (userId = user?.id) => {
+      if(!userId) return;
+      const { data } = await supabase.from('products').select('*').eq('user_id', userId).neq('is_deleted', true).order('created_at', { ascending: false })
       if(data) setEcommerceProducts(data)
   }
 
@@ -182,6 +213,7 @@ export default function MarketingPage() {
       }
 
       const metaInfo = {
+          channel: channel,
           scheduled_for: scheduleDate || 'Subito',
           products_attached: selectedCatalogProducts.map(p => p.id),
           custom_offer: customProduct.name ? customProduct : null,
@@ -203,20 +235,57 @@ export default function MarketingPage() {
 
       if(error) { setSending(false); return alert("Errore DB: " + error.message); }
 
-      // 2. INVIA ALL'API PASSANDO I PRODOTTI E LE INFO AZIENDA
+      // LOGICA PAGAMENTO PER CANALI NON-EMAIL
+      const isPaidChannel = channel !== 'email';
+      const isPaid = campaign.status === 'Pagata';
+
+      if (isPaidChannel && !isPaid) {
+          const totalCost = validTargets.length * (channelCosts[channel] || 0);
+          setSending(true);
+          try {
+              const stripeRes = await fetch('/api/checkout/marketing', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      campaignId: campaign.id,
+                      amount: totalCost,
+                      channel: channel,
+                      recipientsCount: validTargets.length
+                  })
+              });
+              const stripeData = await stripeRes.json();
+              if (stripeData.url) {
+                  window.location.href = stripeData.url;
+                  return; // Esci, il redirect farà il resto
+              } else {
+                  throw new Error(stripeData.error || "Errore Stripe");
+              }
+          } catch (err: any) {
+              alert("Errore Stripe: " + err.message);
+              setSending(false);
+              return;
+          }
+      }
+
+      // 2. RECUPERA TOKEN E INVIA ALL'API PASSANDO IL CANALE
       try {
+          const { data: { session } } = await supabase.auth.getSession()
+          if (!session?.access_token) throw new Error("Utente non autenticato.");
+
           const res = await fetch('/api/send-marketing', {
               method: 'POST',
-              headers: {'Content-Type': 'application/json'},
+              headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${session.access_token}`
+              },
               body: JSON.stringify({ 
                   subject, 
-                  content: content, // Qui passiamo il testo "Puro" iniziale
+                  content: content,
+                  channel: channel,
                   recipients: validTargets,
                   campaign_id: campaign.id,
                   catalog_products: selectedCatalogProducts, 
-                  custom_product: customProduct.name ? customProduct : null,
-                  company_name: companyInfo.name,      // Passiamo il nome azienda all'API
-                  company_logo: companyInfo.logo       // Passiamo il logo azienda all'API
+                  custom_product: customProduct.name ? customProduct : null
               })
           })
           
@@ -433,9 +502,10 @@ export default function MarketingPage() {
                      <div>
                          <h2 className="text-2xl font-black text-[#00665E] mb-8">Composer</h2>
                          <div className="space-y-4">
-                             <div className={`p-4 rounded-xl flex items-center gap-4 transition ${step === 1 ? 'bg-white shadow-sm border-l-4 border-[#00665E] text-gray-900' : 'opacity-40 text-gray-500'}`}><Mail size={20}/><h4 className="font-bold text-sm">1. Messaggio</h4></div>
-                             <div className={`p-4 rounded-xl flex items-center gap-4 transition ${step === 2 ? 'bg-white shadow-sm border-l-4 border-[#00665E] text-gray-900' : 'opacity-40 text-gray-500'}`}><Users size={20}/><h4 className="font-bold text-sm">2. Target Audience</h4></div>
-                             <div className={`p-4 rounded-xl flex items-center gap-4 transition ${step === 3 ? 'bg-white shadow-sm border-l-4 border-[#00665E] text-gray-900' : 'opacity-40 text-gray-500'}`}><ShoppingBag size={20}/><h4 className="font-bold text-sm">3. E-commerce & Invio</h4></div>
+                             <div className={`p-4 rounded-xl flex items-center gap-4 transition ${step === 1 ? 'bg-white shadow-sm border-l-4 border-blue-500 text-gray-900' : 'opacity-40 text-gray-500'}`}><Share2 size={20}/><h4 className="font-bold text-sm">1. Canale</h4></div>
+                             <div className={`p-4 rounded-xl flex items-center gap-4 transition ${step === 2 ? 'bg-white shadow-sm border-l-4 border-[#00665E] text-gray-900' : 'opacity-40 text-gray-500'}`}><Mail size={20}/><h4 className="font-bold text-sm">2. Messaggio</h4></div>
+                             <div className={`p-4 rounded-xl flex items-center gap-4 transition ${step === 3 ? 'bg-white shadow-sm border-l-4 border-[#00665E] text-gray-900' : 'opacity-40 text-gray-500'}`}><Users size={20}/><h4 className="font-bold text-sm">3. Audience</h4></div>
+                             <div className={`p-4 rounded-xl flex items-center gap-4 transition ${step === 4 ? 'bg-white shadow-sm border-l-4 border-[#00665E] text-gray-900' : 'opacity-40 text-gray-500'}`}><ShoppingBag size={20}/><h4 className="font-bold text-sm">4. Checkout</h4></div>
                          </div>
                      </div>
                  </div>
@@ -445,19 +515,74 @@ export default function MarketingPage() {
 
                      {step === 1 && (
                          <div className="animate-in slide-in-from-right flex-1 flex flex-col pt-4">
-                             <h3 className="text-2xl font-black text-gray-900 mb-2">Componi la tua Email</h3>
-                             <p className="text-gray-500 text-sm mb-6 font-medium">Usa <code className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold border border-blue-100">{"{{name}}"}</code> per personalizzare la mail.</p>
-                             <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block ml-1">Oggetto</label>
-                             <input type="text" placeholder="Es: Abbiamo una sorpresa per te..." value={subject} onChange={e => setSubject(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl mb-6 font-bold text-lg outline-none focus:border-[#00665E] focus:bg-white transition" />
-                             <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block ml-1">Messaggio Principale</label>
-                             <textarea value={content} onChange={e => setContent(e.target.value)} className="w-full flex-1 p-4 bg-gray-50 border border-gray-200 rounded-xl resize-none outline-none focus:border-[#00665E] focus:bg-white font-medium text-gray-800 leading-relaxed transition"></textarea>
-                             <div className="mt-8 flex justify-end">
-                                 <button onClick={() => setStep(2)} disabled={!subject || !content} className="bg-[#00665E] text-white px-8 py-4 rounded-xl font-black hover:bg-[#004d46] transition disabled:opacity-50 shadow-[0_10px_20px_rgba(0,102,94,0.2)] flex items-center gap-2">Seleziona Destinatari <ArrowRight size={18}/></button>
+                             <h3 className="text-2xl font-black text-gray-900 mb-2">Scegli il Canale di Invio</h3>
+                             <p className="text-gray-500 text-sm mb-6 font-medium">Le campagne email sono sempre gratuite. I canali Social/SMS hanno un costo a consumo stimato.</p>
+                             
+                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                                 <div onClick={() => setChannel('email')} className={`p-6 rounded-2xl border-2 cursor-pointer transition flex flex-col items-center justify-center gap-3 text-center ${channel === 'email' ? 'border-[#00665E] bg-teal-50 shadow-md' : 'border-gray-200 bg-white hover:border-[#00665E]/30'}`}>
+                                     <Mail size={32} className={channel === 'email' ? 'text-[#00665E]' : 'text-gray-400'}/>
+                                     <div>
+                                         <h4 className="font-black text-gray-900">Email Marketing</h4>
+                                         <p className="text-xs text-emerald-600 font-bold mt-1 tracking-widest uppercase">Gratuito Sempre</p>
+                                     </div>
+                                 </div>
+                                 
+                                 <div onClick={() => setChannel('whatsapp')} className={`p-6 rounded-2xl border-2 cursor-pointer transition flex flex-col items-center justify-center gap-3 text-center ${channel === 'whatsapp' ? 'border-green-500 bg-green-50 shadow-md' : 'border-gray-200 bg-white hover:border-green-300'}`}>
+                                     <MessageCircle size={32} className={channel === 'whatsapp' ? 'text-green-600' : 'text-gray-400'}/>
+                                     <div>
+                                         <h4 className="font-black text-gray-900">WhatsApp Business</h4>
+                                         <p className="text-xs text-gray-500 font-bold mt-1">€0,09 / msg</p>
+                                     </div>
+                                 </div>
+                                 
+                                 <div onClick={() => setChannel('sms')} className={`p-6 rounded-2xl border-2 cursor-pointer transition flex flex-col items-center justify-center gap-3 text-center ${channel === 'sms' ? 'border-purple-500 bg-purple-50 shadow-md' : 'border-gray-200 bg-white hover:border-purple-300'}`}>
+                                     <Smartphone size={32} className={channel === 'sms' ? 'text-purple-600' : 'text-gray-400'}/>
+                                     <div>
+                                         <h4 className="font-black text-gray-900">SMS Classico</h4>
+                                         <p className="text-xs text-gray-500 font-bold mt-1">€0,06 / msg</p>
+                                     </div>
+                                 </div>
+
+                                 <div onClick={() => setChannel('social')} className={`p-6 rounded-2xl border-2 cursor-pointer transition flex flex-col items-center justify-center gap-3 text-center ${channel === 'social' ? 'border-blue-500 bg-blue-50 shadow-md' : 'border-gray-200 bg-white hover:border-blue-300'}`}>
+                                     <Share2 size={32} className={channel === 'social' ? 'text-blue-600' : 'text-gray-400'}/>
+                                     <div>
+                                         <h4 className="font-black text-gray-900">Social Direct</h4>
+                                         <p className="text-[10px] text-gray-400 font-medium">FB, IG, LinkedIn, TikTok, X</p>
+                                         <p className="text-xs text-gray-500 font-bold mt-1">€0,014 / msg</p>
+                                     </div>
+                                 </div>
+
+                                 <div onClick={() => setChannel('telegram')} className={`p-6 rounded-2xl border-2 cursor-pointer transition flex flex-col items-center justify-center gap-3 text-center ${channel === 'telegram' ? 'border-sky-500 bg-sky-50 shadow-md' : 'border-gray-200 bg-white hover:border-sky-300'}`}>
+                                     <Send size={32} className={channel === 'telegram' ? 'text-sky-600' : 'text-gray-400'}/>
+                                     <div>
+                                         <h4 className="font-black text-gray-900">Telegram Bot API</h4>
+                                         <p className="text-xs text-gray-500 font-bold mt-1">€0,007 / msg</p>
+                                     </div>
+                                 </div>
+                             </div>
+
+                             <div className="mt-auto flex justify-end">
+                                 <button onClick={() => setStep(2)} className="bg-[#00665E] text-white px-8 py-4 rounded-xl font-black hover:bg-[#004d46] transition shadow-[0_10px_20px_rgba(0,102,94,0.2)] flex items-center gap-2">Componi Messaggio <ArrowRight size={18}/></button>
                              </div>
                          </div>
                      )}
 
                      {step === 2 && (
+                         <div className="animate-in slide-in-from-right flex-1 flex flex-col pt-4">
+                             <h3 className="text-2xl font-black text-gray-900 mb-2">Componi per {channel.toUpperCase()}</h3>
+                             <p className="text-gray-500 text-sm mb-6 font-medium">Usa <code className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold border border-blue-100">{"{{name}}"}</code> per personalizzare.</p>
+                             <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block ml-1">Oggetto</label>
+                             <input type="text" placeholder="Es: Abbiamo una sorpresa per te..." value={subject} onChange={e => setSubject(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl mb-6 font-bold text-lg outline-none focus:border-[#00665E] focus:bg-white transition" />
+                             <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block ml-1">Messaggio Principale</label>
+                             <textarea value={content} onChange={e => setContent(e.target.value)} className="w-full flex-1 p-4 bg-gray-50 border border-gray-200 rounded-xl resize-none outline-none focus:border-[#00665E] focus:bg-white font-medium text-gray-800 leading-relaxed transition"></textarea>
+                             <div className="mt-8 flex justify-between">
+                                 <button onClick={() => setStep(1)} className="text-gray-600 font-bold bg-gray-100 px-8 py-4 rounded-xl hover:bg-gray-200 transition">← Canale</button>
+                                 <button onClick={() => setStep(3)} disabled={!subject || !content} className="bg-[#00665E] text-white px-8 py-4 rounded-xl font-black hover:bg-[#004d46] transition disabled:opacity-50 shadow-[0_10px_20px_rgba(0,102,94,0.2)] flex items-center gap-2">Seleziona Destinatari <ArrowRight size={18}/></button>
+                             </div>
+                         </div>
+                     )}
+
+                     {step === 3 && (
                          <div className="animate-in slide-in-from-right h-full flex flex-col pt-4">
                              <h3 className="text-2xl font-black text-gray-900 mb-2">A chi vogliamo scrivere?</h3>
                              <p className="text-gray-500 text-sm mb-6 font-medium">Scegli i destinatari filtrando il tuo database CRM.</p>
@@ -501,13 +626,13 @@ export default function MarketingPage() {
                                  </div>
                              </div>
                              <div className="mt-8 flex justify-between items-center shrink-0">
-                                 <button onClick={() => setStep(1)} className="text-gray-600 font-bold bg-gray-100 px-8 py-4 rounded-xl hover:bg-gray-200 transition">← Indietro</button>
-                                 <button onClick={() => setStep(3)} disabled={selectedIds.length === 0} className="bg-[#00665E] text-white px-8 py-4 rounded-xl font-black hover:bg-[#004d46] transition disabled:opacity-50 shadow-[0_10px_20px_rgba(0,102,94,0.2)] flex items-center gap-2">Configura Offerte <ArrowRight size={18}/></button>
+                                 <button onClick={() => setStep(2)} className="text-gray-600 font-bold bg-gray-100 px-8 py-4 rounded-xl hover:bg-gray-200 transition">← Indietro</button>
+                                 <button onClick={() => setStep(4)} disabled={selectedIds.length === 0} className="bg-[#00665E] text-white px-8 py-4 rounded-xl font-black hover:bg-[#004d46] transition disabled:opacity-50 shadow-[0_10px_20px_rgba(0,102,94,0.2)] flex items-center gap-2">Configura & Checkout <ArrowRight size={18}/></button>
                              </div>
                          </div>
                      )}
 
-                     {step === 3 && (
+                     {step === 4 && (
                          <div className="animate-in slide-in-from-right h-full flex flex-col pt-4">
                              <h3 className="text-2xl font-black text-gray-900 mb-6">Offerte & Invio</h3>
                              
@@ -574,11 +699,21 @@ export default function MarketingPage() {
                                  </div>
                              </div>
 
-                             <div className="mt-6 pt-6 border-t border-gray-100 flex justify-between items-center shrink-0">
-                                 <button onClick={() => setStep(2)} className="text-gray-600 font-bold bg-gray-100 px-8 py-4 rounded-xl hover:bg-gray-200 transition">← Indietro</button>
-                                 <button onClick={handleSend} disabled={sending || !legalConsent} className="bg-gradient-to-r from-[#00665E] to-teal-500 text-white px-10 py-4 rounded-xl font-black transition flex items-center gap-3 shadow-[0_10px_30px_rgba(0,102,94,0.3)] hover:scale-[1.02] disabled:opacity-50">
-                                     {sending ? <Loader2 className="animate-spin"/> : <Send size={20}/>} {scheduleDate ? 'PROGRAMMA INVIO' : 'SPEDISCI ORA'}
-                                 </button>
+                             <div className="mt-6 pt-6 border-t border-gray-100">
+                                 <div className="bg-gray-900 p-6 rounded-2xl flex justify-between items-center text-white shadow-xl">
+                                     <div>
+                                        <p className="text-sm font-bold text-gray-400">Preventivo Invio ({selectedIds.length} Destinatari su {channel.toUpperCase()})</p>
+                                        <h2 className="text-3xl font-black text-emerald-400 mt-1">{(channelCosts[channel] * selectedIds.length).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</h2>
+                                        <p className="text-[10px] text-gray-500 mt-1">*Il costo per le Email è sempre coperto dall'abbonamento.</p>
+                                     </div>
+                                     <div className="flex gap-4">
+                                         <button onClick={() => setStep(3)} className="text-gray-300 font-bold hover:text-white transition px-4">← Indietro</button>
+                                         <button onClick={handleSend} disabled={sending || !legalConsent} className="bg-gradient-to-r from-[#00665E] to-teal-500 text-white px-10 py-4 rounded-xl font-black transition flex items-center gap-3 shadow-[0_10px_30px_rgba(0,102,94,0.3)] hover:scale-[1.02] disabled:opacity-50">
+                                             {sending ? <Loader2 className="animate-spin" size={20}/> : (channel !== 'email' ? <CreditCard size={20}/> : <Send size={20}/>)}
+                                             {sending ? 'Elaborazione...' : (channel !== 'email' ? 'VAI AL PAGAMENTO (STRIPE)' : (scheduleDate ? 'PROGRAMMA E INVIA' : 'CONFERMA ED INVIA ORA'))}
+                                         </button>
+                                     </div>
+                                 </div>
                              </div>
                          </div>
                      )}

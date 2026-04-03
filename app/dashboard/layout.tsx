@@ -10,7 +10,8 @@ import {
   Settings, Crown, Bot, ShieldCheck, CreditCard, LogOut, 
   Database, Calendar, BarChart3, Megaphone, Image as ImageIcon, 
   Radar, EyeOff, Handshake, UserCog, GraduationCap, Mic, 
-  ShoppingBag, FileText, MessageSquare, BarChart, Target, Building
+  ShoppingBag, FileText, MessageSquare, BarChart, Target, Building,
+  BrainCircuit
 } from 'lucide-react'
 
 type MenuItem = {
@@ -121,6 +122,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           items: [
               { name: 'Impostazioni', href: '/dashboard/settings', icon: <Settings size={18}/> },
               { name: 'Academy Corsi', href: '/dashboard/academy', icon: <GraduationCap size={18}/> },
+              { name: 'Addestramento AI', href: '/dashboard/ai-training', icon: <BrainCircuit size={18}/>, badge: 'RAG' },
               { name: 'Tutorial & Manuale', href: '/dashboard/tutorial', icon: <BookOpen size={18}/> },
               { name: 'Piani & Upgrade', href: '/dashboard/enterprise', icon: <Crown size={18}/>, highlight: true },
           ]

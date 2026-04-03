@@ -31,14 +31,20 @@ export default function LoyaltyTerminalPage() {
 
   useEffect(() => {
     const initTerminal = async () => {
-      const devUserId = '00000000-0000-0000-0000-000000000000';
-      setUser({ id: devUserId });
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUser = sessionData?.session?.user;
+      
+      if (!currentUser) {
+          setLoading(false);
+          return;
+      }
+      setUser(currentUser);
 
-      const { data: profile } = await supabase.from('profiles').select('company_name, logo_url').eq('id', devUserId).single()
+      const { data: profile } = await supabase.from('profiles').select('company_name, logo_url').eq('id', currentUser.id).single()
       if (profile) setCompanyInfo({ name: profile.company_name || 'La Tua Azienda', logo: profile.logo_url || '' })
 
-      const { data: storesData } = await supabase.from('loyalty_stores').select('*').eq('user_id', devUserId)
-      const { data: set } = await supabase.from('loyalty_settings').select('*').eq('user_id', devUserId).single()
+      const { data: storesData } = await supabase.from('loyalty_stores').select('*').eq('user_id', currentUser.id)
+      const { data: set } = await supabase.from('loyalty_settings').select('*').eq('user_id', currentUser.id).single()
       
       if (storesData) setStores(storesData)
       if (set) setSettings(set)
@@ -132,9 +138,15 @@ export default function LoyaltyTerminalPage() {
           // 4. INVIO EMAIL IN BACKGROUND
           const customerEmail = foundCustomer.contacts?.email || foundCustomer.customer_email;
           if (customerEmail) {
+              const { data: sessionData } = await supabase.auth.getSession();
+              const token = sessionData?.session?.access_token || '';
+
               fetch('/api/loyalty/emails', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: { 
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${token}`
+                  },
                   body: JSON.stringify({
                       type: 'points_added',
                       customerEmail: customerEmail,

@@ -7,8 +7,10 @@ import {
     Target, TrendingUp, Zap, MessageCircle, 
     Smartphone, BrainCircuit, CheckCircle2, 
     AlertTriangle, Loader2, Star, ShieldCheck, 
-    Award, Sparkles, QrCode, MessageSquareQuote, Search, Copy, X, Send, FileText, Power, Plus, Trash2, Eye, Download, Edit3, UserPlus, ArrowRight
+    Award, Sparkles, QrCode, MessageSquareQuote, Search, Copy, X, Send, FileText, Power, Plus, Trash2, Eye, Download, Edit3, UserPlus, ArrowRight, Users
 } from 'lucide-react'
+import { SkillManager } from '@/components/ai/skill-manager'
+import Link from 'next/link'
 
 export default function AgentPortalPage() {
   const router = useRouter()
@@ -17,19 +19,19 @@ export default function AgentPortalPage() {
 
   const supabase = createClient()
 
-  const agentData = {
-      name: 'Marco Rossi',
-      role: 'Sales Representative',
-      location: 'Milano Centro',
-      performanceScore: 88,
-      monthlyTarget: 50000,
-      currentRevenue: 42500,
-  }
+  const [agentData, setAgentData] = useState({
+      name: 'Caricamento...',
+      role: 'Agente',
+      location: '-',
+      performanceScore: 0,
+      monthlyTarget: 10000,
+      currentRevenue: 0,
+  })
 
-  const activeApps = [
+  const [activeApps, setActiveApps] = useState([
       { id: 'whatsapp', name: 'WhatsApp WebSync', icon: <MessageCircle size={16} className="text-[#25D366]"/> },
       { id: 'preventivatore', name: 'Smart Quote', icon: <FileText size={16} className="text-blue-500"/> }
-  ]
+  ])
 
   const [cardCode, setCardCode] = useState('')
   const [pointsToAdd, setPointsToAdd] = useState('')
@@ -42,6 +44,7 @@ export default function AgentPortalPage() {
   const [isHandlingObjection, setIsHandlingObjection] = useState(false)
   const [objectionReply, setObjectionReply] = useState<string | null>(null)
   const [isQrModalOpen, setIsQrModalOpen] = useState(false)
+  const [activeLeftTab, setActiveLeftTab] = useState<'insights' | 'skills'>('insights')
 
   // STATI SMART QUOTE
   const [crmClients, setCrmClients] = useState<any[]>([]) 
@@ -55,18 +58,42 @@ export default function AgentPortalPage() {
 
   useEffect(() => {
     const getData = async () => {
+      setLoading(true)
       const { data: { user } } = await supabase.auth.getUser()
-      if (user) setUser(user)
-      
-      const { data: customersData, error } = await supabase.from('customers').select('*')
-      if (customersData && customersData.length > 0) {
-          setCrmClients(customersData)
-      } else {
-          setCrmClients([
-              { id: '1', name: 'Tech Solutions SpA', email: 'amministrazione@techsolutions.it', phone: '02 1234567' },
-              { id: '2', name: 'Mario Rossi', email: 'mario.rossi@email.it', phone: '333 9876543' },
-              { id: '3', name: 'Boutique Milano', email: 'info@boutiquemilano.com', phone: '02 7654321' }
-          ])
+      if (user) {
+          setUser(user)
+          
+          // 1. Recupera Info Agente Reale
+          const { data: teamMember } = await supabase
+              .from('team_members')
+              .select('*')
+              .eq('email', user.email)
+              .single()
+
+          // 2. Recupera Contatti/Clienti per calcolare Performance
+          const { data: contactsData } = await supabase
+              .from('contacts')
+              .select('*')
+
+          if (contactsData) {
+              setCrmClients(contactsData)
+              
+              // Calcola fatturato reale (Status: Vinto o Chiuso)
+              const wonContacts = contactsData.filter(c => c.status === 'Vinto' || c.status === 'Chiuso')
+              const revenue = wonContacts.reduce((acc, c) => acc + (Number(c.ltv) || Number(c.value) || 0), 0)
+              
+              // Calcola Score (es. 10 punti ogni cliente vinto + base 30)
+              const score = Math.min(100, 30 + (wonContacts.length * 10))
+
+              setAgentData({
+                  name: teamMember?.name || user.email?.split('@')[0] || 'Agente',
+                  role: teamMember?.role || 'Digital Agent',
+                  location: teamMember?.branch || 'Sede Centrale',
+                  performanceScore: score,
+                  monthlyTarget: 15000, 
+                  currentRevenue: revenue
+              })
+          }
       }
       setLoading(false)
     }
@@ -84,28 +111,81 @@ export default function AgentPortalPage() {
       e.preventDefault()
       setIsAddingPoints(true)
       setTerminalMessage(null)
-      setTimeout(() => {
-          setTerminalMessage({ type: 'success', text: `✅ Accreditati ${pointsToAdd} pt al cliente ${cardCode}!` })
-          setCardCode(''); setPointsToAdd(''); setIsAddingPoints(false)
-      }, 1500)
+
+      try {
+          // Ricerca cliente per card_code o email/telefono nel database reale
+          const { data: customer, error: searchError } = await supabase
+              .from('contacts')
+              .select('*')
+              .or(`id.eq.${cardCode},email.ilike.${cardCode},phone.eq.${cardCode}`)
+              .single()
+
+          if (searchError || !customer) {
+              throw new Error("Cliente non trovato nel CRM.")
+          }
+
+          const currentPoints = Number(customer.points) || 0;
+          const newPoints = currentPoints + Number(pointsToAdd);
+
+          const { error: updateError } = await supabase
+              .from('contacts')
+              .update({ points: newPoints })
+              .eq('id', customer.id)
+
+          if (updateError) throw updateError
+
+          setTerminalMessage({ type: 'success', text: `✅ Accreditati ${pointsToAdd} pt a ${customer.name}! Totale: ${newPoints}` })
+          setCardCode(''); setPointsToAdd('');
+      } catch (err: any) {
+          setTerminalMessage({ type: 'error', text: `❌ Errore: ${err.message}` })
+      } finally {
+          setIsAddingPoints(false)
+      }
   }
 
-  const runPersonalCoach = () => {
+  const runPersonalCoach = async () => {
       setIsCoaching(true)
-      setTimeout(() => {
+      setAiAdvice(null)
+      try {
+          const res = await fetch('/api/ai/agent-brain', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                  type: 'coach', 
+                  data: agentData 
+              })
+          });
+          const resData = await res.json();
+          if (resData.response) setAiAdvice(resData.response);
+          else throw new Error(resData.error || "Risposta vuota dall'AI.");
+      } catch (err: any) {
+          setAiAdvice(`❌ Errore AI Coach: ${err.message}`);
+      } finally {
           setIsCoaching(false)
-          setAiAdvice(`Ciao Marco! Hai raggiunto l'85% del target. I clienti a cui mandi il preventivo via Smart Quote chiudono il 30% più in fretta.\n\n🎯 Azione: Usa lo strumento 'Smart Quote' qui a destra per mandare l'offerta al cliente di stamattina.`)
-      }, 2000)
+      }
   }
 
-  const handleObjectionSubmit = (e: React.FormEvent) => {
+  const handleObjectionSubmit = async (e: React.FormEvent) => {
       e.preventDefault()
       if (!objection.trim()) return
       setIsHandlingObjection(true)
-      setTimeout(() => {
+      try {
+          const res = await fetch('/api/ai/agent-brain', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                  type: 'objection', 
+                  objective: objection 
+              })
+          });
+          const resData = await res.json();
+          if (resData.response) setObjectionReply(resData.response);
+          else throw new Error("Risposta vuota dall'AI.");
+      } catch (err: any) {
+          setObjectionReply("❌ Errore AI Obiezioni: Servizio non disponibile.");
+      } finally {
           setIsHandlingObjection(false)
-          setObjectionReply(`"Capisco che il prezzo sia una priorità. Molti clienti la pensavano così, ma hanno scoperto che grazie alla nostra garanzia estesa, nel lungo periodo il costo reale è inferiore del 15% rispetto alla concorrenza. Le mostro i numeri?"`)
-      }, 1500)
+      }
   }
 
   const handleLogout = async () => {
@@ -182,6 +262,11 @@ export default function AgentPortalPage() {
 
               <div className="flex items-center gap-4">
                   <div className="hidden md:flex gap-2">
+                      <Link href="/dashboard/ai-agent/teams">
+                        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-full flex items-center gap-2 text-xs font-bold transition shadow-lg">
+                            <Users size={14}/> Gestione Team
+                        </button>
+                      </Link>
                       {activeApps.map(app => (
                           <span key={app.id} className="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-full flex items-center gap-2 text-xs font-bold text-slate-300">
                               {app.icon} {app.name}
@@ -198,6 +283,17 @@ export default function AgentPortalPage() {
           {/* COLONNA SINISTRA */}
           <div className="lg:col-span-6 space-y-6">
               
+              <div className="flex gap-2 p-1 bg-white border border-gray-200 rounded-2xl w-max shadow-sm mb-2">
+                  <button onClick={() => setActiveLeftTab('insights')} className={`px-4 py-2 rounded-xl text-xs font-black transition ${activeLeftTab === 'insights' ? 'bg-slate-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>Insights & Coach</button>
+                  <button onClick={() => setActiveLeftTab('skills')} className={`px-4 py-2 rounded-xl text-xs font-black transition ${activeLeftTab === 'skills' ? 'bg-slate-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>Libreria Skills</button>
+              </div>
+
+              {activeLeftTab === 'skills' ? (
+                  <div className="h-[600px]">
+                      <SkillManager />
+                  </div>
+              ) : (
+                  <>
               <div className="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm">
                   <h2 className="text-lg font-black text-gray-900 mb-6 flex items-center gap-2"><Target className="text-blue-500"/> I Tuoi Obiettivi Mensili</h2>
                   <div className="flex justify-between items-end mb-2">
@@ -270,6 +366,8 @@ export default function AgentPortalPage() {
                       )}
                   </div>
               </div>
+                  </>
+              )}
           </div>
 
           {/* COLONNA DESTRA */}
@@ -314,11 +412,18 @@ export default function AgentPortalPage() {
                   <form onSubmit={handleAddPoints} className="space-y-4 relative z-10 flex-1 flex flex-col justify-end">
                       <div>
                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Codice Carta o Telefono</label>
-                          <input type="text" value={cardCode} onChange={(e) => setCardCode(e.target.value.toUpperCase())} placeholder="CARD-XXXXXX" className="w-full bg-slate-800 border border-slate-700 p-4 rounded-xl text-white font-mono text-center tracking-widest text-lg focus:border-[#00665E] outline-none transition placeholder:text-slate-600" required />
+                          <input 
+                            type="text" 
+                            value={cardCode} 
+                            onChange={(e) => setCardCode(e.target.value)} 
+                            placeholder="Email, Telefono o ID" 
+                            className="w-full bg-slate-800 border border-slate-700 p-4 rounded-xl text-white font-mono text-center tracking-normal text-lg focus:border-[#00665E] outline-none transition placeholder:text-slate-600" 
+                            required 
+                          />
                       </div>
                       <div>
                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Punti Acquisiti</label>
-                          <input type="number" value={pointsToAdd} onChange={(e) => setPointsToAdd(e.target.value)} placeholder="Es. 50" className="w-full bg-slate-800 border border-slate-700 p-4 rounded-xl text-white text-center text-2xl font-black focus:border-[#00665E] outline-none transition placeholder:text-slate-600" required />
+                          <input type="number" value={pointsToAdd} onChange={(e) => setPointsToAdd(e.target.value)} placeholder="0" className="w-full bg-slate-800 border border-slate-700 p-4 rounded-xl text-white text-center text-2xl font-black focus:border-[#00665E] outline-none transition placeholder:text-slate-600" required />
                       </div>
 
                       <button type="submit" disabled={isAddingPoints || !cardCode || !pointsToAdd} className="w-full mt-4 bg-gradient-to-r from-[#00665E] to-teal-500 hover:from-[#00554e] hover:to-teal-600 text-white font-black py-4 rounded-xl shadow-lg transition transform active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2">

@@ -47,12 +47,15 @@ export async function POST(request: Request) {
             if (plan === 'Enterprise') numResults = 8;
             if (plan === 'Ambassador') numResults = 12;
 
-            prompt = `Sei un esperto di media locali italiani. Trova ${numResults} mezzi di comunicazione principali reali (o molto realistici) per fare pubblicità locale nella città di: ${city}.
-            Includi Radio della zona, Giornali locali, opzioni Outdoor (Affissioni) e TV/Web locale.
+            prompt = `Sei un esperto di media locali italiani. Trova ${numResults} mezzi di comunicazione principali nel territorio di: ${city}.
+            IMPORTANTE RECOLA DI BUSINESS: NON DEVI MAI svelare il nome commerciale esatto delle aziende (es. NON scrivere "Radio Marte", NON scrivere "Il Mattino").
+            DEVI invece restituire un "display_name" descrittivo e anonimo (es. "Radio Locale Area Nord", "Quotidiano Informazione Regionale", "Circuito Outdoor Nazionale").
+            Solo se l'azienda è un colosso globale indiscusso (es. Google, Meta) puoi citarla, ma per le realtà locali sii GENERICO.
+            
             Rispondi ESATTAMENTE con questo JSON:
             {
                 "media": [
-                    { "id": 1, "type": "Radio", "name": "Nome Radio (es. Radio Marte se a Napoli)", "reach": "es. 50.000 ascoltatori", "cost": "Medio-Basso", "match": 90 },
+                    { "id": 1, "type": "Radio", "display_name": "Descrizione Anonima", "reach": "es. 50.000 ascoltatori", "cost": "Medio-Basso", "match": 90, "is_sponsored": false },
                     ... restituisci ESATTAMENTE ${numResults} oggetti formattati in questo modo.
                 ]
             }`;

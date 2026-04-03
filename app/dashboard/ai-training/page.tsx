@@ -6,6 +6,8 @@ import {
   Bot, Database, Trash2, MessageSquare, Send, Sparkles, Loader2, 
   CheckCircle2, ShieldCheck, BookOpen, AlertTriangle, UploadCloud, RefreshCw, X, FileText, CheckCircle, File
 } from 'lucide-react'
+import mammoth from 'mammoth'
+import * as XLSX from 'xlsx'
 
 const MAX_MB_LIMIT = 5; 
 const MAX_KB_LIMIT = MAX_MB_LIMIT * 1024; 
@@ -41,7 +43,26 @@ export default function AITrainingPage() {
     const initUser = async () => {
         const devUserId = '00000000-0000-0000-0000-000000000000';
         setUser({ id: devUserId })
-        setUsedKB(12) 
+
+        // Carica usedKB persistente da localStorage (con reset mensile automatico)
+        const storageKey = `integraos_ai_kb_${devUserId}`;
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                const resetDate = new Date(parsed.resetDate);
+                const now = new Date();
+                // Se siamo oltre la data di reset mensile, azzera
+                if (now >= resetDate) {
+                    localStorage.removeItem(storageKey);
+                    setUsedKB(0);
+                } else {
+                    setUsedKB(parsed.kb || 0);
+                }
+            } catch { setUsedKB(0); }
+        } else {
+            setUsedKB(0);
+        }
     }
     initUser()
   }, [supabase])
@@ -117,35 +138,111 @@ export default function AITrainingPage() {
   }
 
   // =========================================================================
-  // GESTIONE FILE ALLEGATI (SBLOCCATO PER PDF, DOCX, PPTX)
+  // GESTIONE FILE ALLEGATI (PARSING NATIVO: DOCX, XLSX, PPTX, TXT, CSV, JSON)
   // =========================================================================
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files || []);
       if (files.length === 0) return;
 
-      let newAttachedFiles = [...attachedFiles];
+      const newAttachedFiles = [...attachedFiles];
 
-      files.forEach(file => {
+      for (const file of files) {
           const fileSizeKB = file.size / 1024;
-          const isComplex = file.type === 'application/pdf' || file.name.endsWith('.pdf') || file.name.endsWith('.pptx') || file.name.endsWith('.docx');
-          
-          if (isComplex) {
-              alert(`⚠️ Hai caricato un file ${file.name.split('.').pop()?.toUpperCase()}. Il sistema proverà a leggerne il testo grezzo. Assicurati che non sia una scansione a immagini.`);
+          const ext = file.name.toLowerCase().split('.').pop() || '';
+
+          try {
+              let content = '';
+
+              // ── WORD (.docx) ──────────────────────────────────
+              if (ext === 'docx') {
+                  const arrayBuffer = await file.arrayBuffer();
+                  const result = await mammoth.extractRawText({ arrayBuffer });
+                  content = result.value;
+                  if (!content || content.trim().length < 10) {
+                      alert(`⚠️ Il file "${file.name}" non contiene testo leggibile.`);
+                      continue;
+                  }
+                  console.log(`✅ DOCX "${file.name}": ${content.length} caratteri estratti`);
+
+              // ── EXCEL (.xlsx, .xls) ───────────────────────────
+              } else if (ext === 'xlsx' || ext === 'xls') {
+                  const arrayBuffer = await file.arrayBuffer();
+                  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                  const allText: string[] = [];
+                  workbook.SheetNames.forEach(sheetName => {
+                      const sheet = workbook.Sheets[sheetName];
+                      const csv = XLSX.utils.sheet_to_csv(sheet);
+                      allText.push(`--- Foglio: ${sheetName} ---\n${csv}`);
+                  });
+                  content = allText.join('\n\n');
+                  console.log(`✅ EXCEL "${file.name}": ${workbook.SheetNames.length} fogli, ${content.length} caratteri`);
+
+              // ── POWERPOINT (.pptx) ────────────────────────────
+              } else if (ext === 'pptx') {
+                  // PPTX è un archivio ZIP con file XML. Estraiamo il testo grezzo.
+                  const arrayBuffer = await file.arrayBuffer();
+                  const JSZip = (await import('jszip')).default;
+                  const zip = await JSZip.loadAsync(arrayBuffer);
+                  const slideTexts: string[] = [];
+                  const slideFiles = Object.keys(zip.files)
+                      .filter(name => name.match(/ppt\/slides\/slide\d+\.xml$/i))
+                      .sort();
+                  for (const slidePath of slideFiles) {
+                      const xml = await zip.files[slidePath].async('text');
+                      // Estrai tutto il testo tra tag <a:t>...</a:t>
+                      const textMatches = xml.match(/<a:t>([^<]*)<\/a:t>/g);
+                      if (textMatches) {
+                          const slideText = textMatches.map(m => m.replace(/<\/?a:t>/g, '')).join(' ');
+                          slideTexts.push(slideText);
+                      }
+                  }
+                  content = slideTexts.map((t, i) => `--- Slide ${i + 1} ---\n${t}`).join('\n\n');
+                  if (!content.trim()) {
+                      alert(`⚠️ Il file "${file.name}" non contiene testo leggibile nelle slide.`);
+                      continue;
+                  }
+                  console.log(`✅ PPTX "${file.name}": ${slideFiles.length} slide, ${content.length} caratteri`);
+
+              // ── PDF (.pdf) ────────────────────────────────────
+              } else if (ext === 'pdf') {
+                  alert(
+                      `⚠️ PDF: Il parsing nativo dei PDF arriverà presto. Per ora hai 2 opzioni:\n` +
+                      `1. Apri il PDF, seleziona tutto il testo (Ctrl+A), copialo e incollalo nella casella di testo\n` +
+                      `2. Converti il PDF in Word (.docx) e ricaricalo`
+                  );
+                  continue;
+
+              // ── IMMAGINI ──────────────────────────────────────
+              } else if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext)) {
+                  alert(
+                      `⚠️ Le immagini non possono essere lette direttamente come testo.\n` +
+                      `Per addestrare l'AI con contenuti da immagini, scrivi o copia manualmente il testo nella casella.`
+                  );
+                  continue;
+
+              // ── TESTO SEMPLICE (.txt, .csv, .json, .md, .xml) ─
+              } else {
+                  content = await new Promise<string>((resolve) => {
+                      const reader = new FileReader();
+                      reader.onload = (event) => resolve(event.target?.result as string || '');
+                      reader.readAsText(file);
+                  });
+              }
+
+              if (content && content.trim().length > 0) {
+                  newAttachedFiles.push({
+                      name: file.name,
+                      content: content,
+                      sizeKB: fileSizeKB
+                  });
+              }
+          } catch (err: any) {
+              console.error(`Errore parsing file ${file.name}:`, err);
+              alert(`❌ Errore nella lettura del file "${file.name}": ${err.message}`);
           }
+      }
 
-          const reader = new FileReader();
-          reader.onload = (event) => {
-              const content = event.target?.result as string;
-              newAttachedFiles.push({
-                  name: file.name,
-                  content: content,
-                  sizeKB: fileSizeKB
-              });
-              setAttachedFiles([...newAttachedFiles]);
-          };
-          reader.readAsText(file);
-      });
-
+      setAttachedFiles([...newAttachedFiles]);
       if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
@@ -174,7 +271,17 @@ export default function AITrainingPage() {
           
           if (!res.ok) throw new Error(data.error);
           
-          setUsedKB(totalProjectedKB);
+          const newUsedKB = totalProjectedKB;
+          setUsedKB(newUsedKB);
+
+          // Salva in localStorage con scadenza al primo del prossimo mese
+          const now = new Date();
+          const resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1); // Primo del prossimo mese
+          localStorage.setItem(`integraos_ai_kb_${user?.id}`, JSON.stringify({
+              kb: newUsedKB,
+              resetDate: resetDate.toISOString()
+          }));
+
           setTrainStatus({ success: true, msg: `Addestramento Riuscito! L'AI ha letto e imparato ${data.chunksLearned} paragrafi della tua azienda.` });
           
           setKnowledgeText(''); 
@@ -198,8 +305,8 @@ export default function AITrainingPage() {
           });
           if (!res.ok) throw new Error("Errore durante il reset")
           
-          alert("✅ Memoria Database azzerata con successo.")
-          setUsedKB(0);
+          alert("✅ Memoria Database azzerata con successo. La quota mensile di upload rimane invariata.")
+          // NON azzeriamo usedKB: la quota mensile traccia i dati processati, non quelli attualmente in DB
           setTrainStatus(null)
       } catch (err: any) { alert("Errore: " + err.message) } finally { setIsResetting(false) }
   }
@@ -262,7 +369,7 @@ export default function AITrainingPage() {
                           </div>
                           <div className="flex gap-2">
                               {/* INPUT ACCETTA TUTTI I FILE ADESSO */}
-                              <input type="file" multiple ref={fileInputRef} accept=".txt,.csv,.json,.pdf,.docx,.pptx" onChange={handleFileUpload} className="hidden"/>
+                              <input type="file" multiple ref={fileInputRef} accept=".txt,.csv,.json,.md,.xml,.docx,.xlsx,.xls,.pptx,.pdf" onChange={handleFileUpload} className="hidden"/>
                               <button onClick={() => fileInputRef.current?.click()} className="text-xs font-bold bg-white border border-gray-200 text-gray-600 px-3 py-2 rounded-xl hover:bg-gray-50 transition shadow-sm flex items-center gap-1.5"><UploadCloud size={14}/> Allega Qualsiasi File</button>
                               <button onClick={handleAutoSync} disabled={isSyncing} className="text-xs font-bold bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded-xl hover:bg-blue-100 transition shadow-sm flex items-center gap-1.5 disabled:opacity-50">
                                   {isSyncing ? <Loader2 size={14} className="animate-spin"/> : <RefreshCw size={14}/>} {isSyncing ? 'Estrazione...' : 'Estrai da Ecosistema'}

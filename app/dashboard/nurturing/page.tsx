@@ -33,47 +33,8 @@ export default function NurturingEnginePage() {
   // STATO PREVIEW MESSAGGIO
   const [activeMessage, setActiveMessage] = useState<number>(1)
 
-  // DATABASE GENERATIVO AI ESPANSO (Mock per dimostrazione)
-  const aiContentDb: any = {
-      'Ristorazione': [
-          { id: 1, week: 'Settimana 1', date: 'Venerdì 6', type: 'Ricetta Veloce', title: 'Risotto Autunnale', text: "Ciao {{Nome}}! 🍁 Questo weekend le temperature si abbassano. Ecco un'idea veloce per scaldare la serata: Risotto zucca, salsiccia e rosmarino (trovi la ricetta completa nel link). \n\nE se non hai voglia di cucinare... il nostro delivery è attivo e ti abbiamo riservato il dolce in omaggio se ordini stasera! 🍷 Buona serata dallo staff!" },
-          { id: 2, week: 'Settimana 2', date: 'Venerdì 13', type: 'Curiosità Vino', title: 'Abbinamento Perfetto', text: "Ciao {{Nome}}! 🍷 Sapevi che il vino rosso strutturato non va mai abbinato a cibi troppo piccanti perché ne esalta il bruciore? \n\nQuesto weekend nel nostro locale abbiamo aperto una bottiglia speciale. Passa a trovarci per un calice offerto dalla casa!" },
-          { id: 3, week: 'Settimana 3', date: 'Venerdì 20', type: 'Dietro le quinte', title: 'I nostri ingredienti', text: "Buongiorno {{Nome}}! 🍅 Oggi siamo stati al mercato agricolo alle 5 del mattino per scegliere i pomodori migliori per il nostro sugo. Crediamo che la qualità parta da qui.\n\nVieni ad assaggiare i nuovi piatti fuori menu questo fine settimana!" },
-          { id: 4, week: 'Settimana 4', date: 'Venerdì 27', type: 'Regalo Esclusivo', title: 'Secret Menu', text: "Ciao {{Nome}}! 🤫 Solo per i nostri clienti VIP iscritti alla newsletter: questo weekend c'è un piatto 'Secret Menu' che non troverai in carta (Tagliata al tartufo nero). \n\nMostra questo messaggio al cameriere per ordinarlo in esclusiva!" }
-      ],
-      'Fitness': [
-          { id: 1, week: 'Settimana 1', date: 'Venerdì 6', type: 'Tip Allenamento', title: 'Mal di schiena da PC?', text: "Ciao {{Nome}}! 💻 Lavori tante ore al computer? Ecco 3 esercizi di stretching da 1 minuto da fare direttamente sulla sedia per sciogliere la cervicale.\n\nRicordati che la postura è tutto! Ti aspettiamo in palestra lunedì per il corso di Posturale." },
-          { id: 2, week: 'Settimana 2', date: 'Venerdì 13', type: 'Nutrizione', title: 'Snack Pre-Workout', text: "Buongiorno {{Nome}}! 🍌 Non sai mai cosa mangiare prima di allenarti? Il mix perfetto è: 1 banana + un cucchiaino di burro d'arachidi, 45 minuti prima dello sforzo.\n\nTi darà energia immediata. Provalo oggi prima del tuo turno!" },
-          { id: 3, week: 'Settimana 3', date: 'Venerdì 20', type: 'Mindset', title: 'La regola dei 5 minuti', text: "Ciao {{Nome}}! 🧠 Oggi non hai voglia di allenarti? Usa la regola dei 5 minuti: indossa le scarpe da ginnastica e inizia per soli 5 minuti. Il 90% delle volte... continuerai!\n\nNoi siamo qui fino alle 22:00. Ti aspettiamo!" },
-          { id: 4, week: 'Settimana 4', date: 'Venerdì 27', type: 'Sfida Mensile', title: 'Challenge Addominali', text: "Ehi {{Nome}}! 🔥 Sei pronto per la sfida di fine mese? Plank challenge: quanti secondi riesci a resistere? \n\nRispondi a questo messaggio col tuo tempo. I 3 migliori vinceranno una borraccia termica del nostro club!" }
-      ],
-      'Beauty': [
-          { id: 1, week: 'Settimana 1', date: 'Venerdì 6', type: 'Skincare', title: 'Sbalzi di Temperatura', text: "Ciao {{Nome}}! ✨ Lo sapevi che il passaggio dal freddo esterno al riscaldamento dell'ufficio disidrata la pelle del 30%? \n\nUsa sempre una crema con acido ialuronico. Abbiamo ancora 2 posti liberi domani per il trattamento idratante intensivo!" },
-          { id: 2, week: 'Settimana 2', date: 'Venerdì 13', type: 'Beauty Hack', title: 'Scrub fai da te', text: "Buongiorno {{Nome}}! 🍯 Vuoi labbra morbidissime? Mescola un cucchiaino di zucchero di canna, uno di miele e una goccia d'olio d'oliva. Massaggia e risciacqua!\n\nUn piccolo tip casalingo per te dal nostro team. A presto!" },
-          { id: 3, week: 'Settimana 3', date: 'Venerdì 20', type: 'Trend', title: 'Colori della Stagione', text: "Ciao {{Nome}}! 💇‍♀️ Il trend assoluto di questa stagione è il 'Caramel Balayage', perfetto per illuminare il viso.\n\nHai voglia di cambiare look? Scrivici per una consulenza d'immagine gratuita." },
-          { id: 4, week: 'Settimana 4', date: 'Venerdì 27', type: 'Relax', title: 'Digital Detox', text: "Ciao {{Nome}}! 🧘‍♀️ Spegni il telefono per un'ora questo weekend, metti una maschera viso e accendi una candela. \n\nE se vuoi un relax totale, ti ricordiamo il nostro pacchetto Spa in promo per le clienti fedeli." }
-      ],
-      'Abbigliamento': [
-          { id: 1, week: 'Settimana 1', date: 'Venerdì 6', type: 'Stile', title: 'Come vestirsi a strati', text: "Ciao {{Nome}}! 🧥 Le temperature impazziscono? Il segreto è il 'Layering' (vestirsi a strati). Usa un capo base traspirante, una maglia in lana leggera e un capospalla anti-vento.\n\nPassa in store questo weekend per scoprire la nuova maglieria!" },
-          { id: 2, week: 'Settimana 2', date: 'Venerdì 13', type: 'Cura dei capi', title: 'Come lavare la lana', text: "Buongiorno {{Nome}}! 🧶 Hai paura di restringere i tuoi maglioni preferiti? Lavali sempre a freddo (max 30°) e asciugali stesi in orizzontale, mai appesi!\n\nUna dritta utile per far durare i tuoi capi per sempre." },
-          { id: 3, week: 'Settimana 3', date: 'Venerdì 20', type: 'Trend', title: 'Il colore dell\'anno', text: "Ciao {{Nome}}! 🎨 Il verde salvia è ufficialmente il colore di tendenza di questo mese. Si abbina perfettamente al denim e ai colori neutri.\n\nAbbiamo appena ricevuto i nuovi arrivi, vieni a provarli!" },
-          { id: 4, week: 'Settimana 4', date: 'Venerdì 27', type: 'Regalo VIP', title: 'Sconto Privato', text: "Ehi {{Nome}}! 🤫 I saldi non sono ancora iniziati, ma per te che sei un cliente fedele abbiamo attivato un -20% segreto su tutto il nuovo campionario.\n\nMostra questo messaggio in cassa entro domenica!" }
-      ],
-      'Immobiliare': [
-          { id: 1, week: 'Settimana 1', date: 'Venerdì 6', type: 'Mercato', title: 'Tassi dei Mutui', text: "Buongiorno {{Nome}}! 🏦 Breve aggiornamento dal mercato: i tassi fissi sui mutui stanno subendo una lieve flessione. Se stavi pensando di comprare, questo potrebbe essere il trimestre giusto per muoversi.\n\nContattaci per una consulenza gratuita." },
-          { id: 2, week: 'Settimana 2', date: 'Venerdì 13', type: 'Home Decor', title: 'Aumentare il valore', text: "Ciao {{Nome}}! 🛋️ Lo sapevi che ridipingere le pareti con colori neutri (come il tortora o il greige) può far percepire la tua casa come un 15% più spaziosa e moderna ai potenziali acquirenti?\n\nPiccoli trucchi che fanno la differenza!" },
-          { id: 3, week: 'Settimana 3', date: 'Venerdì 20', type: 'Quartieri', title: 'Dove investire', text: "Ciao {{Nome}}! 📈 I dati di questo mese mostrano che la zona Nord della città sta registrando un +4% sul valore degli immobili grazie ai nuovi collegamenti.\n\nStai pensando di vendere? Scopri quanto vale la tua casa oggi." },
-          { id: 4, week: 'Settimana 4', date: 'Venerdì 27', type: 'Tool', title: 'Valutazione Gratuita', text: "Ehi {{Nome}}! 🏠 Hai mai curiosato per sapere a quanto potresti vendere casa tua nel mercato attuale? \n\nRispondi a questo messaggio con il tuo indirizzo e ti manderemo una stima gratuita in 24 ore, senza impegno." }
-      ],
-      'Officina': [
-          { id: 1, week: 'Settimana 1', date: 'Venerdì 6', type: 'Sicurezza', title: 'Spia Motore', text: "Ciao {{Nome}}! ⚠️ Spia motore accesa? Non farti prendere dal panico. Spesso è solo un sensore sporco, ma ignorarla può causare danni costosi.\n\nPassa in officina per una diagnosi elettronica rapida in 5 minuti. Il caffè te lo offriamo noi!" },
-          { id: 2, week: 'Settimana 2', date: 'Venerdì 13', type: 'Risparmio', title: 'Pressione Gomme', text: "Buongiorno {{Nome}}! 🚗 Sapevi che gomme sgonfie anche solo del 15% ti fanno consumare il 5% in più di carburante e si usurano prima?\n\nControlla la pressione questo weekend, o passa da noi per un check-up gratuito dei livelli." },
-          { id: 3, week: 'Settimana 3', date: 'Venerdì 20', type: 'Stagionalità', title: 'Preparazione al freddo', text: "Ciao {{Nome}}! ❄️ L'inverno sta arrivando. La tua batteria ha più di 3 anni? Col freddo perde il 30% della sua potenza. \n\nMeglio verificarla ora prima di restare a piedi la mattina presto!" },
-          { id: 4, week: 'Settimana 4', date: 'Venerdì 27', type: 'Promo', title: 'Check-up Freni', text: "Ehi {{Nome}}! 🛑 La sicurezza della tua famiglia prima di tutto. Questa settimana offriamo a tutti i nostri clienti storici un controllo gratuito dell'impianto frenante.\n\nPrenota il tuo appuntamento rispondendo a questo messaggio." }
-      ]
-  }
-
-  const [campaignData, setCampaignData] = useState(aiContentDb['Ristorazione'])
+  // DATABASE GENERATIVO AI (MOCK rimosso, caricamento da DB)
+  const [campaignData, setCampaignData] = useState<any[]>([])
 
   useEffect(() => {
     const getData = async () => {
@@ -82,20 +43,49 @@ export default function NurturingEnginePage() {
           setUser(user)
           const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
           if (profile) setCurrentPlan(profile.plan || 'Base')
+
+          // Carica ultima campagna salvata
+          const { data: campaign } = await supabase
+            .from('nurturing_campaigns')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+          
+          if (campaign) {
+              setCampaignData(campaign.content)
+              setIndustry(campaign.industry || 'Ristorazione')
+              setToneOfVoice(campaign.tone || 'Amichevole ed Empatico')
+              setIsConfigOpen(false)
+          }
       }
       setLoading(false)
     }
     getData()
   }, [])
 
-  const generateCampaign = () => {
+  const generateCampaign = async () => {
       setIsGenerating(true)
-      setTimeout(() => {
+      try {
+          const res = await fetch('/api/ai/nurturing', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ industry, toneOfVoice, customInstructions })
+          })
+          const data = await res.json()
+          if (data.campaign) {
+              setCampaignData(data.campaign)
+              setActiveMessage(1)
+              setIsConfigOpen(false)
+          } else {
+              alert("Errore nella generazione: " + data.error)
+          }
+      } catch (e) {
+          alert("Errore di connessione all'API AI")
+      } finally {
           setIsGenerating(false)
-          setCampaignData(aiContentDb[industry])
-          setActiveMessage(1)
-          setIsConfigOpen(false) // Chiude le impostazioni per mostrare il risultato
-      }, 2500)
+      }
   }
 
   const toggleAutopilot = () => {
@@ -107,9 +97,11 @@ export default function NurturingEnginePage() {
       setAutopilotActive(!autopilotActive)
   }
 
-  if (loading) return <div className="p-10 text-purple-600 font-bold animate-pulse">Inizializzazione Nurturing AI...</div>
+  if (loading) return <div className="h-screen w-full flex items-center justify-center bg-white text-purple-600 font-bold animate-pulse">Inizializzazione Nurturing AI...</div>
 
-  const currentPreview = campaignData.find((m: any) => m.id === activeMessage) || campaignData[0]
+  const currentPreview = campaignData.length > 0 
+    ? (campaignData.find((m: any) => m.id === activeMessage) || campaignData[0])
+    : null
 
   return (
     <main className="flex-1 overflow-auto bg-[#F8FAFC] text-gray-900 font-sans min-h-screen pb-20">
@@ -220,7 +212,8 @@ export default function NurturingEnginePage() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {campaignData.map((item: any) => (
+                      {campaignData.length > 0 ? (
+                        campaignData.map((item: any) => (
                           <div 
                               key={item.id} 
                               onClick={() => setActiveMessage(item.id)}
@@ -237,7 +230,12 @@ export default function NurturingEnginePage() {
                                   <Tag size={10}/> {item.type}
                               </span>
                           </div>
-                      ))}
+                      ))
+                    ) : (
+                        <div className="md:col-span-2 p-12 bg-white border border-dashed border-gray-200 rounded-3xl text-center">
+                            <p className="text-gray-400 font-bold text-sm">Nessuna campagna attiva. Configura il settore e clicca "Scrivi Mese" per iniziare.</p>
+                        </div>
+                    )}
                   </div>
               </div>
 
@@ -285,25 +283,33 @@ export default function NurturingEnginePage() {
                   </div>
 
                   {/* Chat Area */}
-                  <div className="flex-1 bg-[#E5DDD5] p-4 overflow-y-auto flex flex-col gap-4 relative rounded-b-[28px] pb-10">
-                      {/* Pattern Background WhatsApp */}
-                      <div className="absolute inset-0 opacity-10 bg-[url('https://i.pinimg.com/736x/8c/98/99/8c98994518b575bfd8c949e91d20548b.jpg')] mix-blend-multiply pointer-events-none"></div>
-                      
-                      <div className="flex justify-center relative z-10">
-                          <span className="bg-[#D4EAF4] text-gray-600 text-[10px] px-3 py-1 rounded-lg shadow-sm">
-                              Oggi (Anteprima per: {currentPreview.date})
-                          </span>
-                      </div>
+                      <div className="bg-[#E5DDD5] p-4 overflow-y-auto flex flex-col gap-4 relative rounded-b-[28px] pb-10">
+                          {/* Pattern Background WhatsApp */}
+                          <div className="absolute inset-0 opacity-10 bg-[url('https://i.pinimg.com/736x/8c/98/99/8c98994518b575bfd8c949e91d20548b.jpg')] mix-blend-multiply pointer-events-none"></div>
+                          
+                          {currentPreview ? (
+                              <>
+                                <div className="flex justify-center relative z-10">
+                                    <span className="bg-[#D4EAF4] text-gray-600 text-[10px] px-3 py-1 rounded-lg shadow-sm">
+                                        Oggi (Anteprima per: {currentPreview.date})
+                                    </span>
+                                </div>
 
-                      <div className="bg-white p-3 rounded-2xl rounded-tl-sm shadow-sm max-w-[95%] self-start relative z-10 animate-in slide-in-from-left-2 fade-in duration-300">
-                          <div className="text-sm text-gray-800 whitespace-pre-line leading-snug">
-                              {currentPreview.text.replace('{{Nome}}', 'Marco')}
-                          </div>
-                          <div className="text-right mt-1">
-                              <span className="text-[9px] text-gray-400">17:00</span>
-                          </div>
+                                <div className="bg-white p-3 rounded-2xl rounded-tl-sm shadow-sm max-w-[95%] self-start relative z-10 animate-in slide-in-from-left-2 fade-in duration-300">
+                                    <div className="text-sm text-gray-800 whitespace-pre-line leading-snug">
+                                        {currentPreview.text.replace('{{Nome}}', 'Marco')}
+                                    </div>
+                                    <div className="text-right mt-1">
+                                        <span className="text-[9px] text-gray-400">17:00</span>
+                                    </div>
+                                </div>
+                              </>
+                          ) : (
+                              <div className="flex-1 flex items-center justify-center text-gray-400 text-center text-xs p-4 relative z-10">
+                                  Configura una campagna per vedere l'anteprima qui.
+                              </div>
+                          )}
                       </div>
-                  </div>
               </div>
 
           </div>

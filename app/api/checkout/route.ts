@@ -23,53 +23,110 @@ function getStripe() {
 
 export async function POST(request: Request) {
     try {
-        const { courseId, email } = await request.json();
+        const { courseId, plan, email } = await request.json();
         const origin = request.headers.get('origin') || 'http://localhost:3000';
 
-        const stripeKey = process.env.STRIPE_SECRET_KEY || '';
+        const stripeKey = process.env.STRIPE_SECRET_KEY?.trim();
 
-        // FALLBACK DI SICUREZZA: Se manca Stripe, manda alla simulazione (GET)
+        // ------------------------------------------------------------------
+        // FALLBACK DI SICUREZZA: Simulazione (in assenza chiavi Stripe)
+        // ------------------------------------------------------------------
         if (!stripeKey) {
             console.warn("⚠️ Nessuna STRIPE_SECRET_KEY trovata. Attivo la Simulazione.");
-            return NextResponse.json({ url: `${origin}/api/checkout?session_id=simulata&course_id=${courseId}&email=${email}` });
+            if (plan) {
+                // Simuliamo redirect a dashboard post-acquisto abbonamento
+                return NextResponse.json({ url: `${origin}/dashboard?session_id=simulata&plan=${plan}&email=${email}&success=true` });
+            } else {
+                // Simuliamo acquisto corso
+                return NextResponse.json({ url: `${origin}/api/checkout?session_id=simulata&course_id=${courseId}&email=${email}` });
+            }
         }
 
         const stripe = getStripe();
         const supabase = getSupabase();
 
-        let title = 'Corso IntegraOS Academy';
-        let price = 99;
+        let stripeMode: 'payment' | 'subscription' = 'payment';
+        let lineItem: any = {};
+        let successUrl = '';
+        let cancelUrl = '';
+        let metadata: any = { email };
 
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        
-        if (uuidRegex.test(courseId)) {
-            const { data: dbCourse } = await supabase.from('academy_courses').select('title, price').eq('id', courseId).single();
-            if (dbCourse) {
-                title = dbCourse.title;
-                price = dbCourse.price || 99;
+        // ------------------------------------------------------------------
+        // CASO A: ABBONAMENTO AL GESTIONALE (SaaS)
+        // ------------------------------------------------------------------
+        if (plan) {
+            stripeMode = 'subscription';
+            metadata.plan = plan;
+            
+            // Piani predefiniti
+            const PLANS: Record<string, { title: string, price: number }> = {
+                'base': { title: 'Piano Base', price: 29 },
+                'enterprise': { title: 'Piano Enterprise', price: 99 },
+                'ambassador': { title: 'Piano Ambassador', price: 199 }
+            };
+            
+            const planDetails = PLANS[plan.toLowerCase()] || { title: 'Abbonamento IntegraOS', price: 29 };
+
+            lineItem = {
+                price_data: {
+                    currency: 'eur',
+                    product_data: { name: planDetails.title },
+                    unit_amount: Math.round(planDetails.price * 100),
+                    recurring: { interval: 'month' }
+                },
+                quantity: 1,
+            };
+
+            successUrl = `${origin}/dashboard?success=true&session_id={CHECKOUT_SESSION_ID}`;
+            cancelUrl = `${origin}/pricing?canceled=true`;
+            
+        } 
+        // ------------------------------------------------------------------
+        // CASO B: ACQUISTO CORSO ACADEMY
+        // ------------------------------------------------------------------
+        else if (courseId) {
+            stripeMode = 'payment';
+            metadata.courseId = courseId;
+            let title = 'Corso IntegraOS Academy';
+            let price = 99;
+
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(courseId)) {
+                const { data: dbCourse } = await supabase.from('academy_courses').select('title, price').eq('id', courseId).single();
+                if (dbCourse) {
+                    title = dbCourse.title;
+                    price = dbCourse.price || 99;
+                }
+            } else if (MOCK_COURSES[courseId]) {
+                title = MOCK_COURSES[courseId].title;
+                price = MOCK_COURSES[courseId].price;
             }
-        } else if (MOCK_COURSES[courseId]) {
-            title = MOCK_COURSES[courseId].title;
-            price = MOCK_COURSES[courseId].price;
+
+            lineItem = {
+                price_data: {
+                    currency: 'eur',
+                    product_data: { name: title },
+                    unit_amount: Math.round(price * 100),
+                },
+                quantity: 1,
+            };
+
+            successUrl = `${origin}/api/checkout?session_id={CHECKOUT_SESSION_ID}&course_id=${courseId}&email=${email}`;
+            cancelUrl = `${origin}/formazione/dashboard?canceled=true`;
+            
+        } else {
+            return NextResponse.json({ error: 'Nessun courseId o plan fornito.' }, { status: 400 });
         }
 
+        // ----------- CREAZIONE SESSIONE STRIPE -----------
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card', 'paypal'],
             customer_email: email,
-            line_items: [
-                {
-                    price_data: {
-                        currency: 'eur',
-                        product_data: { name: title },
-                        unit_amount: Math.round(price * 100),
-                    },
-                    quantity: 1,
-                },
-            ],
-            mode: 'payment',
-            success_url: `${origin}/api/checkout?session_id={CHECKOUT_SESSION_ID}&course_id=${courseId}&email=${email}`,
-            cancel_url: `${origin}/formazione/dashboard?canceled=true`,
-            metadata: { courseId, email }
+            line_items: [lineItem],
+            mode: stripeMode,
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+            metadata: metadata
         });
 
         return NextResponse.json({ url: session.url });
