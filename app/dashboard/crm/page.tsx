@@ -9,8 +9,9 @@ import {
 } from 'recharts'
 import { 
   Users, DollarSign, TrendingUp, Filter, ChevronDown, ChevronUp, 
-  Activity, Download, Bot, Sparkles, X, Store, Globe, Calendar, Search, Zap
+  Activity, Download, Bot, Sparkles, X, Store, Globe, Calendar, Search, Zap, Target, BarChart3
 } from 'lucide-react'
+import Link from 'next/link'
 
 interface Order {
     id: string;
@@ -75,7 +76,7 @@ export default function CRMPage() {
       if (user) {
         setUser(user)
       } else {
-        setUser({ id: '00000000-0000-0000-0000-000000000000', email: 'admin@integraos.it' });
+        // Redirigi al login se non autenticato in un'app di produzione
       }
       fetchContacts()
     }
@@ -123,16 +124,21 @@ export default function CRMPage() {
 
   const analyticsData = useMemo(() => {
     const totalValue = filteredContacts.reduce((acc, c) => acc + c.ltv, 0)
-    const countNuovi = filteredContacts.filter(c => c.status === 'Nuovo').length
+    const countVisualizzato = filteredContacts.filter(c => c.status === 'Visualizzato').length
+    const countRichiesta = filteredContacts.filter(c => c.status === 'Richiesta' || c.status === 'Nuovo').length
+    const countPromo = filteredContacts.filter(c => c.status === 'Promo Inviata').length
+    const countOfferta = filteredContacts.filter(c => c.status === 'Offerta').length
     const countTrattativa = filteredContacts.filter(c => c.status === 'Trattativa' || c.status === 'In Trattativa').length
     const countChiusi = filteredContacts.filter(c => c.status === 'Chiuso' || c.status === 'Vinto').length
     const countPersi = filteredContacts.filter(c => c.status === 'Perso').length
     
     const funnel = [
-      { stage: 'Nuovi Lead', count: countNuovi, color: '#3B82F6' },
-      { stage: 'In Trattativa', count: countTrattativa, color: '#F59E0B' },
-      { stage: 'Clienti Vinti', count: countChiusi, color: '#10B981' },
-      { stage: 'Persi', count: countPersi, color: '#EF4444' }
+      { stage: 'Visualizzato', count: countVisualizzato, color: '#93C5FD' },
+      { stage: 'Richieste', count: countRichiesta, color: '#60A5FA' },
+      { stage: 'Invio Promo', count: countPromo, color: '#A78BFA' },
+      { stage: 'Offerta', count: countOfferta, color: '#F59E0B' },
+      { stage: 'Trattativa', count: countTrattativa, color: '#F97316' },
+      { stage: 'Goal', count: countChiusi, color: '#10B981' }
     ]
     
     const conversionRate = filteredContacts.length > 0 ? Math.round((countChiusi / filteredContacts.length) * 100) : 0
@@ -161,8 +167,9 @@ export default function CRMPage() {
     e.preventDefault();
     setSaving(true)
     
-    // In assenza di auth reale, usiamo un fallback per lo sviluppo
-    const uuid = user?.id === 'dev' ? '00000000-0000-0000-0000-000000000000' : (user?.id || '00000000-0000-0000-0000-000000000000');
+    // In assenza di auth reale, interrompi
+    const uuid = user?.id;
+    if (!uuid) return;
 
     const payload = { 
         user_id: uuid,
@@ -242,7 +249,9 @@ export default function CRMPage() {
         header: true, skipEmptyLines: true,
         complete: async (results) => {
           const rows: any[] = results.data
-          const uuid = user?.id === 'dev' ? '00000000-0000-0000-0000-000000000000' : (user?.id || '00000000-0000-0000-0000-000000000000');
+          const uuid = user?.id;
+          if (!uuid) return alert("Autenticazione richiesta per importare.");
+          
           const newContacts = rows.map((row: any) => ({
             name: row.Nome || row.Name || 'Senza Nome',
             email: row.Email || '', phone: row.Telefono || '', source: 'Import CSV',
@@ -308,6 +317,8 @@ export default function CRMPage() {
           </button>
           <button onClick={handleExportCSV} className="bg-white border border-gray-200 text-[#00665E] px-4 py-2 rounded-xl font-bold hover:bg-gray-50 transition shadow-sm"><Download size={18}/></button>
           <button onClick={() => setIsImportInfoOpen(true)} className="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-xl font-bold hover:bg-gray-50 transition shadow-sm">Importa</button>
+          <Link href="/dashboard/crm/pipeline" className="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-xl font-bold hover:bg-gray-50 transition shadow-sm flex items-center gap-2"><BarChart3 size={18}/> Pipeline</Link>
+          <Link href="/dashboard/crm/objectives" className="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-xl font-bold hover:bg-gray-50 transition shadow-sm flex items-center gap-2"><Target size={18}/> KPI</Link>
           <button onClick={openNewModal} className="bg-[#00665E] text-white px-5 py-2 rounded-xl font-bold hover:bg-[#004d46] shadow-lg shadow-[#00665E]/20 transition flex items-center gap-2">+ Nuovo</button>
         </div>
       </div>
@@ -325,9 +336,12 @@ export default function CRMPage() {
         </div>
         <select className="text-xs p-2.5 border rounded-lg outline-none bg-gray-50 font-bold" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
             <option value="all">Tutti gli Stati</option>
-            <option value="Nuovo">Nuovo</option>
+            <option value="Visualizzato">Visualizzato</option>
+            <option value="Richiesta">Richiesta</option>
+            <option value="Promo Inviata">Promo Inviata</option>
+            <option value="Offerta">Offerta</option>
             <option value="Trattativa">Trattativa</option>
-            <option value="Vinto">Vinto/Cliente</option>
+            <option value="Vinto">Vinto/Goal</option>
             <option value="Perso">Perso/Abbandono</option>
         </select>
         <select className="text-xs p-2.5 border rounded-lg outline-none bg-gray-50 font-bold" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
@@ -489,8 +503,8 @@ export default function CRMPage() {
                          <div className="col-span-2 md:col-span-1"><label className="text-xs font-bold uppercase text-gray-500">Email</label><input className="w-full p-3 rounded-xl border mt-1 font-medium" value={formData.email || ''} onChange={e=>setFormData({...formData, email: e.target.value})}/></div>
                          <div><label className="text-xs font-bold uppercase text-gray-500">Telefono</label><input className="w-full p-3 rounded-xl border mt-1 font-medium" value={formData.phone || ''} onChange={e=>setFormData({...formData, phone: e.target.value})}/></div>
                          <div><label className="text-xs font-bold uppercase text-gray-500">Stato Cliente</label>
-                           <select className="w-full p-3 rounded-xl border mt-1 font-bold" value={formData.status} onChange={e=>setFormData({...formData, status: e.target.value})}>
-                             <option value="Nuovo">Nuovo Lead</option><option value="Trattativa">In Trattativa</option><option value="Vinto">Vinto / Attivo</option><option value="Perso">Perso / Abbandono</option>
+                            <select className="w-full p-3 rounded-xl border mt-1 font-bold" value={formData.status} onChange={e=>setFormData({...formData, status: e.target.value})}>
+                              <option value="Visualizzato">Visualizzato</option><option value="Richiesta">Richiesta Info</option><option value="Promo Inviata">Promo Inviata</option><option value="Offerta">Offerta / Preventivo</option><option value="Trattativa">In Trattativa</option><option value="Vinto">Vinto / Goal</option><option value="Perso">Perso / Abbandono</option>
                            </select>
                          </div>
                          <div><label className="text-xs font-bold uppercase text-gray-500">Data Abbandono</label><input type="date" className="w-full p-3 rounded-xl border mt-1 font-medium text-red-600" value={formData.churn_date || ''} onChange={e=>setFormData({...formData, churn_date: e.target.value})}/></div>

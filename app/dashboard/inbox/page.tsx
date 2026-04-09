@@ -444,10 +444,10 @@ export default function InboxPage() {
       {activeTab === 'voip' && (
           <div className="flex-1 p-8 flex flex-col items-center justify-center bg-white">
              <div className="text-center max-w-md animate-in zoom-in-95">
-                <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 shadow-xl border-4 border-white"><PhoneCall size={48}/></div>
+                <div className="w-24 h-24 bg-teal-50 text-[#00665E] rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 shadow-xl border-4 border-white"><PhoneCall size={48}/></div>
                 <h2 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">Modulo Chiamate IP</h2>
                 <p className="text-gray-500 font-medium mb-8 leading-relaxed">Effettua e ricevi chiamate direttamente dal tuo browser. Tutte le telefonate verranno registrate e trascritte dall'AI nella cronologia del cliente.</p>
-                <button onClick={() => setIsVoipModalOpen(true)} className="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black shadow-xl hover:bg-blue-700 hover:scale-105 transition flex items-center gap-2 mx-auto">
+                <button onClick={() => setIsVoipModalOpen(true)} className="bg-[#00665E] text-white px-10 py-4 rounded-2xl font-black shadow-xl hover:bg-[#004d46] hover:scale-105 transition flex items-center gap-2 mx-auto">
                     <Settings size={18}/> Configura Trunk SIP
                 </button>
                 <div className="mt-8 pt-8 border-t border-gray-100 flex items-center justify-center gap-4 grayscale opacity-40">
@@ -465,7 +465,7 @@ export default function InboxPage() {
                  <button onClick={() => setIsVoipModalOpen(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-900 bg-gray-100 p-2 rounded-full transition"><X size={16}/></button>
                  
                  <div className="flex items-center gap-4 mb-8">
-                     <div className="bg-blue-100 text-blue-600 p-3 rounded-2xl"><Settings size={28}/></div>
+                     <div className="bg-teal-50 text-[#00665E] p-3 rounded-2xl"><Settings size={28}/></div>
                      <div>
                          <h3 className="text-2xl font-black text-gray-900">Configurazione VoIP</h3>
                          <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Integrazione Cloud PBX</p>
@@ -475,7 +475,7 @@ export default function InboxPage() {
                  <div className="space-y-5">
                     <div>
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Provider Selezionato</label>
-                        <select className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-500 transition cursor-pointer">
+                        <select className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-[#00665E] transition cursor-pointer">
                             <option>Twilio (Consigliato)</option>
                             <option>Messagenet</option>
                             <option>3CX Custom Trunk</option>
@@ -484,15 +484,15 @@ export default function InboxPage() {
                     </div>
                     <div>
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Account SID / API Key</label>
-                        <input type="text" placeholder="ACxxxxxxxxxxxxxxxx" className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-mono text-xs outline-none focus:border-blue-500 transition" value={voipConfig.sid} onChange={e=>setVoipConfig({...voipConfig, sid: e.target.value})} />
+                        <input type="text" placeholder="ACxxxxxxxxxxxxxxxx" className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-mono text-xs outline-none focus:border-[#00665E] transition" value={voipConfig.sid} onChange={e=>setVoipConfig({...voipConfig, sid: e.target.value})} />
                     </div>
                     <div>
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Auth Token / Secret</label>
-                        <input type="password" placeholder="••••••••••••••••" className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-mono text-xs outline-none focus:border-blue-500 transition" value={voipConfig.token} onChange={e=>setVoipConfig({...voipConfig, token: e.target.value})} />
+                        <input type="password" placeholder="••••••••••••••••" className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-mono text-xs outline-none focus:border-[#00665E] transition" value={voipConfig.token} onChange={e=>setVoipConfig({...voipConfig, token: e.target.value})} />
                     </div>
                     <div>
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Numero di Telefono Certificato</label>
-                        <input type="text" placeholder="+39..." className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-500 transition" value={voipConfig.phone} onChange={e=>setVoipConfig({...voipConfig, phone: e.target.value})} />
+                        <input type="text" placeholder="+39..." className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-[#00665E] transition" value={voipConfig.phone} onChange={e=>setVoipConfig({...voipConfig, phone: e.target.value})} />
                     </div>
 
                     <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl flex gap-3 text-amber-800 text-[10px] font-medium leading-relaxed">
@@ -500,7 +500,7 @@ export default function InboxPage() {
                         Assicurati di aver configurato il Webhook di risposta nel tuo pannello Twilio per consentire la ricezione delle chiamate in entrata.
                     </div>
 
-                    <button onClick={handleSaveVoip} disabled={voipSaving} className="w-full bg-blue-600 text-white font-black py-4 rounded-xl shadow-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center gap-2">
+                    <button onClick={handleSaveVoip} disabled={voipSaving} className="w-full bg-[#00665E] text-white font-black py-4 rounded-xl shadow-lg hover:bg-[#004d46] transition disabled:opacity-50 flex items-center justify-center gap-2">
                         {voipSaving ? <Loader2 className="animate-spin" size={20}/> : <CheckCircle2 size={20}/>}
                         {voipSaving ? 'Test di connessione...' : 'Attiva Centralino Virtuale'}
                     </button>

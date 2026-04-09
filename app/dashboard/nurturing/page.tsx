@@ -97,7 +97,7 @@ export default function NurturingEnginePage() {
       setAutopilotActive(!autopilotActive)
   }
 
-  if (loading) return <div className="h-screen w-full flex items-center justify-center bg-white text-purple-600 font-bold animate-pulse">Inizializzazione Nurturing AI...</div>
+  if (loading) return <div className="h-screen w-full flex items-center justify-center bg-white text-[#00665E] font-bold animate-pulse">Inizializzazione Nurturing AI...</div>
 
   const currentPreview = campaignData.length > 0 
     ? (campaignData.find((m: any) => m.id === activeMessage) || campaignData[0])
@@ -109,7 +109,7 @@ export default function NurturingEnginePage() {
       {/* HEADER E LIMITI */}
       <div className="flex flex-col md:flex-row justify-between items-center border-b border-gray-200 p-8 bg-white shadow-sm z-10 relative">
         <div>
-          <h1 className="text-3xl font-black flex items-center gap-3">
+          <h1 className="text-3xl font-black text-[#00665E] flex items-center gap-3">
               <Gift size={32} className="text-purple-500"/> AI Nurturing Engine
           </h1>
           <p className="text-gray-500 text-sm mt-1">Fidelizzazione automatica. L'AI regala valore ai tuoi clienti in base al tuo brand.</p>

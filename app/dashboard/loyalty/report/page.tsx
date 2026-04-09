@@ -41,17 +41,22 @@ export default function LoyaltyReportPage() {
   useEffect(() => { loadAnalytics() }, [])
 
   const loadAnalytics = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return;
+    setUser(user)
+    await fetchLoyaltyData(user.id)
+  }
+
+  const fetchLoyaltyData = async (userId: string) => {
     setRefreshing(true)
-    const devUser = { id: '00000000-0000-0000-0000-000000000000' }
-    setUser(devUser)
 
     try {
-        const { data: profile } = await supabase.from('profiles').select('company_name, logo_url').eq('id', devUser.id).single()
+        const { data: profile } = await supabase.from('profiles').select('company_name, logo_url').eq('id', userId).single()
         if (profile) setCompanyInfo({ name: profile.company_name || 'VIP Club', logo: profile.logo_url || '' })
 
-        const { data: cardsData } = await supabase.from('loyalty_cards').select('*').eq('user_id', devUser.id).order('total_spent', { ascending: false })
+        const { data: cardsData } = await supabase.from('loyalty_cards').select('*').eq('user_id', userId).order('total_spent', { ascending: false })
         const { data: contactsData } = await supabase.from('contacts').select('id, name, email').order('created_at', { ascending: false })
-        const { data: allStores } = await supabase.from('loyalty_stores').select('id, name').eq('user_id', devUser.id)
+        const { data: allStores } = await supabase.from('loyalty_stores').select('id, name').eq('user_id', userId)
 
         if(contactsData) setCrmContacts(contactsData)
         if(allStores) setStoresList(allStores)
@@ -69,7 +74,7 @@ export default function LoyaltyReportPage() {
         })
         setCards(enrichedCards)
 
-        const { data: txData } = await supabase.from('loyalty_transactions').select('store_id, amount_spent').eq('user_id', devUser.id)
+        const { data: txData } = await supabase.from('loyalty_transactions').select('store_id, amount_spent').eq('user_id', userId)
 
         const statsMap: any = {}
         if (allStores) { allStores.forEach(s => { statsMap[s.id] = { name: s.name, incasso: 0, transazioni: 0 } }) }

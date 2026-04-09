@@ -47,7 +47,7 @@ export default function DataStudioPage() {
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, isThinking])
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8b5cf6'];
+  const COLORS = ['#00665E', '#10B981', '#3B82F6', '#8B5CF6', '#F59E0B'];
 
   const handleAskAI = async (e?: React.FormEvent, customQuery?: string) => {
       if (e) e.preventDefault();
@@ -104,7 +104,7 @@ export default function DataStudioPage() {
       if (msg.chartType === 'area') {
           const dataKey = msg.dataKey1 || 'Fatturato';
           return (
-              <div className="h-72 print:h-[350px] w-full mt-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm print:shadow-none print:border-2 print:border-gray-200">
+              <div className="h-72 print:h-[350px] w-full mt-4 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm print:shadow-none print:border-2 print:border-gray-200">
                   <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={msg.data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                           <XAxis dataKey="name"/>
@@ -121,7 +121,7 @@ export default function DataStudioPage() {
       if (msg.chartType === 'bar') {
           const dataKey = msg.dataKey1 || 'Leads';
           return (
-              <div className="h-72 print:h-[350px] w-full mt-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm print:shadow-none print:border-2 print:border-gray-200">
+              <div className="h-72 print:h-[350px] w-full mt-4 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm print:shadow-none print:border-2 print:border-gray-200">
                   <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={msg.data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                           <XAxis dataKey="name"/>
@@ -183,7 +183,7 @@ export default function DataStudioPage() {
                       {currentPlan === 'Ambassador' ? <Infinity size={16}/> : `${queriesUsed} / ${queryLimits[currentPlan]}`}
                   </span>
               </div>
-              <button onClick={() => window.print()} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-black transition shadow-lg">
+              <button onClick={() => window.print()} className="flex items-center gap-2 bg-[#00665E] text-white px-5 py-2.5 rounded-xl font-bold hover:bg-[#004d46] transition shadow-lg">
                   <Download size={16}/> Esporta Report
               </button>
           </div>
@@ -231,7 +231,7 @@ export default function DataStudioPage() {
                                     <p className="text-[15px] font-medium print:font-black print:text-lg">Richiesta: "{msg.text}"</p>
                                 ) : (
                                     <div className="w-full">
-                                        <div className="bg-gray-50 border border-gray-100 p-5 rounded-3xl rounded-tl-sm shadow-sm print:shadow-none print:bg-white print:border-none print:p-0 print:mb-4">
+                                        <div className="bg-white border border-gray-100 p-6 rounded-[2rem] rounded-tl-sm shadow-md print:shadow-none print:bg-white print:border-none print:p-0 print:mb-4">
                                             <p className="text-[15px] text-gray-800 print:text-gray-900 print:text-lg"><Sparkles size={16} className="inline mr-2 text-amber-500 print:hidden"/>{msg.text}</p>
                                         </div>
                                         {msg.type === 'chart' && renderChart(msg)}

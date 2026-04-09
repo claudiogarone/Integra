@@ -41,8 +41,8 @@ export default function EcommercePage() {
   useEffect(() => {
     const getData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      const currentUser = user || { id: '00000000-0000-0000-0000-000000000000', email: 'admin@integraos.it' }
-      setUser(currentUser)
+      if (!user) return;
+      setUser(user)
 
       if (user) {
           const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
@@ -51,7 +51,7 @@ export default function EcommercePage() {
           setUserPlan('Base'); 
       }
 
-      await fetchProducts(currentUser.id);
+      await fetchProducts(user.id);
     }
     getData()
   }, [router, supabase])
@@ -165,7 +165,7 @@ export default function EcommercePage() {
     }
 
     const payload = {
-        user_id: user?.id || '00000000-0000-0000-0000-000000000000',
+        user_id: user?.id,
         name: formData.name, 
         description: formData.description, 
         price: Number(formData.price) || 0, 
@@ -225,7 +225,7 @@ export default function EcommercePage() {
             }
 
             const newProducts = rows.map((row: any) => ({
-                user_id: user?.id || '00000000-0000-0000-0000-000000000000',
+                user_id: user?.id,
                 name: row.Nome || row.Name || 'Prodotto Importato',
                 description: row.Descrizione || row.Description || '',
                 price: Number(row.Prezzo || row.Price || 0),

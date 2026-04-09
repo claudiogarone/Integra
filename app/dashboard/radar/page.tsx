@@ -289,45 +289,45 @@ export default function MarketRadarPage() {
           <div className="xl:col-span-7 flex flex-col gap-6">
               
               {/* SCHERMO RADAR PRINCIPALE */}
-              <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-xl relative overflow-hidden flex flex-col justify-center min-h-[250px]">
+              <div className="bg-gradient-to-br from-[#00665E] to-[#004d46] border border-[#00665E]/40 p-8 rounded-3xl shadow-xl relative overflow-hidden flex flex-col justify-center min-h-[250px]">
                   {scanning ? (
                       <div className="relative z-10 w-full max-w-md mx-auto">
-                          <div className="flex justify-between text-emerald-400 text-xs font-mono font-bold mb-2 uppercase tracking-widest">
+                          <div className="flex justify-between text-white/80 text-xs font-mono font-bold mb-2 uppercase tracking-widest">
                               <span>Scansione Satellitare</span>
                               <span>{scanProgress}%</span>
                           </div>
-                          <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden shadow-inner mb-4 border border-slate-700">
-                              <div className="h-full bg-emerald-500 transition-all duration-300 relative" style={{width: `${scanProgress}%`}}>
+                          <div className="w-full h-3 bg-black/20 rounded-full overflow-hidden shadow-inner mb-4 border border-white/10">
+                              <div className="h-full bg-white/70 transition-all duration-300 relative" style={{width: `${scanProgress}%`}}>
                                   <div className="absolute top-0 right-0 w-10 h-full bg-white/30 blur-sm"></div>
                               </div>
                           </div>
                           <div className="h-16 overflow-y-hidden flex flex-col justify-end">
                               {scanLogs.map((log, i) => (
-                                  <p key={i} className={`text-xs font-mono truncate ${i === 0 ? 'text-emerald-400 font-bold' : 'text-slate-600'}`}>{'>'} {log}</p>
+                                  <p key={i} className={`text-xs font-mono truncate ${i === 0 ? 'text-white font-bold' : 'text-white/30'}`}>{'>'} {log}</p>
                               ))}
                           </div>
                       </div>
                   ) : hasScanned ? (
                       <div className="text-center relative z-10">
-                          <CheckCircle2 size={48} className="text-emerald-400 mx-auto mb-4"/>
+                          <CheckCircle2 size={48} className="text-white mx-auto mb-4"/>
                           <h2 className="text-2xl font-black text-white mb-2">Analisi Predittiva Completata</h2>
-                          <p className="text-slate-400 text-sm">L'AI ha identificato {aiInsights.filter(i=>!i.locked).length} pattern azionabili nel raggio di {planLimits[currentPlan].radius}km.</p>
-                          <button onClick={() => setHasScanned(false)} className="mt-6 text-emerald-400 text-xs font-bold hover:underline">Resetta Radar</button>
+                          <p className="text-white/60 text-sm">L'AI ha identificato {aiInsights.filter(i=>!i.locked).length} pattern azionabili nel raggio di {planLimits[currentPlan].radius}km.</p>
+                          <button onClick={() => setHasScanned(false)} className="mt-6 text-white/70 text-xs font-bold hover:text-white hover:underline">Resetta Radar</button>
                       </div>
                   ) : (
                       <div className="text-center relative z-10">
-                          <Radar size={64} className="text-blue-500/50 mx-auto mb-6"/>
+                          <Radar size={64} className="text-white/30 mx-auto mb-6"/>
                           <h2 className="text-xl font-black text-white mb-4">Sistemi Pronti</h2>
-                          <button onClick={runRadarScan} disabled={!legalAccepted || competitors.length === 0} className="bg-blue-600 hover:bg-blue-500 text-white font-black py-4 px-8 rounded-xl shadow-[0_0_20px_rgba(37,99,235,0.3)] transition disabled:opacity-50 flex items-center mx-auto gap-2">
+                          <button onClick={runRadarScan} disabled={!legalAccepted || competitors.length === 0} className="bg-white text-[#00665E] font-black py-4 px-8 rounded-xl shadow-lg transition disabled:opacity-50 flex items-center mx-auto gap-2 hover:scale-105">
                               Avvia Scansione Mercato <ArrowRight size={18}/>
                           </button>
-                          {(!legalAccepted || competitors.length === 0) && <p className="text-[10px] text-red-400 mt-4">*Accetta le condizioni e inserisci almeno 1 concorrente.</p>}
+                          {(!legalAccepted || competitors.length === 0) && <p className="text-[10px] text-white/50 mt-4">*Accetta le condizioni e inserisci almeno 1 concorrente.</p>}
                       </div>
                   )}
 
                   {/* Sfondo decorativo Radar */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] border border-slate-700/30 rounded-full opacity-20 pointer-events-none"></div>
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] border border-slate-700/50 rounded-full opacity-20 pointer-events-none"></div>
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] border border-white/10 rounded-full opacity-20 pointer-events-none"></div>
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] border border-white/10 rounded-full opacity-20 pointer-events-none"></div>
               </div>
 
               {/* RISULTATI AI (Visibili solo dopo la scansione) */}
@@ -360,7 +360,7 @@ export default function MarketRadarPage() {
                                           <p className="text-sm font-bold text-gray-900">{insight.suggestion}</p>
                                       </div>
 
-                                      <button onClick={() => handleInsightAction(insight.route, insight.msg)} className={`font-bold px-5 py-2.5 rounded-xl transition flex items-center gap-2 text-xs shadow-sm ${insight.type === 'ads' ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-gray-900 hover:bg-black text-white'}`}>
+                                      <button onClick={() => handleInsightAction(insight.route, insight.msg)} className={`font-bold px-5 py-2.5 rounded-xl transition flex items-center gap-2 text-xs shadow-sm ${insight.type === 'ads' ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-[#00665E] hover:bg-[#004d46] text-white'}`}>
                                           {insight.action} <ArrowRight size={14}/>
                                       </button>
                                   </div>

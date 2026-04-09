@@ -160,7 +160,7 @@ Grazie per aver utilizzato IntegraOS!`;
       }
   }
 
-  if (loading) return <div className="p-10 text-indigo-600 font-bold animate-pulse">Avvio Motore Grafico AI...</div>
+  if (loading) return <div className="p-10 text-[#00665E] font-bold animate-pulse">Avvio Motore Grafico AI...</div>
 
   return (
     <main className="flex-1 overflow-auto bg-[#F8FAFC] text-gray-900 font-sans min-h-screen pb-20 relative">
@@ -168,18 +168,18 @@ Grazie per aver utilizzato IntegraOS!`;
       {/* HEADER & CREDITS */}
       <div className="flex flex-col md:flex-row justify-between items-center border-b border-gray-200 p-8 bg-white shadow-sm z-10 relative">
         <div>
-          <h1 className="text-3xl font-black flex items-center gap-3">
-              <Palette size={32} className="text-indigo-600"/> AI Creative Studio
+          <h1 className="text-3xl font-black flex items-center gap-3 text-[#00665E]">
+              <Palette size={32} className="text-purple-600"/> AI Creative Studio
           </h1>
           <p className="text-gray-500 text-sm mt-1">Direzione artistica basata sui dati. Analizza, disegna e converti.</p>
         </div>
         
         <div className="flex flex-col items-end mt-4 md:mt-0">
-            <div className="bg-indigo-50 border border-indigo-100 px-4 py-2 rounded-xl flex items-center gap-3 shadow-sm">
-                <Sparkles className={currentPlan === 'Ambassador' ? "text-purple-500" : creditsUsed >= aiCreditsLimit[currentPlan] * 0.9 ? "text-rose-500" : "text-indigo-500"} size={20}/>
+            <div className="bg-purple-50 border border-purple-100 px-4 py-2 rounded-xl flex items-center gap-3 shadow-sm">
+                <Sparkles className={currentPlan === 'Ambassador' ? "text-purple-500" : creditsUsed >= aiCreditsLimit[currentPlan] * 0.9 ? "text-rose-500" : "text-purple-500"} size={20}/>
                 <div className="flex flex-col items-start">
-                    <span className="text-[9px] font-bold text-indigo-800 uppercase tracking-widest">Crediti Generativi ({currentPlan})</span>
-                    <span className={`font-bold text-sm ${currentPlan === 'Ambassador' ? 'text-purple-600' : creditsUsed >= aiCreditsLimit[currentPlan] * 0.9 ? 'text-rose-600' : 'text-indigo-900'}`}>
+                    <span className="text-[9px] font-bold text-purple-800 uppercase tracking-widest">Crediti Generativi ({currentPlan})</span>
+                    <span className={`font-bold text-sm ${currentPlan === 'Ambassador' ? 'text-purple-600' : creditsUsed >= aiCreditsLimit[currentPlan] * 0.9 ? 'text-rose-600' : 'text-purple-900'}`}>
                         {currentPlan === 'Ambassador' ? 'Illimitati' : `${creditsUsed} / ${aiCreditsLimit[currentPlan]}`}
                     </span>
                 </div>
@@ -189,9 +189,9 @@ Grazie per aver utilizzato IntegraOS!`;
 
       {/* TABS NAVIGATION */}
       <div className="px-8 py-4 flex flex-wrap gap-2 border-b border-gray-200 bg-white sticky top-0 z-20 shadow-sm">
-          <button onClick={() => {setActiveTab('packaging'); setGeneratedResults(null)}} className={`px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2 ${activeTab === 'packaging' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}><PackageOpen size={16}/> Sviluppo Packaging</button>
-          <button onClick={() => {setActiveTab('rebranding'); setGeneratedResults(null)}} className={`px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2 ${activeTab === 'rebranding' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}><LayoutTemplate size={16}/> Rebranding & Logo</button>
-          <button onClick={() => {setActiveTab('neuromarketing'); setGeneratedResults(null)}} className={`px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2 ${activeTab === 'neuromarketing' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}><ScanEye size={16}/> Neuro-Marketing (Heatmap)</button>
+          <button onClick={() => {setActiveTab('packaging'); setGeneratedResults(null)}} className={`px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2 ${activeTab === 'packaging' ? 'bg-[#00665E] text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}><PackageOpen size={16}/> Sviluppo Packaging</button>
+          <button onClick={() => {setActiveTab('rebranding'); setGeneratedResults(null)}} className={`px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2 ${activeTab === 'rebranding' ? 'bg-[#00665E] text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}><LayoutTemplate size={16}/> Rebranding & Logo</button>
+          <button onClick={() => {setActiveTab('neuromarketing'); setGeneratedResults(null)}} className={`px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2 ${activeTab === 'neuromarketing' ? 'bg-[#00665E] text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}><ScanEye size={16}/> Neuro-Marketing (Heatmap)</button>
       </div>
 
       <div className="p-8 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -200,10 +200,10 @@ Grazie per aver utilizzato IntegraOS!`;
           <div className="lg:col-span-4 xl:col-span-5 space-y-6">
               
               <div className="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full blur-3xl pointer-events-none"></div>
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-purple-50 rounded-full blur-3xl pointer-events-none"></div>
                   
-                  <h2 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2 relative z-10">
-                      <Wand2 className="text-indigo-600"/> 
+                  <h2 className="text-xl font-black text-[#00665E] mb-6 flex items-center gap-2 relative z-10">
+                      <Wand2 className="text-purple-600"/> 
                       {activeTab === 'packaging' ? 'Generatore Packaging 3D' : activeTab === 'rebranding' ? 'Studio Vettoriale Logo' : 'Eye-Tracking Predittivo'}
                   </h2>
 
@@ -211,11 +211,11 @@ Grazie per aver utilizzato IntegraOS!`;
                       
                       {activeTab === 'packaging' && (
                           <div className="animate-in fade-in space-y-4">
-                              <div><label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Cosa vuoi confezionare?</label><input required type="text" value={productType} onChange={e=>setProductType(e.target.value)} placeholder="Es. Bottiglia Olio EVO, Scatola Scarpe..." className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-indigo-500 text-sm font-bold"/></div>
-                              <div><label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Target Clienti (Per chi è?)</label><input required type="text" value={targetAudience} onChange={e=>setTargetAudience(e.target.value)} placeholder="Es. Millenials, Alta capacità di spesa..." className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-indigo-500 text-sm"/></div>
+                              <div><label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Cosa vuoi confezionare?</label><input required type="text" value={productType} onChange={e=>setProductType(e.target.value)} placeholder="Es. Bottiglia Olio EVO, Scatola Scarpe..." className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-[#00665E] text-sm font-bold"/></div>
+                              <div><label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Target Clienti (Per chi è?)</label><input required type="text" value={targetAudience} onChange={e=>setTargetAudience(e.target.value)} placeholder="Es. Millenials, Alta capacità di spesa..." className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-[#00665E] text-sm"/></div>
                               <div>
                                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Stile Grafico Desiderato</label>
-                                  <select value={vibe} onChange={e=>setVibe(e.target.value)} className="w-full bg-white border border-gray-300 p-3 rounded-xl outline-none focus:border-indigo-500 text-sm cursor-pointer shadow-sm">
+                                  <select value={vibe} onChange={e=>setVibe(e.target.value)} className="w-full bg-white border border-gray-300 p-3 rounded-xl outline-none focus:border-[#00665E] text-sm cursor-pointer shadow-sm">
                                       <option value="Minimalista">Minimalista e Naturale</option>
                                       <option value="Luxury">Luxury ed Esclusivo (Oro/Nero)</option>
                                       <option value="Pop">Pop Art e Colori Accesi</option>
@@ -226,21 +226,21 @@ Grazie per aver utilizzato IntegraOS!`;
 
                       {activeTab === 'rebranding' && (
                           <div className="animate-in fade-in space-y-4">
-                              <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-xs text-indigo-800 mb-4">L'AI analizzerà la struttura del tuo vecchio logo e ne genererà versioni vettoriali moderne rispettando i valori inseriti.</div>
+                              <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 text-xs text-purple-800 mb-4">L'AI analizzerà la struttura del tuo vecchio logo e ne genererà versioni vettoriali moderne rispettando i valori inseriti.</div>
                               <div>
                                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Carica Logo Attuale (Opzionale)</label>
-                                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 bg-gray-50 flex items-center justify-center relative hover:border-indigo-500 transition cursor-pointer">
+                                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 bg-gray-50 flex items-center justify-center relative hover:border-[#00665E] transition cursor-pointer">
                                       <input type="file" onChange={handleLogoUpload} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
                                       <div className="flex flex-col items-center">
-                                          <Upload size={20} className="text-indigo-400 mb-1"/>
-                                          <span className="text-xs font-bold text-indigo-600">{oldLogo ? oldLogo : 'Carica Immagine'}</span>
+                                          <Upload size={20} className="text-purple-400 mb-1"/>
+                                          <span className="text-xs font-bold text-purple-600">{oldLogo ? oldLogo : 'Carica Immagine'}</span>
                                       </div>
                                   </div>
                               </div>
-                              <div><label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Valori del Brand</label><input required type="text" value={brandValues} onChange={e=>setBrandValues(e.target.value)} placeholder="Es. Sicurezza, Lusso, Velocità" className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-indigo-500 text-sm"/></div>
+                              <div><label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Valori del Brand</label><input required type="text" value={brandValues} onChange={e=>setBrandValues(e.target.value)} placeholder="Es. Sicurezza, Lusso, Velocità" className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-[#00665E] text-sm"/></div>
                               <div>
                                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Stile Rebranding</label>
-                                  <select value={rebrandStyle} onChange={e=>setRebrandStyle(e.target.value)} className="w-full bg-white border border-gray-300 p-3 rounded-xl outline-none focus:border-indigo-500 text-sm cursor-pointer shadow-sm">
+                                  <select value={rebrandStyle} onChange={e=>setRebrandStyle(e.target.value)} className="w-full bg-white border border-gray-300 p-3 rounded-xl outline-none focus:border-[#00665E] text-sm cursor-pointer shadow-sm">
                                       <option value="Corporate">Corporate e Moderno (B2B)</option>
                                       <option value="Creativo">Creativo e Organico</option>
                                       <option value="Flat">Flat Design (Minimal)</option>
@@ -251,27 +251,27 @@ Grazie per aver utilizzato IntegraOS!`;
 
                       {activeTab === 'neuromarketing' && (
                           <div className="animate-in fade-in space-y-4">
-                              <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 text-xs text-indigo-800 leading-relaxed">
+                              <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 text-xs text-purple-800 leading-relaxed">
                                   <b>Vuoi lanciare una campagna o stampare dei volantini?</b> L'AI simulerà lo sguardo umano per dirti cosa verrà letto e cosa verrà ignorato dal cliente.
                               </div>
                               
                               <div className="flex bg-gray-100 p-1 rounded-lg">
-                                  <button type="button" onClick={() => setNeuroSource('upload')} className={`flex-1 text-xs py-2 rounded-md font-bold transition ${neuroSource === 'upload' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'}`}>Carica Immagine</button>
-                                  <button type="button" onClick={() => setNeuroSource('launchpad')} className={`flex-1 text-xs py-2 rounded-md font-bold transition flex items-center justify-center gap-1 ${neuroSource === 'launchpad' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'}`}><LinkIcon size={12}/> Da Launchpad</button>
+                                  <button type="button" onClick={() => setNeuroSource('upload')} className={`flex-1 text-xs py-2 rounded-md font-bold transition ${neuroSource === 'upload' ? 'bg-white shadow text-[#00665E]' : 'text-gray-500'}`}>Carica Immagine</button>
+                                  <button type="button" onClick={() => setNeuroSource('launchpad')} className={`flex-1 text-xs py-2 rounded-md font-bold transition flex items-center justify-center gap-1 ${neuroSource === 'launchpad' ? 'bg-white shadow text-[#00665E]' : 'text-gray-500'}`}><LinkIcon size={12}/> Da Launchpad</button>
                               </div>
 
                               {neuroSource === 'upload' ? (
                                   <div>
-                                      <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition relative">
+                                      <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:border-[#00665E] hover:bg-purple-50 transition relative">
                                           <input type="file" required onChange={handleNeuroUpload} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
-                                          <ImageIcon size={32} className="text-indigo-400 mb-2"/>
-                                          <span className="text-sm font-bold text-indigo-600">{neuroFile ? neuroFile : 'Sfoglia File dal PC'}</span>
+                                          <ImageIcon size={32} className="text-purple-400 mb-2"/>
+                                          <span className="text-sm font-bold text-purple-600">{neuroFile ? neuroFile : 'Sfoglia File dal PC'}</span>
                                       </div>
                                   </div>
                               ) : (
                                   <div>
                                       <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Analizza Asset CRM IntegraOS</label>
-                                      <select value={selectedCampaign} onChange={e=>setSelectedCampaign(e.target.value)} className="w-full bg-white border border-gray-300 p-3 rounded-xl outline-none focus:border-indigo-500 text-sm cursor-pointer shadow-sm font-medium">
+                                      <select value={selectedCampaign} onChange={e=>setSelectedCampaign(e.target.value)} className="w-full bg-white border border-gray-300 p-3 rounded-xl outline-none focus:border-[#00665E] text-sm cursor-pointer shadow-sm font-medium">
                                           <option value="Landing Page Black Friday">Landing Page "Black Friday"</option>
                                           <option value="Newsletter Promozionale">Layout Newsletter Mensile</option>
                                           <option value="Social Post">Design Post Instagram Vendita</option>
@@ -284,7 +284,7 @@ Grazie per aver utilizzato IntegraOS!`;
                       <button 
                           type="submit" 
                           disabled={isGenerating}
-                          className="w-full bg-indigo-600 text-white font-black py-4 rounded-xl hover:bg-indigo-700 transition shadow-[0_0_20px_rgba(79,70,229,0.3)] flex justify-center items-center gap-2 disabled:opacity-50 mt-6"
+                          className="w-full bg-[#00665E] text-white font-black py-4 rounded-xl hover:bg-[#004d46] transition shadow-lg flex justify-center items-center gap-2 disabled:opacity-50 mt-6"
                       >
                           {isGenerating ? <Loader2 size={18} className="animate-spin"/> : <BrainCircuit size={18}/>}
                           {isGenerating ? 'Elaborazione Motore Grafico...' : 'Genera con AI (5 Crediti)'}
@@ -304,20 +304,20 @@ Grazie per aver utilizzato IntegraOS!`;
               {projects.length > 0 && (
                 <div className="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm">
                     <h3 className="text-sm font-black text-gray-900 mb-4 flex items-center gap-2">
-                        <RefreshCw size={16} className="text-indigo-600"/> Progetti Recenti
+                        <RefreshCw size={16} className="text-[#00665E]"/> Progetti Recenti
                     </h3>
                     <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                         {projects.map((p) => (
                             <button 
                                 key={p.id} 
                                 onClick={() => setGeneratedResults(p.result_json)}
-                                className="w-full text-left p-3 rounded-xl hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition group"
+                                className="w-full text-left p-3 rounded-xl hover:bg-purple-50 border border-transparent hover:border-purple-100 transition group"
                             >
                                 <div className="flex justify-between items-start mb-1">
-                                    <span className="text-[10px] font-black uppercase text-indigo-600">{p.type}</span>
+                                    <span className="text-[10px] font-black uppercase text-purple-600">{p.type}</span>
                                     <span className="text-[9px] text-gray-400">{new Date(p.created_at).toLocaleDateString()}</span>
                                 </div>
-                                <p className="text-xs font-bold text-gray-800 truncate group-hover:text-indigo-900">{p.result_json.title || 'Senza Titolo'}</p>
+                                <p className="text-xs font-bold text-gray-800 truncate group-hover:text-purple-900">{p.result_json.title || 'Senza Titolo'}</p>
                             </button>
                         ))}
                     </div>
@@ -336,12 +336,12 @@ Grazie per aver utilizzato IntegraOS!`;
                   </div>
               ) : isGenerating ? (
                   <div className="flex-1 bg-white border border-gray-200 rounded-3xl flex flex-col items-center justify-center shadow-xl min-h-[500px] relative overflow-hidden">
-                      <div className="w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center mb-6 relative">
-                          <div className="absolute inset-0 border-4 border-indigo-500 rounded-full animate-ping opacity-20"></div>
-                          <RefreshCw size={40} className="text-indigo-600 animate-spin"/>
+                      <div className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center mb-6 relative">
+                          <div className="absolute inset-0 border-4 border-purple-500 rounded-full animate-ping opacity-20"></div>
+                          <RefreshCw size={40} className="text-[#00665E] animate-spin"/>
                       </div>
-                      <h3 className="text-2xl font-black text-gray-900 mb-2">Motore Grafico in funzione</h3>
-                      <p className="text-indigo-600 font-bold text-sm tracking-widest uppercase animate-pulse">{generationStep}</p>
+                      <h3 className="text-2xl font-black text-[#00665E] mb-2">Motore Grafico in funzione</h3>
+                      <p className="text-purple-600 font-bold text-sm tracking-widest uppercase animate-pulse">{generationStep}</p>
                   </div>
               ) : (
                   <div className="flex-1 bg-white border border-gray-200 rounded-3xl shadow-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95">
@@ -356,10 +356,10 @@ Grazie per aver utilizzato IntegraOS!`;
 
                       <div className="p-6 overflow-y-auto bg-gray-50 flex-1">
                           
-                          <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-2xl mb-6 relative">
-                              <BrainCircuit className="absolute top-4 right-4 text-indigo-200 opacity-50" size={40}/>
-                              <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2">Razionale Strategico AI</p>
-                              <p className="text-sm font-medium text-indigo-900 leading-relaxed pr-8">{generatedResults.rationale}</p>
+                          <div className="bg-purple-50 border border-purple-100 p-5 rounded-2xl mb-6 relative">
+                              <BrainCircuit className="absolute top-4 right-4 text-purple-200 opacity-50" size={40}/>
+                              <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest mb-2">Razionale Strategico AI</p>
+                              <p className="text-sm font-medium text-purple-900 leading-relaxed pr-8">{generatedResults.rationale}</p>
                           </div>
 
                           <div className={`grid gap-4 ${generatedResults.type === 'neuromarketing' ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
@@ -374,7 +374,7 @@ Grazie per aver utilizzato IntegraOS!`;
                                       
                                       <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center gap-4 backdrop-blur-sm z-20">
                                           <button onClick={() => setFullscreenImg(img)} className="bg-white text-gray-900 p-3 rounded-full hover:scale-110 transition shadow-lg" title="Espandi a schermo intero"><Eye size={20}/></button>
-                                          <button onClick={() => triggerRealDownload(`Generazione_AI_${idx+1}.jpg`)} className="bg-indigo-600 text-white p-3 rounded-full hover:scale-110 transition shadow-lg" title="Scarica Alta Risoluzione"><Download size={20}/></button>
+                                          <button onClick={() => triggerRealDownload(`Generazione_AI_${idx+1}.jpg`)} className="bg-[#00665E] text-white p-3 rounded-full hover:scale-110 transition shadow-lg" title="Scarica Alta Risoluzione"><Download size={20}/></button>
                                       </div>
                                       
                                       <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded z-20">
@@ -400,7 +400,7 @@ Grazie per aver utilizzato IntegraOS!`;
       {/* LIGHTBOX MODAL (Schermo intero) */}
       {fullscreenImg && (
           <div className="fixed inset-0 bg-slate-900/90 z-[100] flex items-center justify-center backdrop-blur-sm p-4" onClick={() => setFullscreenImg(null)}>
-              <button onClick={() => setFullscreenImg(null)} className="absolute top-6 right-6 text-white hover:text-indigo-400 transition"><X size={32}/></button>
+              <button onClick={() => setFullscreenImg(null)} className="absolute top-6 right-6 text-white hover:text-purple-400 transition"><X size={32}/></button>
               <div className="relative max-w-5xl w-full max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
                   <img src={fullscreenImg} alt="Fullscreen" className="w-full h-full object-contain" />
                   
@@ -409,7 +409,7 @@ Grazie per aver utilizzato IntegraOS!`;
                   )}
 
                   <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-4 z-20">
-                      <button onClick={() => triggerRealDownload('Immagine_HD.jpg')} className="bg-indigo-600 text-white font-bold px-6 py-3 rounded-full flex items-center gap-2 shadow-lg hover:bg-indigo-500 transition">
+                      <button onClick={() => triggerRealDownload('Immagine_HD.jpg')} className="bg-[#00665E] text-white font-bold px-6 py-3 rounded-full flex items-center gap-2 shadow-lg hover:bg-[#004d46] transition">
                           <Download size={18}/> Scarica HD
                       </button>
                   </div>

@@ -11,7 +11,7 @@ import {
   Database, Calendar, BarChart3, Megaphone, Image as ImageIcon, 
   Radar, EyeOff, Handshake, UserCog, GraduationCap, Mic, 
   ShoppingBag, FileText, MessageSquare, BarChart, Target, Building,
-  BrainCircuit
+  BrainCircuit, Star, Shield, Brain
 } from 'lucide-react'
 
 type MenuItem = {
@@ -37,13 +37,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     const fetchGlobalData = async () => {
-      const devUserId = '00000000-0000-0000-0000-000000000000';
-      setUser({ email: 'admin@integraos.it', id: devUserId });
+      // Usa l'utente reale da Supabase Auth
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (!authUser) return
+
+      setUser({ email: authUser.email || '', id: authUser.id })
 
       const { data } = await supabase
         .from('profiles')
         .select('company_name, logo_url')
-        .eq('id', devUserId)
+        .eq('id', authUser.id)
         .single();
 
       if (data) {
@@ -54,7 +57,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
     }
     fetchGlobalData()
-  }, [supabase])
+  }, [])
 
   if (!user) return <div className="bg-white h-screen w-screen flex items-center justify-center text-[#00665E] font-bold animate-pulse">Inizializzazione Ecosistema...</div>
 
@@ -66,6 +69,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               { name: 'Inbox Unificata', href: '/dashboard/inbox', icon: <MessageSquare size={18}/>, badge: 'Nuovo' },
               { name: 'Data Studio', href: '/dashboard/data-studio', icon: <BarChart3 size={18}/> },
               { name: 'Agenda', href: '/dashboard/agenda', icon: <Calendar size={18}/> },
+              { name: 'Predictive BI', href: '/dashboard/predictive-bi', icon: <Brain size={18}/>, badge: 'AI' },
           ]
       },
       {
@@ -75,6 +79,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               { name: 'CDP (Customer Data)', href: '/dashboard/cdp', icon: <Database size={18}/> },
               { name: 'E-commerce', href: '/dashboard/ecommerce', icon: <ShoppingBag size={18}/> },
               { name: 'Preventivi (Quotes)', href: '/dashboard/quotes', icon: <FileText size={18}/> },
+              { name: 'Reputation Manager', href: '/dashboard/reputation', icon: <Star size={18}/>, badge: 'AI' },
           ]
       },
       {
@@ -113,6 +118,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           items: [
               { name: 'Agenti & Teams', href: '/dashboard/agents', icon: <UserCog size={18}/> },
               { name: 'Valutazione Performance', href: '/dashboard/performance', icon: <Target size={18}/>, badge: 'Nuovo' },
+              { name: 'Ops & Safety 360', href: '/dashboard/operations', icon: <Shield size={18}/>, badge: 'Nuovo' },
               { name: 'Wellness Aziendale', href: '/dashboard/wellness', icon: <Leaf size={18}/> },
               { name: 'Finance & CFO', href: '/dashboard/finance', icon: <Landmark size={18}/> },
               { name: 'Energy Monitor', href: '/dashboard/energy', icon: <Zap size={18}/> },

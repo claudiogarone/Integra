@@ -53,8 +53,6 @@ export default function AvatarStudioPage() {
                 setUser(user)
                 fetchAvatars()
             } else {
-                // Sviluppo locale
-                setUser({ id: '00000000-0000-0000-0000-000000000000' })
                 setLoading(false)
             }
         }

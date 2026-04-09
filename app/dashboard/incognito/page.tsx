@@ -284,17 +284,17 @@ export default function IncognitoPage() {
                               <div className="space-y-6">
                                   {/* MOSTRA LA CHAT IN TEMPO REALE DURANTE IL TEST */}
                                   {liveChatActive && (
-                                      <div className="bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-700 h-80 flex flex-col">
-                                          <p className="text-xs font-bold text-emerald-400 mb-4 flex items-center gap-2 uppercase tracking-widest"><div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div> Intercettazione Chat (Live)</p>
+                                  <div className="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm h-80 flex flex-col">
+                                          <p className="text-xs font-bold text-emerald-600 mb-4 flex items-center gap-2 uppercase tracking-widest"><div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div> Intercettazione Chat (Live)</p>
                                           <div className="flex-1 overflow-y-auto space-y-3 flex flex-col">
                                               {chatMessages.map((msg, idx) => (
-                                                  <div key={idx} className={`max-w-[80%] p-3 rounded-2xl text-sm ${msg.sender === 'AI (Cliente Misterioso)' ? 'bg-slate-700 text-white self-start rounded-tl-none' : 'bg-emerald-600 text-white self-end rounded-tr-none'}`}>
+                                                  <div key={idx} className={`max-w-[80%] p-3 rounded-2xl text-sm ${msg.sender === 'AI (Cliente Misterioso)' ? 'bg-gray-100 text-gray-800 self-start rounded-tl-none' : 'bg-[#00665E] text-white self-end rounded-tr-none'}`}>
                                                       <p className="text-[9px] opacity-50 mb-1">{msg.sender}</p>
                                                       {msg.text}
                                                   </div>
                                               ))}
                                               {chatMessages.length % 2 !== 0 && chatMessages.length < 4 && (
-                                                  <div className="text-xs text-slate-500 italic mt-2 self-end">L'agente sta scrivendo...</div>
+                                                  <div className="text-xs text-gray-400 italic mt-2 self-end">L'agente sta scrivendo...</div>
                                               )}
                                           </div>
                                       </div>

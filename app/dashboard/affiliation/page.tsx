@@ -213,42 +213,42 @@ export default function AffiliationPage() {
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 mb-10">
           
           {/* --- LA TUA VETRINA HOST --- */}
-          <div className="xl:col-span-4 bg-gradient-to-br from-slate-900 to-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl text-white flex flex-col justify-between">
+          <div className="xl:col-span-4 bg-white p-8 rounded-3xl border-2 border-[#00665E]/20 shadow-sm flex flex-col justify-between">
               <div>
                   <div className="flex justify-between items-start mb-6">
-                      <h2 className="text-xl font-black flex items-center gap-2"><Globe className="text-blue-400"/> La tua Vetrina Host</h2>
+                      <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><Globe className="text-[#00665E]"/> La tua Vetrina Host</h2>
                   </div>
-                  <p className="text-sm text-slate-300 mb-8 leading-relaxed">Questa è la tua vetrina. Inserisci una tua video intervista di 5 minuti e il link al tuo calendario appuntamenti. I tuoi partner useranno questi dati per promuoverti.</p>
+                  <p className="text-sm text-gray-500 mb-8 leading-relaxed">Questa è la tua vetrina. Inserisci una tua video intervista di 5 minuti e il link al tuo calendario appuntamenti. I tuoi partner useranno questi dati per promuoverti.</p>
                   
                   <div className="space-y-5">
                       <div>
-                          <label className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1 mb-2"><Video size={14}/> Video Intervista (Link o Upload)</label>
+                          <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1 mb-2"><Video size={14}/> Video Intervista (Link o Upload)</label>
                           <div className="flex gap-2">
-                              <input type="url" value={hostVideo} onChange={e=>setHostVideo(e.target.value)} placeholder="https://youtube... o carica file" className="flex-1 p-3 bg-slate-800/50 border border-slate-600 rounded-xl outline-none focus:border-blue-400 text-sm" />
-                              <label className="bg-slate-700 hover:bg-slate-600 flex items-center justify-center px-4 rounded-xl cursor-pointer transition shadow-sm" title="Carica video da PC">
-                                  {uploadingHostVideo ? <Loader2 className="animate-spin text-white" size={20}/> : <UploadCloud className="text-white" size={20}/>}
+                              <input type="url" value={hostVideo} onChange={e=>setHostVideo(e.target.value)} placeholder="https://youtube... o carica file" className="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#00665E] text-sm text-gray-900" />
+                              <label className="bg-gray-100 hover:bg-gray-200 border border-gray-200 flex items-center justify-center px-4 rounded-xl cursor-pointer transition shadow-sm" title="Carica video da PC">
+                                  {uploadingHostVideo ? <Loader2 className="animate-spin text-[#00665E]" size={20}/> : <UploadCloud className="text-gray-600" size={20}/>}
                                   <input type="file" accept="video/*" className="hidden" onChange={handleHostVideoUpload} />
                               </label>
                           </div>
                           {/* Pulsante Play per Host e Disclaimer Legale */}
                           {hostVideo && (
-                              <button onClick={() => setPlayingVideo(hostVideo)} className="mt-2 text-xs bg-blue-500/20 text-blue-300 hover:bg-blue-500 hover:text-white px-3 py-1.5 rounded-lg flex items-center gap-2 transition border border-blue-500/50">
+                              <button onClick={() => setPlayingVideo(hostVideo)} className="mt-2 text-xs bg-[#00665E]/10 text-[#00665E] hover:bg-[#00665E] hover:text-white px-3 py-1.5 rounded-lg flex items-center gap-2 transition border border-[#00665E]/20">
                                   <PlayCircle size={14}/> Guarda Anteprima
                               </button>
                           )}
-                          <p className="text-[10px] text-slate-500 mt-2 flex items-start gap-1">
+                          <p className="text-[10px] text-gray-400 mt-2 flex items-start gap-1">
                               <ShieldAlert size={12} className="shrink-0 mt-0.5 text-amber-500"/>
                               <span>Caricando un link o video, dichiari di possederne i diritti d'autore e che il contenuto rispetta le normative GDPR e sul Copyright europee.</span>
                           </p>
                       </div>
                       <div>
-                          <label className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1 mb-2"><LinkIcon size={14}/> Meeting Funnel (Calendly, etc)</label>
-                          <input type="url" value={hostMeeting} onChange={e=>setHostMeeting(e.target.value)} placeholder="https://calendly.com/tuonome" className="w-full p-3 bg-slate-800/50 border border-slate-600 rounded-xl outline-none focus:border-blue-400 text-sm" />
+                          <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1 mb-2"><LinkIcon size={14}/> Meeting Funnel (Calendly, etc)</label>
+                          <input type="url" value={hostMeeting} onChange={e=>setHostMeeting(e.target.value)} placeholder="https://calendly.com/tuonome" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#00665E] text-sm text-gray-900" />
                       </div>
                   </div>
               </div>
               
-              <button onClick={saveHostData} disabled={savingHost} className="w-full mt-8 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition shadow-lg flex justify-center items-center gap-2 disabled:opacity-50">
+              <button onClick={saveHostData} disabled={savingHost} className="w-full mt-8 bg-[#00665E] hover:bg-[#004d46] text-white font-bold py-3 rounded-xl transition shadow-lg flex justify-center items-center gap-2 disabled:opacity-50">
                   {savingHost ? <Loader2 className="animate-spin" size={18}/> : 'Salva la tua Vetrina'}
               </button>
           </div>

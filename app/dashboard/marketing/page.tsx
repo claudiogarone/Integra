@@ -700,14 +700,14 @@ export default function MarketingPage() {
                              </div>
 
                              <div className="mt-6 pt-6 border-t border-gray-100">
-                                 <div className="bg-gray-900 p-6 rounded-2xl flex justify-between items-center text-white shadow-xl">
+                                 <div className="bg-white border border-gray-200 p-6 rounded-2xl flex justify-between items-center shadow-sm">
                                      <div>
-                                        <p className="text-sm font-bold text-gray-400">Preventivo Invio ({selectedIds.length} Destinatari su {channel.toUpperCase()})</p>
-                                        <h2 className="text-3xl font-black text-emerald-400 mt-1">{(channelCosts[channel] * selectedIds.length).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</h2>
-                                        <p className="text-[10px] text-gray-500 mt-1">*Il costo per le Email è sempre coperto dall'abbonamento.</p>
+                                        <p className="text-sm font-bold text-gray-500">Preventivo Invio ({selectedIds.length} Destinatari su {channel.toUpperCase()})</p>
+                                        <h2 className="text-3xl font-black text-[#00665E] mt-1">{(channelCosts[channel] * selectedIds.length).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</h2>
+                                        <p className="text-[10px] text-gray-400 mt-1">*Il costo per le Email è sempre coperto dall'abbonamento.</p>
                                      </div>
                                      <div className="flex gap-4">
-                                         <button onClick={() => setStep(3)} className="text-gray-300 font-bold hover:text-white transition px-4">← Indietro</button>
+                                         <button onClick={() => setStep(3)} className="text-gray-500 font-bold hover:text-gray-900 transition px-4">← Indietro</button>
                                          <button onClick={handleSend} disabled={sending || !legalConsent} className="bg-gradient-to-r from-[#00665E] to-teal-500 text-white px-10 py-4 rounded-xl font-black transition flex items-center gap-3 shadow-[0_10px_30px_rgba(0,102,94,0.3)] hover:scale-[1.02] disabled:opacity-50">
                                              {sending ? <Loader2 className="animate-spin" size={20}/> : (channel !== 'email' ? <CreditCard size={20}/> : <Send size={20}/>)}
                                              {sending ? 'Elaborazione...' : (channel !== 'email' ? 'VAI AL PAGAMENTO (STRIPE)' : (scheduleDate ? 'PROGRAMMA E INVIA' : 'CONFERMA ED INVIA ORA'))}

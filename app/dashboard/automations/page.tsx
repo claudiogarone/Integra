@@ -277,7 +277,7 @@ export default function AutomationsPage() {
       {/* HEADER PRINCIPALE E LIMITI PIANO */}
       <div className="flex-shrink-0 p-6 md:p-8 border-b border-gray-200 bg-white flex flex-col md:flex-row justify-between items-start md:items-center z-10 shadow-sm relative gap-4">
         <div>
-          <h1 className="text-3xl font-black text-amber-500 flex items-center gap-3"><Zap size={32} fill="currentColor"/> Zap Automations</h1>
+          <h1 className="text-3xl font-black text-[#00665E] flex items-center gap-3"><Zap size={32} className="text-amber-500" fill="currentColor"/> Zap Automations</h1>
           <p className="text-gray-500 text-sm mt-1">Costruisci e monitora i tuoi percorsi automatici basati sui dati reali.</p>
         </div>
         
@@ -301,10 +301,10 @@ export default function AutomationsPage() {
 
             {/* TAB SELECTOR */}
             <div className="flex gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200 w-full md:w-auto">
-                <button onClick={() => setActiveTab('builder')} className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${activeTab === 'builder' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>
+                <button onClick={() => setActiveTab('builder')} className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${activeTab === 'builder' ? 'bg-[#00665E] text-white shadow-md' : 'text-gray-500 hover:text-gray-900'}`}>
                     <GitBranch size={16}/> Builder
                 </button>
-                <button onClick={() => setActiveTab('monitor')} className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${activeTab === 'monitor' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>
+                <button onClick={() => setActiveTab('monitor')} className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 ${activeTab === 'monitor' ? 'bg-[#00665E] text-white shadow-md' : 'text-gray-500 hover:text-gray-900'}`}>
                     <BarChart3 size={16}/> Analytics
                 </button>
             </div>
@@ -320,7 +320,7 @@ export default function AutomationsPage() {
               <>
                   {!isEditing && (
                       <div className="w-full max-w-sm flex flex-col bg-gray-50 border-r border-gray-200 p-6 overflow-y-auto">
-                          <button onClick={createNewWorkflow} className="w-full bg-gray-900 text-white px-6 py-4 rounded-2xl font-black hover:bg-black flex items-center justify-center gap-2 shadow-lg transition transform hover:-translate-y-1 mb-8">
+                          <button onClick={createNewWorkflow} className="w-full bg-[#00665E] text-white px-6 py-4 rounded-2xl font-black hover:bg-[#004d46] flex items-center justify-center gap-2 shadow-lg transition transform hover:-translate-y-1 mb-8">
                               <Plus size={20}/> Costruisci da Zero
                           </button>
 
@@ -358,7 +358,7 @@ export default function AutomationsPage() {
                   )}
 
                   {/* CANVAS DEL WORKFLOW */}
-                  <div className="flex-1 bg-slate-100 relative overflow-y-auto p-10 flex flex-col items-center custom-scrollbar">
+                  <div className="flex-1 bg-gray-50 relative overflow-y-auto p-10 flex flex-col items-center custom-scrollbar">
                       {!isEditing ? (
                           <div className="m-auto text-center max-w-md opacity-40">
                               <GitBranch size={64} className="mx-auto mb-4 text-gray-400"/>
@@ -374,7 +374,7 @@ export default function AutomationsPage() {
                                       <input type="text" value={workflowName} onChange={(e) => setWorkflowName(e.target.value)} className="text-2xl font-black bg-transparent outline-none border-b-2 border-transparent focus:border-amber-500 text-gray-900 w-2/3" placeholder="Nome Automazione..." />
                                       <div className="flex gap-2">
                                           <button onClick={() => setIsEditing(false)} className="px-4 py-2 rounded-xl font-bold text-gray-500 hover:bg-gray-200 transition">Annulla</button>
-                                          <button onClick={saveWorkflow} disabled={isSaving || flow.length < 2 || flow[0].title.includes('Scegli')} className="bg-amber-500 text-white px-6 py-2 rounded-xl font-black hover:bg-amber-600 flex items-center gap-2 shadow-md disabled:opacity-50 transition">
+                                          <button onClick={saveWorkflow} disabled={isSaving || flow.length < 2 || flow[0].title.includes('Scegli')} className="bg-[#00665E] text-white px-6 py-2 rounded-xl font-black hover:bg-[#004d46] flex items-center gap-2 shadow-md disabled:opacity-50 transition">
                                               {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} Salva Flusso
                                           </button>
                                       </div>
@@ -474,7 +474,7 @@ export default function AutomationsPage() {
                                               </div>
                                           )}
 
-                                          <button onClick={() => setEditingNodeId(null)} className="w-full mt-6 bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-black transition">Chiudi e Applica</button>
+                                          <button onClick={() => setEditingNodeId(null)} className="w-full mt-6 bg-[#00665E] text-white font-bold py-3 rounded-xl hover:bg-[#004d46] transition">Chiudi e Applica</button>
                                       </div>
                                   </div>
                               )}

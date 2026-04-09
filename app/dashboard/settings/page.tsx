@@ -69,35 +69,35 @@ export default function SettingsPage() {
     
     const getData = async () => {
       try {
-          // FIX: Utente Bypass sicuro
-          const currentUser = { id: '00000000-0000-0000-0000-000000000000', email: 'admin@integraos.it' }
-          setUser(currentUser)
-          
-          const { data } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single()
-          if (data) {
-            const actualLogo = data.logo_url || data.company_logo || ''
-            setFormData({
-              company_name: data.company_name || '', 
-              company_email: data.company_email || currentUser.email || '',
-              whatsapp_number: data.whatsapp_number || '', 
-              phone_secondary: data.phone_secondary || '',
-              p_iva: data.p_iva || '',
-              address: data.address || '', 
-              city: data.city || '', 
-              cap: data.cap || '', 
-              province: data.province || '',
-              logo_url: actualLogo, 
-              plan: data.plan || 'Base',
-              websites: data.websites || { main: '', ecommerce: '' },
-              social_links: data.social_links || { facebook: '', instagram: '', linkedin: '', tiktok: '', x: '', youtube: '', telegram: '' },
-              business_hours: data.business_hours || defaultHours,
-              ai_settings: data.ai_settings || { allow_auto_booking: false }
-            })
-            if(actualLogo) setLogoPreview(actualLogo)
-          }
-          
-          const { count } = await supabase.from('affiliates').select('*', { count: 'exact', head: true }).eq('user_id', currentUser.id)
-          if (count !== null) setAffiliatesCount(count)
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return;
+        setUser(user)
+        
+        const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+        if (data) {
+          const actualLogo = data.logo_url || data.company_logo || ''
+          setFormData({
+            company_name: data.company_name || '', 
+            company_email: data.company_email || user.email || '',
+            whatsapp_number: data.whatsapp_number || '', 
+            phone_secondary: data.phone_secondary || '',
+            p_iva: data.p_iva || '',
+            address: data.address || '', 
+            city: data.city || '', 
+            cap: data.cap || '', 
+            province: data.province || '',
+            logo_url: actualLogo, 
+            plan: data.plan || 'Base',
+            websites: data.websites || { main: '', ecommerce: '' },
+            social_links: data.social_links || { facebook: '', instagram: '', linkedin: '', tiktok: '', x: '', youtube: '', telegram: '' },
+            business_hours: data.business_hours || defaultHours,
+            ai_settings: data.ai_settings || { allow_auto_booking: false }
+          })
+          if(actualLogo) setLogoPreview(actualLogo)
+        }
+        
+        const { count } = await supabase.from('affiliates').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
+        if (count !== null) setAffiliatesCount(count)
       } catch (error) {
           console.error("Errore caricamento impostazioni:", error)
       } finally {

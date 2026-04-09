@@ -40,6 +40,11 @@ ALTER TABLE wellness_checkins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE energy_readings ENABLE ROW LEVEL SECURITY;
 
 -- Policies
+DROP POLICY IF EXISTS "Gli utenti possono gestire le proprie valutazioni" ON performance_evaluations;
 CREATE POLICY "Gli utenti possono gestire le proprie valutazioni" ON performance_evaluations FOR ALL USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Gli utenti possono gestire i propri checkin wellness" ON wellness_checkins;
 CREATE POLICY "Gli utenti possono gestire i propri checkin wellness" ON wellness_checkins FOR ALL USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Gli utenti possono gestire i propri monitoraggi energia" ON energy_readings;
 CREATE POLICY "Gli utenti possono gestire i propri monitoraggi energia" ON energy_readings FOR ALL USING (auth.uid() = user_id);

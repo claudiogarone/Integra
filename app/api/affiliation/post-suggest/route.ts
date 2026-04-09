@@ -2,11 +2,10 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-
 export async function POST(req: Request) {
     try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
         const { affiliateName, affiliateDesc, hostName, hostIndustry } = await req.json()
         
         const prompt = `Sei un esperto di Social Media Marketing. 

@@ -137,8 +137,8 @@ export default function Dashboard() {
     <main className="flex-1 p-4 md:p-8 bg-[#F8FAFC] text-gray-900 font-sans pb-24 overflow-y-auto min-h-screen">
       
       {/* HEADER MEGA-DASHBOARD */}
-      <div className="bg-slate-900 rounded-3xl p-8 md:p-10 mb-8 shadow-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6 z-10">
-          <div className="absolute -top-32 -right-32 w-96 h-96 bg-[#00665E]/30 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="bg-[#004d46] rounded-3xl p-8 md:p-10 mb-8 shadow-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6 z-10">
+          <div className="absolute -top-32 -right-32 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
           
           <div className="relative z-10 text-white">
               <div className="flex items-center gap-3 mb-2">
@@ -322,8 +322,8 @@ export default function Dashboard() {
                     <AreaChart data={trendData} margin={{top: 10, right: 0, left: 0, bottom: 0}}>
                         <defs>
                             <linearGradient id="colorTrend" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
-                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                <stop offset="5%" stopColor="#00665E" stopOpacity={0.4}/>
+                                <stop offset="95%" stopColor="#00665E" stopOpacity={0}/>
                             </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -334,7 +334,7 @@ export default function Dashboard() {
                             itemStyle={{color: '#1e293b', fontWeight: 'black'}} 
                             formatter={(value: any) => [`€ ${Number(value).toLocaleString('it-IT')}`, 'Fatturato']}
                         />
-                        <Area type="monotone" dataKey="Fatturato" stroke="#3b82f6" strokeWidth={4} fillOpacity={1} fill="url(#colorTrend)" />
+                        <Area type="monotone" dataKey="Fatturato" stroke="#00665E" strokeWidth={4} fillOpacity={1} fill="url(#colorTrend)" />
                     </AreaChart>
                 </ResponsiveContainer>
             </div>

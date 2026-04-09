@@ -47,36 +47,36 @@ export default function AgentTeamsPage() {
   const [activeTab, setActiveTab] = useState<'members' | 'tasks' | 'mailbox'>('members')
 
   return (
-    <main className="min-h-screen bg-gray-100 flex flex-col">
+    <main className="min-h-screen bg-[#F8FAFC] flex flex-col">
       {/* HEADER TEAMS */}
-      <div className="bg-slate-900 text-white p-8 border-b border-slate-800 shadow-xl relative overflow-hidden shrink-0">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="bg-white border-b border-gray-200 p-8 shadow-sm relative overflow-hidden shrink-0">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-[#00665E]/5 rounded-full blur-3xl pointer-events-none"></div>
           
           <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6 max-w-7xl mx-auto w-full">
               <div className="flex items-center gap-5">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-indigo-600 rounded-2xl flex items-center justify-center text-2xl font-black shadow-lg border-2 border-slate-700">
-                      <Users size={32} />
+                  <div className="w-16 h-16 bg-gradient-to-br from-[#00665E] to-teal-600 rounded-2xl flex items-center justify-center text-2xl font-black shadow-lg">
+                      <Users size={32} className="text-white"/>
                   </div>
                   <div>
-                      <h1 className="text-3xl font-black flex items-center gap-3">Orchestra Teams</h1>
-                      <p className="text-slate-400 text-sm font-medium flex items-center gap-2">
-                          <BrainCircuit size={16} className="text-blue-400"/> Monitoraggio e Coordinamento Multi-Agente
+                      <h1 className="text-3xl font-black text-gray-900 flex items-center gap-3">Orchestra Teams</h1>
+                      <p className="text-gray-500 text-sm font-medium flex items-center gap-2">
+                          <BrainCircuit size={16} className="text-[#00665E]"/> Monitoraggio e Coordinamento Multi-Agente
                       </p>
                   </div>
               </div>
 
               <div className="flex items-center gap-4">
-                  <div className="bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl flex items-center gap-3">
+                  <div className="bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl flex items-center gap-3">
                       <div className="flex -space-x-3">
                           {TEAM_MEMBERS.map(m => (
-                              <div key={m.id} className="w-8 h-8 rounded-full bg-slate-700 border-2 border-slate-800 flex items-center justify-center text-[10px] font-bold overflow-hidden">
+                              <div key={m.id} className="w-8 h-8 rounded-full bg-[#00665E]/10 border-2 border-white flex items-center justify-center text-[10px] font-bold text-[#00665E] overflow-hidden">
                                   {m.avatar}
                               </div>
                           ))}
                       </div>
-                      <span className="text-xs font-bold text-slate-300">3 Agenti Attivi</span>
+                      <span className="text-xs font-bold text-gray-600">3 Agenti Attivi</span>
                   </div>
-                  <button className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-black text-sm transition flex items-center gap-2 shadow-lg">
+                  <button className="bg-[#00665E] hover:bg-[#004d46] text-white px-5 py-2.5 rounded-xl font-black text-sm transition flex items-center gap-2 shadow-lg">
                       <UserPlus size={18}/> Aggiungi Teammate
                   </button>
               </div>
@@ -133,7 +133,7 @@ export default function AgentTeamsPage() {
                                       ))}
                                   </div>
 
-                                  <button className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-black transition flex items-center justify-center gap-2 text-xs">
+                                  <button className="w-full bg-[#00665E] text-white font-bold py-3 rounded-xl hover:bg-[#004d46] transition flex items-center justify-center gap-2 text-xs">
                                       Monitora Azioni <ArrowRight size={14}/>
                                   </button>
                               </div>
@@ -196,22 +196,22 @@ export default function AgentTeamsPage() {
 
               {/* SIDEBAR ANALITICA */}
               <div className="lg:col-span-4 space-y-6">
-                  <div className="bg-slate-900 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
-                      <Zap className="absolute -right-8 -bottom-8 text-emerald-500/20" size={160} />
-                      <h4 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <div className="bg-gradient-to-br from-[#00665E] to-teal-700 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
+                      <Zap className="absolute -right-8 -bottom-8 text-white/10" size={160} />
+                      <h4 className="text-xs font-black text-white/60 uppercase tracking-widest mb-2 flex items-center gap-2">
                           <Sparkles size={16}/> Team Pulse
                       </h4>
                       <div className="relative z-10">
                           <h2 className="text-4xl font-black mb-1">94.2%</h2>
-                          <p className="text-slate-400 text-xs font-bold leading-normal">Efficienza collettiva rilevata nell'ultima ora di operazione continuativa.</p>
+                          <p className="text-white/70 text-xs font-bold leading-normal">Efficienza collettiva rilevata nell'ultima ora di operazione continuativa.</p>
                       </div>
                       <div className="mt-8 grid grid-cols-2 gap-4 relative z-10">
-                          <div className="bg-white/5 border border-white/10 p-4 rounded-2xl">
-                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Sync Latency</p>
+                          <div className="bg-white/10 border border-white/20 p-4 rounded-2xl">
+                              <p className="text-[9px] font-bold text-white/50 uppercase tracking-widest mb-1">Sync Latency</p>
                               <p className="text-lg font-black text-white">42ms</p>
                           </div>
-                          <div className="bg-white/5 border border-white/10 p-4 rounded-2xl">
-                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Task Velocity</p>
+                          <div className="bg-white/10 border border-white/20 p-4 rounded-2xl">
+                              <p className="text-[9px] font-bold text-white/50 uppercase tracking-widest mb-1">Task Velocity</p>
                               <p className="text-lg font-black text-white">12/h</p>
                           </div>
                       </div>
@@ -235,7 +235,7 @@ export default function AgentTeamsPage() {
 
 function TabBtn({ active, onClick, icon, label }: any) {
     return (
-        <button onClick={onClick} className={`px-5 py-2.5 rounded-xl flex items-center gap-2 text-xs font-black transition ${active ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20' : 'text-gray-500 hover:bg-gray-50'}`}>
+        <button onClick={onClick} className={`px-5 py-2.5 rounded-xl flex items-center gap-2 text-xs font-black transition ${active ? 'bg-[#00665E] text-white shadow-lg shadow-[#00665E]/20' : 'text-gray-500 hover:bg-gray-50'}`}>
             {icon} {label}
         </button>
     )

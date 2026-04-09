@@ -40,12 +40,13 @@ export default function AITrainingPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    const initUser = async () => {
-        const devUserId = '00000000-0000-0000-0000-000000000000';
-        setUser({ id: devUserId })
+    const getData = async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return;
+        setUser(user)
 
-        // Carica usedKB persistente da localStorage (con reset mensile automatico)
-        const storageKey = `integraos_ai_kb_${devUserId}`;
+        const { data } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
+        const storageKey = `integraos_ai_kb_${user.id}`;
         const saved = localStorage.getItem(storageKey);
         if (saved) {
             try {
@@ -64,7 +65,7 @@ export default function AITrainingPage() {
             setUsedKB(0);
         }
     }
-    initUser()
+    getData()
   }, [supabase])
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, isTyping])

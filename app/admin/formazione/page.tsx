@@ -235,25 +235,23 @@ export default function SuperAdminAcademyPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#020817] font-sans selection:bg-indigo-500 selection:text-white p-6 md:p-8 lg:p-12 text-slate-200">
+        <div className="min-h-screen bg-[#F8FAFC] font-sans selection:bg-[#00665E] selection:text-gray-900 p-6 md:p-8 lg:p-12 text-gray-900">
             
             {/* --- HEADER ADMIN --- */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-slate-800 pb-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-gray-200 pb-8">
                 <div>
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-[0_0_30px_rgba(79,70,229,0.3)]">
-                            <Shield size={24} className="text-white"/>
-                        </div>
-                        <h1 className="text-3xl font-black text-white tracking-tight">Centro di Controllo Academy</h1>
+                    <div className="flex items-center gap-4 mb-2">
+                        <img src="/logo-integraos.png" alt="IntegraOS Logo" className="h-[40px] md:h-[48px] object-contain drop-shadow-sm opacity-90" />
+                        <h1 className="text-3xl font-black text-gray-900 tracking-tight">Academy Master</h1>
                     </div>
-                    <p className="text-slate-400">Monitoraggio finanziario, gestione studenti e supervisione totale.</p>
+                    <p className="text-gray-500">Pannello Formatori <span className="font-bold text-[#00665E]">IntegraOS</span>: Monitoraggio finanziario e gestione studenti.</p>
                 </div>
                 <div className="flex gap-3 flex-wrap">
-                    <Link href="/admin/integraos" className="bg-emerald-600/10 border border-emerald-500/30 hover:bg-emerald-600 text-emerald-400 hover:text-white font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2">
+                    <Link href="/admin/integraos" className="bg-emerald-600/10 border border-emerald-500/30 hover:bg-emerald-600 text-emerald-400 hover:text-gray-900 font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2">
                         <Box size={18}/> Switch to IntegraOs
                     </Link>
                     
-                    <button onClick={exportToCSV} className="bg-slate-900 border border-slate-700 hover:border-indigo-500 text-slate-300 hover:text-indigo-400 font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-lg">
+                    <button onClick={exportToCSV} className="bg-white border border-gray-200 hover:border-indigo-500 text-slate-300 hover:text-[#00665E] font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-lg">
                         <Download size={18}/> Esporta Excel
                     </button>
                     
@@ -261,24 +259,24 @@ export default function SuperAdminAcademyPage() {
                         <Plus size={18}/> Nuovo Corso
                     </button>
                     
-                    <Link href="/admin/login" className="bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-lg">
+                    <Link href="/admin/login" className="bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-gray-900 font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-lg">
                         <LogOut size={18}/> Lock Terminal
                     </Link>
                 </div>
             </div>
 
             {/* --- MENU TABS --- */}
-            <div className="flex border-b border-slate-800 mb-8 overflow-x-auto custom-scrollbar">
-                <button onClick={() => setActiveTab('overview')} className={`flex items-center gap-2 px-6 py-4 font-bold text-sm whitespace-nowrap transition border-b-2 ${activeTab === 'overview' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
+            <div className="flex border-b border-gray-200 mb-8 overflow-x-auto custom-scrollbar">
+                <button onClick={() => setActiveTab('overview')} className={`flex items-center gap-2 px-6 py-4 font-bold text-sm whitespace-nowrap transition border-b-2 ${activeTab === 'overview' ? 'border-indigo-500 text-[#00665E]' : 'border-transparent text-gray-400 hover:text-slate-300'}`}>
                     <BarChart3 size={18}/> Dashboard Analisi
                 </button>
-                <button onClick={() => setActiveTab('studenti')} className={`flex items-center gap-2 px-6 py-4 font-bold text-sm whitespace-nowrap transition border-b-2 ${activeTab === 'studenti' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
+                <button onClick={() => setActiveTab('studenti')} className={`flex items-center gap-2 px-6 py-4 font-bold text-sm whitespace-nowrap transition border-b-2 ${activeTab === 'studenti' ? 'border-indigo-500 text-[#00665E]' : 'border-transparent text-gray-400 hover:text-slate-300'}`}>
                     <Users size={18}/> Iscritti & Pagamenti
                 </button>
-                <button onClick={() => setActiveTab('corsi')} className={`flex items-center gap-2 px-6 py-4 font-bold text-sm whitespace-nowrap transition border-b-2 ${activeTab === 'corsi' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
+                <button onClick={() => setActiveTab('corsi')} className={`flex items-center gap-2 px-6 py-4 font-bold text-sm whitespace-nowrap transition border-b-2 ${activeTab === 'corsi' ? 'border-indigo-500 text-[#00665E]' : 'border-transparent text-gray-400 hover:text-slate-300'}`}>
                     <BookOpen size={18}/> Catalogo Corsi
                 </button>
-                <button onClick={() => setActiveTab('ticket')} className={`flex items-center gap-2 px-6 py-4 font-bold text-sm whitespace-nowrap transition border-b-2 ${activeTab === 'ticket' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
+                <button onClick={() => setActiveTab('ticket')} className={`flex items-center gap-2 px-6 py-4 font-bold text-sm whitespace-nowrap transition border-b-2 ${activeTab === 'ticket' ? 'border-indigo-500 text-[#00665E]' : 'border-transparent text-gray-400 hover:text-slate-300'}`}>
                     <LifeBuoy size={18}/> Assistenza Ticket 
                     {tickets.filter(t => t.status === 'Aperto').length > 0 && (
                         <span className="bg-rose-500 text-white px-1.5 rounded-full text-[10px] ml-1">
@@ -295,12 +293,12 @@ export default function SuperAdminAcademyPage() {
                 <div className="space-y-8 animate-in fade-in">
                     
                     {/* FILTRI TEMPORALI */}
-                    <div className="flex items-center gap-2 bg-slate-900 p-2 rounded-xl border border-slate-800 w-fit">
+                    <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-gray-200 w-fit">
                         {['oggi', '7gg', 'mese', 'anno'].map(f => (
                             <button 
                                 key={f} 
                                 onClick={() => handleTimeFilter(f)} 
-                                className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition ${timeFilter === f ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                                className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition ${timeFilter === f ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-900 hover:bg-slate-800'}`}
                             >
                                 {f}
                             </button>
@@ -309,44 +307,44 @@ export default function SuperAdminAcademyPage() {
 
                     {/* KPI CARDS */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden">
-                            <div className="flex items-center gap-3 text-slate-400 font-bold text-sm mb-4">
+                        <div className="bg-white border border-gray-200 p-6 rounded-3xl relative overflow-hidden">
+                            <div className="flex items-center gap-3 text-gray-500 font-bold text-sm mb-4">
                                 <Eye size={18} className="text-blue-500"/> Visite Vetrina
                             </div>
-                            <div className="text-4xl font-black text-white">
+                            <div className="text-4xl font-black text-gray-900">
                                 {Math.round(12450 * kpiMultiplier).toLocaleString()}
                             </div>
                         </div>
-                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden">
-                            <div className="flex items-center gap-3 text-slate-400 font-bold text-sm mb-4">
+                        <div className="bg-white border border-gray-200 p-6 rounded-3xl relative overflow-hidden">
+                            <div className="flex items-center gap-3 text-gray-500 font-bold text-sm mb-4">
                                 <TrendingUp size={18} className="text-emerald-500"/> Fatturato Generato
                             </div>
-                            <div className="text-4xl font-black text-white">
+                            <div className="text-4xl font-black text-gray-900">
                                 €{Math.round(91035 * kpiMultiplier).toLocaleString()}
                             </div>
                         </div>
-                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden">
-                            <div className="flex items-center gap-3 text-slate-400 font-bold text-sm mb-4">
+                        <div className="bg-white border border-gray-200 p-6 rounded-3xl relative overflow-hidden">
+                            <div className="flex items-center gap-3 text-gray-500 font-bold text-sm mb-4">
                                 <UserMinus size={18} className="text-rose-500"/> Tasso Abbandono
                             </div>
-                            <div className="text-4xl font-black text-white">
+                            <div className="text-4xl font-black text-gray-900">
                                 14%
                             </div>
                         </div>
-                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden">
-                            <div className="flex items-center gap-3 text-slate-400 font-bold text-sm mb-4">
+                        <div className="bg-white border border-gray-200 p-6 rounded-3xl relative overflow-hidden">
+                            <div className="flex items-center gap-3 text-gray-500 font-bold text-sm mb-4">
                                 <Star size={18} className="text-amber-400"/> Soddisfazione (CSAT)
                             </div>
-                            <div className="text-4xl font-black text-white">
-                                4.8<span className="text-lg text-slate-500">/5</span>
+                            <div className="text-4xl font-black text-gray-900">
+                                4.8<span className="text-lg text-gray-400">/5</span>
                             </div>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 p-8 rounded-3xl flex flex-col">
-                            <h3 className="text-white font-bold mb-8 flex items-center gap-2">
-                                <BarChart3 className="text-indigo-500"/> Andamento Iscrizioni & Entrate
+                        <div className="lg:col-span-2 bg-white border border-gray-200 p-8 rounded-3xl flex flex-col">
+                            <h3 className="text-gray-900 font-bold mb-8 flex items-center gap-2">
+                                <BarChart3 className="text-[#00665E]"/> Andamento Iscrizioni & Entrate
                             </h3>
                             <div className="flex items-end justify-between gap-2 md:gap-4 h-64 mt-auto">
                                 {[30, 45, 25, 60, 80, 50, 95].map((h, i) => (
@@ -354,7 +352,7 @@ export default function SuperAdminAcademyPage() {
                                         <div className="w-full bg-slate-800/50 rounded-t-xl relative overflow-hidden" style={{height: `${h * (kpiMultiplier > 1 ? 1 : kpiMultiplier)}%`}}>
                                             <div className="absolute bottom-0 w-full bg-gradient-to-t from-indigo-600 to-indigo-400 rounded-t-xl group-hover:opacity-80 transition-opacity h-full"></div>
                                         </div>
-                                        <span className="text-xs text-slate-500 font-bold">Mese {i+1}</span>
+                                        <span className="text-xs text-gray-400 font-bold">Mese {i+1}</span>
                                     </div>
                                 ))}
                             </div>
@@ -362,23 +360,23 @@ export default function SuperAdminAcademyPage() {
 
                         {/* MOTORE AI ANTI-ABBANDONO */}
                         <div className="bg-gradient-to-br from-indigo-900/40 to-slate-900 border border-indigo-500/30 p-8 rounded-3xl flex flex-col relative overflow-hidden shadow-[0_0_40px_rgba(79,70,229,0.1)]">
-                            <div className="absolute -right-10 -top-10 text-indigo-500/10">
+                            <div className="absolute -right-10 -top-10 text-[#00665E]/10">
                                 <BrainCircuit size={150}/>
                             </div>
-                            <h3 className="text-white font-bold mb-2 flex items-center gap-2 relative z-10">
-                                <Sparkles className="text-indigo-400"/> AI Retention Manager
+                            <h3 className="text-gray-900 font-bold mb-2 flex items-center gap-2 relative z-10">
+                                <Sparkles className="text-[#00665E]"/> AI Retention Manager
                             </h3>
                             <p className="text-xs text-indigo-200 mb-6 relative z-10">
                                 L'AI monitora chi si blocca.
                             </p>
 
                             <div className="space-y-4 relative z-10 flex-1">
-                                <div className="bg-[#020817] p-4 rounded-xl border border-slate-800">
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                                     <p className="text-xs text-rose-400 font-bold mb-1">Problema Rilevato</p>
                                     <p className="text-sm text-slate-300">Il 14% degli iscritti abbandona al minuto 12:45 della Lezione 2.</p>
                                 </div>
                                 <div className="bg-indigo-600/20 p-4 rounded-xl border border-indigo-500/30">
-                                    <p className="text-xs text-indigo-400 font-bold mb-1">Azione Consigliata</p>
+                                    <p className="text-xs text-[#00665E] font-bold mb-1">Azione Consigliata</p>
                                     <p className="text-sm text-slate-300">Invia un Cheat-Sheet PDF semplificato agli utenti inattivi.</p>
                                 </div>
                             </div>
@@ -402,16 +400,16 @@ export default function SuperAdminAcademyPage() {
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         {/* MAPPA RADAR */}
-                        <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl relative overflow-hidden flex flex-col md:flex-row gap-8">
+                        <div className="bg-white border border-gray-200 p-8 rounded-3xl relative overflow-hidden flex flex-col md:flex-row gap-8">
                             <div className="flex-1 z-10 relative">
-                                <h3 className="text-white font-bold mb-2 flex items-center gap-2">
+                                <h3 className="text-gray-900 font-bold mb-2 flex items-center gap-2">
                                     <MapPin className="text-rose-500"/> Mappa Dislocazione
                                 </h3>
                                 <div className="space-y-5 mt-6">
                                     <div>
                                         <div className="flex justify-between text-sm mb-1">
-                                            <span className="text-white font-bold">Nord Italia</span>
-                                            <span className="text-indigo-400 font-black">65%</span>
+                                            <span className="text-gray-900 font-bold">Nord Italia</span>
+                                            <span className="text-[#00665E] font-black">65%</span>
                                         </div>
                                         <div className="w-full bg-slate-800 h-1.5 rounded-full">
                                             <div className="bg-indigo-500 h-full w-[65%]"></div>
@@ -419,7 +417,7 @@ export default function SuperAdminAcademyPage() {
                                     </div>
                                     <div>
                                         <div className="flex justify-between text-sm mb-1">
-                                            <span className="text-white font-bold">Centro Italia</span>
+                                            <span className="text-gray-900 font-bold">Centro Italia</span>
                                             <span className="text-emerald-400 font-black">20%</span>
                                         </div>
                                         <div className="w-full bg-slate-800 h-1.5 rounded-full">
@@ -428,7 +426,7 @@ export default function SuperAdminAcademyPage() {
                                     </div>
                                     <div>
                                         <div className="flex justify-between text-sm mb-1">
-                                            <span className="text-white font-bold">Sud Italia</span>
+                                            <span className="text-gray-900 font-bold">Sud Italia</span>
                                             <span className="text-blue-400 font-black">10%</span>
                                         </div>
                                         <div className="w-full bg-slate-800 h-1.5 rounded-full">
@@ -437,7 +435,7 @@ export default function SuperAdminAcademyPage() {
                                     </div>
                                 </div>
                             </div>
-                            <div className="w-full md:w-1/2 aspect-square bg-[#020817] rounded-2xl border border-slate-800 relative overflow-hidden flex items-center justify-center">
+                            <div className="w-full md:w-1/2 aspect-square bg-gray-50 rounded-2xl border border-gray-200 relative overflow-hidden flex items-center justify-center">
                                 <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '16px 16px' }}></div>
                                 <div className="absolute w-[80%] h-[80%] rounded-full border border-indigo-500/20"></div>
                                 <div className="absolute w-[50%] h-[50%] rounded-full border border-indigo-500/30"></div>
@@ -447,29 +445,29 @@ export default function SuperAdminAcademyPage() {
                         </div>
 
                         {/* TREND E RICERCHE B2B */}
-                        <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl">
+                        <div className="bg-white border border-gray-200 p-8 rounded-3xl">
                             <div className="flex justify-between items-start mb-6">
                                 <div>
-                                    <h3 className="text-white font-bold flex items-center gap-2">
+                                    <h3 className="text-gray-900 font-bold flex items-center gap-2">
                                         <Globe className="text-blue-500"/> Trend Ricerche B2B
                                     </h3>
                                 </div>
-                                <button onClick={() => {setAiThinking(true); setTimeout(()=>setAiThinking(false), 2000)}} className="p-2 bg-slate-800 text-slate-400 hover:text-indigo-400 rounded-lg">
-                                    <Loader2 size={16} className={aiThinking ? "animate-spin text-indigo-500" : ""}/>
+                                <button onClick={() => {setAiThinking(true); setTimeout(()=>setAiThinking(false), 2000)}} className="p-2 bg-slate-800 text-gray-500 hover:text-[#00665E] rounded-lg">
+                                    <Loader2 size={16} className={aiThinking ? "animate-spin text-[#00665E]" : ""}/>
                                 </button>
                             </div>
                             <div className="space-y-4">
-                                <div className="flex items-center justify-between p-3 bg-[#020817] border border-slate-800 rounded-xl">
-                                    <span className="text-sm font-bold text-white">1. "Automazione Fatture AI"</span>
+                                <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-xl">
+                                    <span className="text-sm font-bold text-gray-900">1. "Automazione Fatture AI"</span>
                                     <span className="text-xs font-black text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">+340%</span>
                                 </div>
-                                <div className="flex items-center justify-between p-3 bg-[#020817] border border-slate-800 rounded-xl">
-                                    <span className="text-sm font-bold text-white">2. "WhatsApp CRM"</span>
+                                <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-xl">
+                                    <span className="text-sm font-bold text-gray-900">2. "WhatsApp CRM"</span>
                                     <span className="text-xs font-black text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">+125%</span>
                                 </div>
                             </div>
                             <div className="mt-6 p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-sm text-indigo-200 flex items-start gap-3">
-                                <BrainCircuit size={24} className="text-indigo-400 shrink-0"/>
+                                <BrainCircuit size={24} className="text-[#00665E] shrink-0"/>
                                 <p><strong>Consiglio AI:</strong> Crea un mini-corso gratuito sull'"Automazione Fatture" come Lead Magnet.</p>
                             </div>
                         </div>
@@ -481,23 +479,23 @@ export default function SuperAdminAcademyPage() {
             {/* TAB 2: STUDENTI E PAGAMENTI                               */}
             {/* ========================================================= */}
             {activeTab === 'studenti' && (
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl animate-in fade-in">
-                    <div className="p-6 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center">
+                <div className="bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-2xl animate-in fade-in">
+                    <div className="p-6 border-b border-gray-200 bg-gray-50/50 flex justify-between items-center">
                         <div className="relative w-72">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16}/>
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/>
                             <input 
                                 type="text" 
                                 placeholder="Cerca studente o azienda..." 
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-[#020817] border border-slate-800 rounded-lg py-2 pl-10 pr-4 text-sm text-white outline-none focus:border-indigo-500"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 pl-10 pr-4 text-sm text-gray-900 outline-none focus:border-indigo-500"
                             />
                         </div>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse whitespace-nowrap">
                             <thead>
-                                <tr className="text-slate-400 text-xs uppercase tracking-widest font-bold border-b border-slate-800 bg-[#020817]">
+                                <tr className="text-gray-500 text-xs uppercase tracking-widest font-bold border-b border-gray-200 bg-gray-50">
                                     <th className="p-6">Azienda / Studente</th>
                                     <th className="p-6">Corso & Progresso</th>
                                     <th className="p-6">Stato Pagamento</th>
@@ -510,16 +508,16 @@ export default function SuperAdminAcademyPage() {
                                 {filteredEnrollments.map(emp => (
                                     <tr key={emp.id} className="hover:bg-slate-800/20 transition group">
                                         <td className="p-6">
-                                            <p className="font-bold text-white text-base">{emp.user}</p>
-                                            <p className="text-xs text-slate-400 mt-1"><span className="text-indigo-400">{emp.company}</span> • {emp.email}</p>
+                                            <p className="font-bold text-gray-900 text-base">{emp.user}</p>
+                                            <p className="text-xs text-gray-500 mt-1"><span className="text-[#00665E]">{emp.company}</span> • {emp.email}</p>
                                         </td>
                                         <td className="p-6">
-                                            <p className="text-sm text-white font-bold mb-2">{emp.course}</p>
+                                            <p className="text-sm text-gray-900 font-bold mb-2">{emp.course}</p>
                                             <div className="flex items-center gap-3">
                                                 <div className="w-24 h-2 bg-slate-800 rounded-full overflow-hidden">
                                                     <div className="bg-indigo-500 h-full" style={{width: `${emp.progress}%`}}></div>
                                                 </div>
-                                                <span className="text-xs text-slate-400 font-bold">{emp.progress}%</span>
+                                                <span className="text-xs text-gray-500 font-bold">{emp.progress}%</span>
                                             </div>
                                         </td>
                                         <td className="p-6">
@@ -528,19 +526,19 @@ export default function SuperAdminAcademyPage() {
                                             </span>
                                         </td>
                                         <td className="p-6">
-                                            <p className="text-xs text-slate-400 mb-1">Spesa Tot.: <strong className="text-white">€{emp.spent}</strong></p>
-                                            <p className="text-xs text-slate-400">Accesso: <strong className={emp.lastActive === 'Oggi' ? 'text-emerald-400' : 'text-slate-300'}>{emp.lastActive}</strong></p>
+                                            <p className="text-xs text-gray-500 mb-1">Spesa Tot.: <strong className="text-gray-900">€{emp.spent}</strong></p>
+                                            <p className="text-xs text-gray-500">Accesso: <strong className={emp.lastActive === 'Oggi' ? 'text-emerald-400' : 'text-slate-300'}>{emp.lastActive}</strong></p>
                                         </td>
                                         <td className="p-6">
-                                            <div className={`flex items-center gap-1.5 font-black px-3 py-1.5 rounded-lg inline-flex ${emp.credits < 500 ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-slate-800 text-amber-400 border border-slate-700'}`}>
+                                            <div className={`flex items-center gap-1.5 font-black px-3 py-1.5 rounded-lg inline-flex ${emp.credits < 500 ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-slate-800 text-amber-400 border border-gray-200'}`}>
                                                 {emp.credits} <Zap size={14}/>
                                             </div>
                                         </td>
                                         <td className="p-6 text-right space-x-2">
-                                            <button onClick={() => handleOpenCreditModal(emp)} className="bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-indigo-500/30 px-3 py-2 text-xs font-bold rounded-lg transition inline-flex items-center gap-1">
+                                            <button onClick={() => handleOpenCreditModal(emp)} className="bg-indigo-600/20 hover:bg-indigo-600 text-white border border-indigo-500/30 px-3 py-2 text-xs font-bold rounded-lg transition inline-flex items-center gap-1">
                                                 <Zap size={14}/> Ricarica
                                             </button>
-                                            <button onClick={() => setStudentDetailsModal(emp)} className="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-lg text-xs font-bold transition inline-flex items-center gap-1">
+                                            <button onClick={() => setStudentDetailsModal(emp)} className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition inline-flex items-center gap-1">
                                                 <MoreVertical size={14}/> Dettagli
                                             </button>
                                         </td>
@@ -556,10 +554,10 @@ export default function SuperAdminAcademyPage() {
             {/* TAB 3: GESTIONE CONTENUTI REALI (DATABASE SUPABASE)       */}
             {/* ========================================================= */}
             {activeTab === 'corsi' && (
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl animate-in fade-in">
+                <div className="bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-2xl animate-in fade-in">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-[#020817] border-b border-slate-800 text-slate-400 text-xs uppercase tracking-widest font-bold">
+                            <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 text-xs uppercase tracking-widest font-bold">
                                 <th className="p-6">Nome Corso</th>
                                 <th className="p-6">Metriche</th>
                                 <th className="p-6">Prezzo</th>
@@ -570,31 +568,31 @@ export default function SuperAdminAcademyPage() {
                         <tbody className="divide-y divide-slate-800/50">
                             {isLoadingCourses ? (
                                 <tr>
-                                    <td colSpan={5} className="p-12 text-center text-slate-500 font-bold">
-                                        <Loader2 className="animate-spin mx-auto mb-4 text-indigo-500" size={32}/>
+                                    <td colSpan={5} className="p-12 text-center text-gray-400 font-bold">
+                                        <Loader2 className="animate-spin mx-auto mb-4 text-[#00665E]" size={32}/>
                                         Recupero corsi dal Database...
                                     </td>
                                 </tr>
                             ) : courses.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="p-12 text-center text-slate-500 font-bold">
+                                    <td colSpan={5} className="p-12 text-center text-gray-400 font-bold">
                                         Nessun corso presente nel database. Creane uno per iniziare!
                                     </td>
                                 </tr>
                             ) : (
                                 courses.map((course: any) => (
                                     <tr key={course.id} className="hover:bg-slate-800/20 transition">
-                                        <td className="p-6 font-bold text-white flex items-center gap-3">
-                                            <div className="w-12 h-12 bg-indigo-500/10 text-indigo-400 rounded-xl flex items-center justify-center border border-indigo-500/20"><PlayCircle size={24}/></div>
+                                        <td className="p-6 font-bold text-gray-900 flex items-center gap-3">
+                                            <div className="w-12 h-12 bg-indigo-500/10 text-[#00665E] rounded-xl flex items-center justify-center border border-indigo-500/20"><PlayCircle size={24}/></div>
                                             <div>
                                                 {course.title}
-                                                <div className="text-[10px] text-slate-500 mt-1 font-mono">ID: {course.id.substring(0,8)}...</div>
+                                                <div className="text-[10px] text-gray-400 mt-1 font-mono">ID: {course.id.substring(0,8)}...</div>
                                             </div>
                                         </td>
                                         <td className="p-6">
                                             <p className="text-sm text-slate-300 font-bold">{course.enrollments || 0} Iscritti</p>
                                         </td>
-                                        <td className="p-6 font-black text-white text-lg">€{course.price}</td>
+                                        <td className="p-6 font-black text-gray-900 text-lg">€{course.price}</td>
                                         <td className="p-6">
                                             <span className={`px-3 py-1 text-xs font-bold rounded-full border ${course.status === 'Pubblicato' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
                                                 {course.status || 'Bozza'}
@@ -603,13 +601,13 @@ export default function SuperAdminAcademyPage() {
                                         <td className="p-6 text-right space-x-2">
                                             <button 
                                                 onClick={() => handleEditCourse(course)} 
-                                                className="px-4 py-2.5 bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-300 text-xs font-bold rounded-lg transition border border-slate-700 hover:border-transparent"
+                                                className="px-4 py-2.5 bg-slate-800 hover:bg-indigo-600 text-white text-xs font-bold rounded-lg transition border border-gray-200 hover:border-transparent"
                                             >
                                                 Modifica
                                             </button>
                                             <button 
                                                 onClick={() => handleDeleteCourse(course.id)} 
-                                                className="px-4 py-2.5 bg-slate-800 hover:bg-rose-600 hover:text-white text-rose-400 text-xs font-bold rounded-lg transition border border-slate-700 hover:border-transparent"
+                                                className="px-4 py-2.5 bg-slate-800 hover:bg-rose-600 text-white text-xs font-bold rounded-lg transition border border-gray-200 hover:border-transparent"
                                             >
                                                 Elimina
                                             </button>
@@ -628,25 +626,25 @@ export default function SuperAdminAcademyPage() {
             {activeTab === 'ticket' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in">
                     {tickets.map(ticket => (
-                        <div key={ticket.id} className={`bg-slate-900 border p-6 rounded-3xl transition ${ticket.status === 'Aperto' ? 'border-rose-500/50 shadow-[0_0_20px_rgba(244,63,94,0.1)]' : 'border-slate-800'}`}>
+                        <div key={ticket.id} className={`bg-white border p-6 rounded-3xl transition ${ticket.status === 'Aperto' ? 'border-rose-500/50 shadow-[0_0_20px_rgba(244,63,94,0.1)]' : 'border-gray-200'}`}>
                             <div className="flex justify-between items-start mb-4">
                                 <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-md ${ticket.status === 'Aperto' ? 'bg-rose-500/20 text-rose-400' : (ticket.status === 'Risolto' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400')}`}>
                                     {ticket.status}
                                 </span>
-                                <span className="text-xs text-slate-500 font-bold">{ticket.date}</span>
+                                <span className="text-xs text-gray-400 font-bold">{ticket.date}</span>
                             </div>
-                            <h3 className="text-lg font-black text-white mb-1">{ticket.subject}</h3>
-                            <p className="text-sm text-slate-400 mb-6 flex items-center gap-2"><Users size={14}/> {ticket.user}</p>
+                            <h3 className="text-lg font-black text-gray-900 mb-1">{ticket.subject}</h3>
+                            <p className="text-sm text-gray-500 mb-6 flex items-center gap-2"><Users size={14}/> {ticket.user}</p>
                             
                             {ticket.status !== 'Risolto' && (
                                 <div className="flex gap-2">
-                                    <button onClick={() => setReplyTicketModal(ticket)} className="flex-1 bg-slate-800 hover:bg-indigo-600 text-white text-xs font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1"><Send size={14}/> Rispondi</button>
-                                    <button onClick={() => handleResolveTicket(ticket.id)} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1"><CheckCircle2 size={14}/> Risolvi</button>
+                                    <button onClick={() => setReplyTicketModal(ticket)} className="flex-1 bg-slate-800 hover:bg-indigo-600 text-white transition flex items-center justify-center gap-1"><Send size={14}/> Rispondi</button>
+                                    <button onClick={() => handleResolveTicket(ticket.id)} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center justify-center gap-1"><CheckCircle2 size={14}/> Risolvi</button>
                                 </div>
                             )}
                         </div>
                     ))}
-                    {tickets.length === 0 && <p className="text-slate-500">Nessun ticket presente.</p>}
+                    {tickets.length === 0 && <p className="text-gray-400">Nessun ticket presente.</p>}
                 </div>
             )}
 
@@ -657,51 +655,51 @@ export default function SuperAdminAcademyPage() {
             {/* MODALE: CREA / MODIFICA CORSO (CONNESSO A SUPABASE) */}
             {isCourseModalOpen && (
                 <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-[#020817] border border-slate-700 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden animate-in zoom-in-95 max-h-[90vh] flex flex-col">
-                        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-                            <h2 className="text-xl font-black text-white flex items-center gap-2">
-                                <Settings className="text-indigo-500"/> {editingCourse.id ? 'Modifica Corso' : 'Configurazione Nuovo Corso'}
+                    <div className="bg-gray-50 border border-gray-200 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden animate-in zoom-in-95 max-h-[90vh] flex flex-col">
+                        <div className="p-6 border-b border-gray-200 flex justify-between items-center bg-white/50">
+                            <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
+                                <Settings className="text-[#00665E]"/> {editingCourse.id ? 'Modifica Corso' : 'Configurazione Nuovo Corso'}
                             </h2>
-                            <button onClick={() => setIsCourseModalOpen(false)} className="text-slate-400 hover:text-white p-2 bg-slate-800 rounded-full"><X size={20}/></button>
+                            <button onClick={() => setIsCourseModalOpen(false)} className="text-gray-500 hover:text-gray-900 p-2 bg-slate-800 rounded-full"><X size={20}/></button>
                         </div>
                         <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
                             <form id="courseForm" onSubmit={handleSaveCourse} className="space-y-8">
                                 <div>
-                                    <h3 className="text-white font-bold mb-4 border-b border-slate-800 pb-2">Informazioni Base</h3>
+                                    <h3 className="text-gray-900 font-bold mb-4 border-b border-gray-200 pb-2">Informazioni Base</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
-                                            <label className="text-xs font-bold text-slate-400 uppercase block mb-2">Titolo del Corso</label>
-                                            <input required type="text" value={editingCourse.title} onChange={e=>setEditingCourse({...editingCourse, title: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 px-4 text-white outline-none focus:border-indigo-500" placeholder="Es. Nuova Masterclass" />
+                                            <label className="text-xs font-bold text-gray-500 uppercase block mb-2">Titolo del Corso</label>
+                                            <input required type="text" value={editingCourse.title} onChange={e=>setEditingCourse({...editingCourse, title: e.target.value})} className="w-full bg-white border border-gray-200 rounded-xl py-3 px-4 text-gray-900 outline-none focus:border-indigo-500" placeholder="Es. Nuova Masterclass" />
                                         </div>
                                         <div>
-                                            <label className="text-xs font-bold text-slate-400 uppercase block mb-2">Prezzo (€)</label>
-                                            <input required type="number" value={editingCourse.price} onChange={e=>setEditingCourse({...editingCourse, price: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 px-4 text-white outline-none focus:border-indigo-500" placeholder="199" />
+                                            <label className="text-xs font-bold text-gray-500 uppercase block mb-2">Prezzo (€)</label>
+                                            <input required type="number" value={editingCourse.price} onChange={e=>setEditingCourse({...editingCourse, price: e.target.value})} className="w-full bg-white border border-gray-200 rounded-xl py-3 px-4 text-gray-900 outline-none focus:border-indigo-500" placeholder="199" />
                                         </div>
                                     </div>
                                     <div className="mt-4">
-                                        <label className="text-xs font-bold text-slate-400 uppercase block mb-2">Descrizione</label>
-                                        <textarea required value={editingCourse.description} onChange={e=>setEditingCourse({...editingCourse, description: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 px-4 text-white outline-none focus:border-indigo-500" placeholder="Di cosa parla il corso?"></textarea>
+                                        <label className="text-xs font-bold text-gray-500 uppercase block mb-2">Descrizione</label>
+                                        <textarea required value={editingCourse.description} onChange={e=>setEditingCourse({...editingCourse, description: e.target.value})} className="w-full bg-white border border-gray-200 rounded-xl py-3 px-4 text-gray-900 outline-none focus:border-indigo-500" placeholder="Di cosa parla il corso?"></textarea>
                                     </div>
                                 </div>
                                 <div>
-                                    <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-2">
-                                        <h3 className="text-white font-bold">Curriculum Lezioni</h3>
-                                        <button type="button" onClick={handleAddLesson} className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 bg-indigo-500/10 px-3 py-1.5 rounded-lg"><Plus size={14}/> Aggiungi Lezione</button>
+                                    <div className="flex justify-between items-center mb-4 border-b border-gray-200 pb-2">
+                                        <h3 className="text-gray-900 font-bold">Curriculum Lezioni</h3>
+                                        <button type="button" onClick={handleAddLesson} className="text-xs font-bold text-[#00665E] hover:text-indigo-300 flex items-center gap-1 bg-indigo-500/10 px-3 py-1.5 rounded-lg"><Plus size={14}/> Aggiungi Lezione</button>
                                     </div>
                                     
                                     {editingCourse.lessons.map((lesson, index) => (
-                                        <div key={lesson.id} className="bg-slate-900 border border-slate-700 p-4 rounded-xl mb-4 relative group">
+                                        <div key={lesson.id} className="bg-white border border-gray-200 p-4 rounded-xl mb-4 relative group">
                                             {editingCourse.lessons.length > 1 && (
-                                                <button type="button" onClick={() => handleRemoveLesson(lesson.id)} className="absolute top-4 right-4 text-slate-500 hover:text-rose-500"><Trash2 size={16}/></button>
+                                                <button type="button" onClick={() => handleRemoveLesson(lesson.id)} className="absolute top-4 right-4 text-gray-400 hover:text-rose-500"><Trash2 size={16}/></button>
                                             )}
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div>
-                                                    <label className="text-[10px] text-slate-500 uppercase font-bold">Titolo Lezione {index+1}</label>
-                                                    <input type="text" value={lesson.title} onChange={e => handleLessonChange(lesson.id, 'title', e.target.value)} className="w-full bg-[#020817] border border-slate-800 rounded-lg py-2 px-3 text-sm text-white outline-none focus:border-indigo-500 mt-1" />
+                                                    <label className="text-[10px] text-gray-400 uppercase font-bold">Titolo Lezione {index+1}</label>
+                                                    <input type="text" value={lesson.title} onChange={e => handleLessonChange(lesson.id, 'title', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 text-sm text-gray-900 outline-none focus:border-indigo-500 mt-1" />
                                                 </div>
                                                 <div>
-                                                    <label className="text-[10px] text-slate-500 uppercase font-bold">Video (Link URL)</label>
-                                                    <input type="url" placeholder="https://..." value={lesson.url} onChange={e => handleLessonChange(lesson.id, 'url', e.target.value)} className="w-full bg-[#020817] border border-slate-800 rounded-lg py-2 px-3 text-sm text-slate-300 outline-none focus:border-indigo-500 mt-1 font-mono" />
+                                                    <label className="text-[10px] text-gray-400 uppercase font-bold">Video (Link URL)</label>
+                                                    <input type="url" placeholder="https://..." value={lesson.url} onChange={e => handleLessonChange(lesson.id, 'url', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 text-sm text-slate-300 outline-none focus:border-indigo-500 mt-1 font-mono" />
                                                 </div>
                                             </div>
                                         </div>
@@ -709,9 +707,9 @@ export default function SuperAdminAcademyPage() {
                                 </div>
                             </form>
                         </div>
-                        <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex justify-end gap-3">
-                            <button onClick={() => setIsCourseModalOpen(false)} className="px-6 py-3 font-bold text-slate-400 hover:text-white transition">Annulla</button>
-                            <button form="courseForm" disabled={isSaving} type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3 rounded-xl transition flex items-center gap-2 shadow-lg disabled:opacity-50">
+                        <div className="p-6 border-t border-gray-200 bg-white/50 flex justify-end gap-3">
+                            <button onClick={() => setIsCourseModalOpen(false)} className="px-6 py-3 font-bold text-gray-500 hover:text-gray-900 transition">Annulla</button>
+                            <button form="courseForm" disabled={isSaving} type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold transition flex items-center gap-2 shadow-lg disabled:opacity-50">
                                 {isSaving ? <Loader2 size={18} className="animate-spin"/> : <Save size={18}/>} {editingCourse.id ? 'Aggiorna Corso' : 'Salva nel Database'}
                             </button>
                         </div>
@@ -722,39 +720,39 @@ export default function SuperAdminAcademyPage() {
             {/* MODALE: DETTAGLI STUDENTE */}
             {studentDetailsModal && (
                 <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-[#020817] border border-slate-700 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95">
-                        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-                            <h2 className="text-xl font-black text-white">Scheda Studente</h2>
-                            <button onClick={() => setStudentDetailsModal(null)} className="text-slate-400 hover:text-white"><X size={20}/></button>
+                    <div className="bg-gray-50 border border-gray-200 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95">
+                        <div className="p-6 border-b border-gray-200 flex justify-between items-center bg-white/50">
+                            <h2 className="text-xl font-black text-gray-900">Scheda Studente</h2>
+                            <button onClick={() => setStudentDetailsModal(null)} className="text-gray-500 hover:text-gray-900"><X size={20}/></button>
                         </div>
                         <div className="p-8">
                             <div className="flex items-center gap-4 mb-6">
-                                <div className="w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center text-2xl font-black text-white">
+                                <div className="w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center text-2xl font-black text-gray-900">
                                     {studentDetailsModal.user.charAt(0)}
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-black text-white">{studentDetailsModal.user}</h3>
-                                    <p className="text-slate-400 text-sm">{studentDetailsModal.company} • {studentDetailsModal.email}</p>
+                                    <h3 className="text-xl font-black text-gray-900">{studentDetailsModal.user}</h3>
+                                    <p className="text-gray-500 text-sm">{studentDetailsModal.company} • {studentDetailsModal.email}</p>
                                 </div>
                             </div>
-                            <div className="space-y-4 bg-slate-900 p-6 rounded-2xl border border-slate-800">
-                                <div className="flex justify-between border-b border-slate-800 pb-2">
-                                    <span className="text-slate-400">Corso Iscritto</span><span className="font-bold text-white">{studentDetailsModal.course}</span>
+                            <div className="space-y-4 bg-white p-6 rounded-2xl border border-gray-200">
+                                <div className="flex justify-between border-b border-gray-200 pb-2">
+                                    <span className="text-gray-500">Corso Iscritto</span><span className="font-bold text-gray-900">{studentDetailsModal.course}</span>
                                 </div>
-                                <div className="flex justify-between border-b border-slate-800 pb-2">
-                                    <span className="text-slate-400">Stato Pagamento</span><span className="font-bold text-emerald-400">{studentDetailsModal.payment}</span>
+                                <div className="flex justify-between border-b border-gray-200 pb-2">
+                                    <span className="text-gray-500">Stato Pagamento</span><span className="font-bold text-emerald-400">{studentDetailsModal.payment}</span>
                                 </div>
-                                <div className="flex justify-between border-b border-slate-800 pb-2">
-                                    <span className="text-slate-400">Totale Speso (LTV)</span><span className="font-bold text-white">€{studentDetailsModal.spent}</span>
+                                <div className="flex justify-between border-b border-gray-200 pb-2">
+                                    <span className="text-gray-500">Totale Speso (LTV)</span><span className="font-bold text-gray-900">€{studentDetailsModal.spent}</span>
                                 </div>
-                                <div className="flex justify-between border-b border-slate-800 pb-2">
-                                    <span className="text-slate-400">Ultimo Accesso</span><span className="font-bold text-white">{studentDetailsModal.lastActive}</span>
+                                <div className="flex justify-between border-b border-gray-200 pb-2">
+                                    <span className="text-gray-500">Ultimo Accesso</span><span className="font-bold text-gray-900">{studentDetailsModal.lastActive}</span>
                                 </div>
-                                <div className="flex justify-between border-b border-slate-800 pb-2">
-                                    <span className="text-slate-400">Punteggio Quiz</span><span className="font-bold text-white">{studentDetailsModal.quiz}/100</span>
+                                <div className="flex justify-between border-b border-gray-200 pb-2">
+                                    <span className="text-gray-500">Punteggio Quiz</span><span className="font-bold text-gray-900">{studentDetailsModal.quiz}/100</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Crediti AI</span><span className="font-bold text-amber-400">{studentDetailsModal.credits} ⚡</span>
+                                    <span className="text-gray-500">Crediti AI</span><span className="font-bold text-amber-400">{studentDetailsModal.credits} ⚡</span>
                                 </div>
                             </div>
                         </div>
@@ -765,18 +763,18 @@ export default function SuperAdminAcademyPage() {
             {/* MODALE: RISPONDI A TICKET */}
             {replyTicketModal && (
                 <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-[#020817] border border-slate-700 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95">
-                        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-                            <h2 className="text-xl font-black text-white flex items-center gap-2"><Send size={20} className="text-indigo-500"/> Rispondi al Cliente</h2>
-                            <button onClick={() => setReplyTicketModal(null)} className="text-slate-400 hover:text-white"><X size={20}/></button>
+                    <div className="bg-gray-50 border border-gray-200 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95">
+                        <div className="p-6 border-b border-gray-200 flex justify-between items-center bg-white/50">
+                            <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><Send size={20} className="text-[#00665E]"/> Rispondi al Cliente</h2>
+                            <button onClick={() => setReplyTicketModal(null)} className="text-gray-500 hover:text-gray-900"><X size={20}/></button>
                         </div>
                         <form onSubmit={handleSendTicketReply} className="p-8">
                             <div className="mb-4">
-                                <p className="text-xs text-slate-500 uppercase font-bold">Oggetto Ticket</p>
-                                <p className="text-white font-bold">{replyTicketModal.subject}</p>
+                                <p className="text-xs text-gray-400 uppercase font-bold">Oggetto Ticket</p>
+                                <p className="text-gray-900 font-bold">{replyTicketModal.subject}</p>
                             </div>
-                            <textarea required rows={5} className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 px-4 text-white outline-none focus:border-indigo-500 resize-none mb-6" placeholder="Scrivi la risposta che arriverà via email al cliente..."></textarea>
-                            <button disabled={isSaving} type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50">
+                            <textarea required rows={5} className="w-full bg-white border border-gray-200 rounded-xl py-3 px-4 text-gray-900 outline-none focus:border-indigo-500 resize-none mb-6" placeholder="Scrivi la risposta che arriverà via email al cliente..."></textarea>
+                            <button disabled={isSaving} type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white transition flex items-center justify-center gap-2 disabled:opacity-50">
                                 {isSaving ? <Loader2 size={18} className="animate-spin"/> : <Send size={18}/>} Invia Risposta
                             </button>
                         </form>
@@ -787,22 +785,22 @@ export default function SuperAdminAcademyPage() {
             {/* MODALE RICARICA CREDITI AI */}
             {isCreditModalOpen && selectedStudent && (
                 <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-[#020817] border border-slate-700 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95">
-                        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-                            <h2 className="text-xl font-black text-white flex items-center gap-2"><Zap className="text-amber-400"/> Ricarica Crediti AI</h2>
-                            <button onClick={() => setIsCreditModalOpen(false)} className="text-slate-400 hover:text-white p-2 bg-slate-800 rounded-full"><X size={20}/></button>
+                    <div className="bg-gray-50 border border-gray-200 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95">
+                        <div className="p-6 border-b border-gray-200 flex justify-between items-center bg-white/50">
+                            <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><Zap className="text-amber-400"/> Ricarica Crediti AI</h2>
+                            <button onClick={() => setIsCreditModalOpen(false)} className="text-gray-500 hover:text-gray-900 p-2 bg-slate-800 rounded-full"><X size={20}/></button>
                         </div>
                         <div className="p-8">
                             <div className="mb-6 text-center">
-                                <h3 className="text-lg font-bold text-white">{selectedStudent.user}</h3>
-                                <p className="text-sm text-slate-400">Credito attuale: <strong className="text-white">{selectedStudent.credits} ⚡</strong></p>
+                                <h3 className="text-lg font-bold text-gray-900">{selectedStudent.user}</h3>
+                                <p className="text-sm text-gray-500">Credito attuale: <strong className="text-gray-900">{selectedStudent.credits} ⚡</strong></p>
                             </div>
                             <form onSubmit={handleSaveCredit} className="space-y-4">
                                 <div className="flex items-center justify-center gap-4">
-                                    <button type="button" onClick={() => setCreditAmount(1000)} className={`px-4 py-2 rounded-lg font-bold text-sm border transition ${creditAmount === 1000 ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-400'}`}>+ 1000</button>
-                                    <button type="button" onClick={() => setCreditAmount(5000)} className={`px-4 py-2 rounded-lg font-bold text-sm border transition ${creditAmount === 5000 ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-400'}`}>+ 5000</button>
+                                    <button type="button" onClick={() => setCreditAmount(1000)} className={`px-4 py-2 rounded-lg font-bold text-sm border transition ${creditAmount === 1000 ? 'bg-indigo-600 border-indigo-500 text-gray-900' : 'bg-white border-gray-200 text-gray-500'}`}>+ 1000</button>
+                                    <button type="button" onClick={() => setCreditAmount(5000)} className={`px-4 py-2 rounded-lg font-bold text-sm border transition ${creditAmount === 5000 ? 'bg-indigo-600 border-indigo-500 text-gray-900' : 'bg-white border-gray-200 text-gray-500'}`}>+ 5000</button>
                                 </div>
-                                <button disabled={isSaving} type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl mt-6 disabled:opacity-50 flex items-center justify-center gap-2">
+                                <button disabled={isSaving} type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white mt-6 disabled:opacity-50 flex items-center justify-center gap-2">
                                     {isSaving ? <Loader2 size={18} className="animate-spin"/> : <Zap fill="currentColor" size={18}/>} Ricarica e Notifica
                                 </button>
                             </form>

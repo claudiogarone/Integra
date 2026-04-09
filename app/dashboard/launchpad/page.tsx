@@ -58,10 +58,11 @@ export default function LaunchpadPage() {
 
   useEffect(() => {
     const getData = async () => {
-      const devUserId = '00000000-0000-0000-0000-000000000000';
-      setUser({ id: devUserId });
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return;
+      setUser(user)
 
-      const { data } = await supabase.from('profiles').select('*').eq('id', devUserId).single()
+      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
       if (data) {
         setUserData(data)
         setCurrentPlan(data.plan || 'Base')
@@ -437,16 +438,16 @@ export default function LaunchpadPage() {
                 </div>
             </div>
 
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-6 rounded-3xl border border-slate-700 shadow-xl text-white">
-                <h2 className="text-lg font-black mb-2 flex items-center gap-2"><Send size={20} className="text-blue-400"/> Esportazione Pronta All'Uso</h2>
-                <p className="text-xs text-slate-400 mb-6">Scarica la grafica e copia il testo ottimizzato in automatico per incollarlo nei tuoi profili social.</p>
+            <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm text-gray-900">
+                <h2 className="text-lg font-black mb-2 flex items-center gap-2"><Send size={20} className="text-[#00665E]"/> Esportazione Pronta All'Uso</h2>
+                <p className="text-xs text-gray-500 mb-6">Scarica la grafica e copia il testo ottimizzato in automatico per incollarlo nei tuoi profili social.</p>
 
                 <div className="space-y-4">
-                    <button onClick={exportSocialKit} disabled={exporting} className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-500 transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 text-sm disabled:opacity-50">
+                    <button onClick={exportSocialKit} disabled={exporting} className="w-full bg-[#00665E] text-white font-bold py-4 rounded-xl hover:bg-[#004d46] transition shadow-lg shadow-[#00665E]/20 flex items-center justify-center gap-2 text-sm disabled:opacity-50">
                         {exporting ? <Loader2 className="animate-spin" size={18}/> : <><Copy size={18}/> Esporta Kit Social (Img + Testo)</>}
                     </button>
                     
-                    <button onClick={downloadFlyer} disabled={generating} className="w-full bg-white/10 text-white font-bold py-3 rounded-xl hover:bg-white/20 transition flex items-center justify-center gap-2 text-sm">
+                    <button onClick={downloadFlyer} disabled={generating} className="w-full bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200 transition flex items-center justify-center gap-2 text-sm border border-gray-200">
                         {generating ? <Loader2 className="animate-spin" size={16}/> : <><Download size={16}/> Scarica Solo Immagine PNG</>}
                     </button>
                 </div>
@@ -608,27 +609,27 @@ export default function LaunchpadPage() {
                   </div>
 
                   {/* MEDIA PLANNER AI */}
-                  <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-6 shadow-xl text-white relative overflow-hidden border border-slate-700">
-                      <BrainCircuit className="absolute -right-4 -bottom-4 text-indigo-500" size={120} opacity={0.2}/>
-                      <h2 className="text-xl font-black mb-2 flex items-center gap-2 relative z-10"><Sparkles className="text-indigo-400"/> AI Media Planner Mensile</h2>
-                      <p className="text-xs text-slate-300 mb-4 relative z-10 leading-relaxed">Inserisci il budget mensile. L'AI genererà una strategia di allocazione fondi e un piano d'azione per le 4 settimane del mese ottimizzato per il ROI.</p>
+                  <div className="bg-white border-2 border-[#00665E]/20 rounded-3xl p-6 shadow-sm text-gray-900 relative overflow-hidden">
+                      <BrainCircuit className="absolute -right-4 -bottom-4 text-[#00665E]/10" size={120}/>
+                      <h2 className="text-xl font-black mb-2 flex items-center gap-2 relative z-10 text-gray-900"><Sparkles className="text-[#00665E]"/> AI Media Planner Mensile</h2>
+                      <p className="text-xs text-gray-500 mb-4 relative z-10 leading-relaxed">Inserisci il budget mensile. L'AI genererà una strategia di allocazione fondi e un piano d'azione per le 4 settimane del mese ottimizzato per il ROI.</p>
 
                       <form ref={plannerFormRef} onSubmit={generateMediaPlan} className="relative z-10 transition-all p-1">
                           
                           {/* MOSTRA PARTNER SELEZIONATO SE PRESENTE */}
                           {selectedPartner && (
-                              <div className="bg-indigo-500/20 border border-indigo-400/50 p-4 rounded-xl mb-4 flex items-center justify-between shadow-inner">
+                              <div className="bg-[#00665E]/10 border border-[#00665E]/20 p-4 rounded-xl mb-4 flex items-center justify-between shadow-inner">
                                   <div>
-                                      <p className="text-[10px] text-indigo-300 font-bold uppercase tracking-widest flex items-center gap-1"><Target size={12}/> Partner Inserito a Forza</p>
-                                      <p className="text-sm font-bold text-white mt-1">{selectedPartner}</p>
+                                      <p className="text-[10px] text-[#00665E] font-bold uppercase tracking-widest flex items-center gap-1"><Target size={12}/> Partner Inserito a Forza</p>
+                                      <p className="text-sm font-bold text-gray-900 mt-1">{selectedPartner}</p>
                                   </div>
-                                  <button type="button" onClick={() => setSelectedPartner('')} className="text-indigo-300 hover:text-rose-400 bg-black/20 p-2 rounded-lg transition"><X size={16}/></button>
+                                  <button type="button" onClick={() => setSelectedPartner('')} className="text-gray-400 hover:text-rose-500 bg-white p-2 rounded-lg transition border border-gray-200"><X size={16}/></button>
                               </div>
                           )}
 
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Budget Mensile (€)</label>
-                          <input type="number" required min="100" value={budget} onChange={e=>setBudget(e.target.value)} placeholder="Es. 1500" className="w-full bg-slate-800 border border-slate-600 p-4 rounded-xl outline-none focus:border-indigo-500 font-black text-2xl text-white mb-4 shadow-inner"/>
-                          <button type="submit" disabled={isPlanning || !budget} className="w-full bg-indigo-600 text-white font-black py-4 rounded-xl hover:bg-indigo-500 transition shadow-[0_0_20px_rgba(79,70,229,0.3)] flex justify-center items-center gap-2 disabled:opacity-50">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Budget Mensile (€)</label>
+                          <input type="number" required min="100" value={budget} onChange={e=>setBudget(e.target.value)} placeholder="Es. 1500" className="w-full bg-gray-50 border border-gray-200 p-4 rounded-xl outline-none focus:border-[#00665E] font-black text-2xl text-gray-900 mb-4 shadow-inner"/>
+                          <button type="submit" disabled={isPlanning || !budget} className="w-full bg-[#00665E] text-white font-black py-4 rounded-xl hover:bg-[#004d46] transition shadow-[0_10px_30px_rgba(0,102,94,0.2)] flex justify-center items-center gap-2 disabled:opacity-50">
                               {isPlanning ? <Loader2 size={18} className="animate-spin"/> : <Activity size={18}/>} Genera Masterplan AI
                           </button>
                       </form>

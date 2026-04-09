@@ -1,569 +1,786 @@
 'use client'
 
-import { useState } from 'react'
-import Link from 'next/link'
+import { useState, useEffect, useCallback } from 'react'
 import { 
-    Building, Users, Settings, Search, CheckCircle2, X, Loader2,
-    Shield, BarChart3, Download, Activity, Database, Server,
-    AlertTriangle, Zap, LogOut, TrendingUp, CreditCard, Power,
-    MoreVertical, Box, Mail, MessageSquare, BrainCircuit, PlayCircle,
-    Network, Lock, ArrowRight, Eye, UserPlus, Target, Star, Smile,
-    Send,
-    Sparkles
+    Shield, Users, Eye, Mail, Search, Download, Send, X, Loader2, 
+    CheckCircle2, AlertTriangle, TrendingUp, BarChart3, Database,
+    Server, Power, Lock, Activity, Building, Star, Zap, RefreshCw,
+    MessageSquare, FileText, UserCheck, Globe, BookOpen, ChevronDown,
+    MoreVertical, ExternalLink, Copy, Check, PlayCircle, LogOut
 } from 'lucide-react'
+import Link from 'next/link'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie } from 'recharts'
 
-// --- DATI REALI SIMULATI ---
-const INITIAL_COMPANIES = [
-    { id: '1', name: 'TechSolutions Srl', admin: 'Mario Rossi', email: 'admin@tech.it', plan: 'Enterprise', mrr: 299, status: 'Attivo', aiTokens: '1.2M', users: 12, rating: 5, joinDate: '12 Gen 2026' },
-    { id: '2', name: 'Digital Agency', admin: 'Laura Bianchi', email: 'laura@digital.it', plan: 'Pro', mrr: 149, status: 'In Ritardo', aiTokens: '450k', users: 5, rating: 3, joinDate: '03 Feb 2026' },
-    { id: '3', name: 'Verdi Consulting', admin: 'Marco Verdi', email: 'marco@verdi.com', plan: 'Starter', mrr: 49, status: 'Attivo', aiTokens: '50k', users: 2, rating: 5, joinDate: '28 Feb 2026' },
-    { id: '4', name: 'Neri & Co. Logistics', admin: 'Giulia Neri', email: 'giulia@neri.it', plan: 'Pro', mrr: 149, status: 'Sospeso', aiTokens: '0', users: 4, rating: 2, joinDate: '15 Nov 2025' },
-    { id: '5', name: 'Ristorante La Pinta', admin: 'Luigi Neri', email: 'info@lapinta.it', plan: 'Starter', mrr: 49, status: 'Trial', aiTokens: '12k', users: 1, rating: 4, joinDate: 'Oggi' },
-]
+// ===================== TYPES =====================
+type Tab = 'overview' | 'accounts' | 'consents' | 'views' | 'contact' | 'server'
 
-const HOT_LEADS = [
-    { id: 1, email: 'ceo@marketingpro.it', visits: 5, intent: 'Alto (Pagina Prezzi)', time: '10 min fa' },
-    { id: 2, email: 'info@studiograndi.com', visits: 3, intent: 'Medio (Features CRM)', time: '1 ora fa' },
-    { id: 3, email: 'm.ferrari@logistica.it', visits: 8, intent: 'Molto Alto (Checkout abbandonato)', time: '3 ore fa' }
-]
+// ===================== HELPERS =====================
+const StatusBadge = ({ status }: { status: string }) => {
+    const map: Record<string, string> = {
+        'Attivo': 'bg-emerald-50 text-emerald-600 border-emerald-200',
+        'Sospeso': 'bg-rose-50 text-rose-600 border-rose-200',
+        'Trial': 'bg-blue-50 text-blue-600 border-blue-200',
+        'In Ritardo': 'bg-amber-50 text-amber-600 border-amber-200',
+    }
+    return (
+        <span className={`px-2 py-0.5 text-[10px] uppercase font-black rounded-full border ${map[status] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+            {status}
+        </span>
+    )
+}
 
-const SYSTEM_LOGS = [
-    { id: 1, type: 'warning', msg: 'Picco chiamate API Anthropic (Claude 3.5)', time: '10 min fa' },
-    { id: 2, type: 'error', msg: 'CRITICO: Coda Email (Resend) bloccata. Timeout connessione.', time: '1 ora fa' },
-    { id: 3, type: 'success', msg: 'Backup Database Supabase completato', time: '03:00 AM' },
-    { id: 4, type: 'success', msg: 'Sincronizzazione webhook completata', time: 'Ieri 22:00' },
-    { id: 5, type: 'warning', msg: 'Utilizzo disco server al 85%', time: 'Ieri 18:30' }
-]
+const KpiCard = ({ icon: Icon, label, value, sub, color = 'emerald' }: any) => {
+    const colorMap: Record<string, string> = {
+        'emerald': 'bg-emerald-50 text-emerald-600',
+        'blue': 'bg-blue-50 text-blue-600',
+        'indigo': 'bg-indigo-50 text-indigo-600',
+        'amber': 'bg-amber-50 text-amber-600',
+        'purple': 'bg-purple-50 text-purple-600',
+    };
+    
+    return (
+        <div className="bg-white border border-gray-100 p-6 rounded-3xl relative overflow-hidden shadow-sm group hover:border-[#00665E] transition duration-300">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${colorMap[color] || colorMap['emerald']}`}>
+                <Icon size={24} />
+            </div>
+            <p className="text-gray-400 text-xs font-black uppercase tracking-widest mb-1">{label}</p>
+            <p className="text-4xl font-black text-gray-900">{value}</p>
+            {sub && <p className="text-xs text-gray-500 mt-2 font-medium bg-gray-50 px-2 py-1 rounded inline-block">{sub}</p>}
+        </div>
+    )
+}
 
+const COLORS_PIE = ['#00665E', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444']
+
+// ===================== MAIN PAGE =====================
 export default function IntegraOSAdminPage() {
-    // Stati Dati Vivi
-    const [companies, setCompanies] = useState(INITIAL_COMPANIES)
-    const [force2FA, setForce2FA] = useState(false)
+    const [activeTab, setActiveTab] = useState<Tab>('overview')
     
-    // Stati Navigazione
-    const [activeTab, setActiveTab] = useState<'overview' | 'aziende' | 'server'>('overview')
+    // Data states
+    const [accounts, setAccounts] = useState<any[]>([])
+    const [accountStats, setAccountStats] = useState<any>(null)
+    const [consents, setConsents] = useState<any[]>([])
+    const [consentStats, setConsentStats] = useState<any>(null)
+    const [viewStats, setViewStats] = useState<any>(null)
+    const [msgHistory, setMsgHistory] = useState<any[]>([])
+    
+    // UI states
+    const [loading, setLoading] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
-    const [companyFilter, setCompanyFilter] = useState('Tutti')
-    const [timeFilter, setTimeFilter] = useState('mese')
-    const [kpiMultiplier, setKpiMultiplier] = useState(1) // Moltiplicatore per i filtri
-    
-    // Stati Modali e UI
-    const [companyDetailsModal, setCompanyDetailsModal] = useState<any>(null)
-    const [logsModalOpen, setLogsModalOpen] = useState(false)
-    const [isSaving, setIsSaving] = useState(false)
-    const [systemRestarting, setSystemRestarting] = useState(false)
-    const [aiActionStatus, setAiActionStatus] = useState<'idle' | 'running' | 'success'>('idle')
+    const [filterPlan, setFilterPlan] = useState('Tutti')
+    const [viewDays, setViewDays] = useState(30)
+    const [copied, setCopied] = useState<string | null>(null)
 
-    // --- FUNZIONI ---
+    // Contact form
+    const [contactMode, setContactMode] = useState<'single' | 'bulk'>('single')
+    const [contactTo, setContactTo] = useState('')
+    const [contactName, setContactName] = useState('')
+    const [contactSubject, setContactSubject] = useState('')
+    const [contactBody, setContactBody] = useState('')
+    const [contactSending, setContactSending] = useState(false)
+    const [contactResult, setContactResult] = useState<any>(null)
 
-    const handleTimeFilter = (filter: string) => {
-        setTimeFilter(filter)
-        // Simula la variazione dei dati (Oggi = 10%, 7gg = 30%, Mese = 100%, Anno = 1200%)
-        if(filter === 'oggi') setKpiMultiplier(0.1)
-        if(filter === '7gg') setKpiMultiplier(0.3)
-        if(filter === 'mese') setKpiMultiplier(1)
-        if(filter === 'anno') setKpiMultiplier(12)
+    // Fetch helpers
+    const fetchAccounts = useCallback(async () => {
+        setLoading(true)
+        try {
+            const r = await fetch('/api/admin/accounts')
+            const d = await r.json()
+            if (!d.error) { setAccounts(d.accounts || []); setAccountStats(d.stats) }
+        } catch {}
+        setLoading(false)
+    }, [])
+
+    const fetchConsents = useCallback(async () => {
+        setLoading(true)
+        try {
+            const r = await fetch('/api/admin/consents')
+            const d = await r.json()
+            if (!d.error) { setConsents(d.consents || []); setConsentStats(d.stats) }
+        } catch {}
+        setLoading(false)
+    }, [])
+
+    const fetchViews = useCallback(async () => {
+        setLoading(true)
+        try {
+            const r = await fetch(`/api/admin/views?days=${viewDays}`)
+            const d = await r.json()
+            if (!d.error) setViewStats(d)
+        } catch {}
+        setLoading(false)
+    }, [viewDays])
+
+    const fetchMsgHistory = useCallback(async () => {
+        try {
+            const r = await fetch('/api/admin/contact')
+            const d = await r.json()
+            if (!d.error) setMsgHistory(d.messages || [])
+        } catch {}
+    }, [])
+
+    useEffect(() => {
+        if (activeTab === 'accounts' || activeTab === 'overview') fetchAccounts()
+        if (activeTab === 'consents') fetchConsents()
+        if (activeTab === 'views') fetchViews()
+        if (activeTab === 'contact') fetchMsgHistory()
+    }, [activeTab, fetchAccounts, fetchConsents, fetchViews, fetchMsgHistory])
+
+    const sendContact = async () => {
+        if (!contactSubject || !contactBody) return alert('Compila oggetto e messaggio')
+        if (contactMode === 'single' && !contactTo) return alert('Inserisci email destinatario')
+        setContactSending(true)
+        setContactResult(null)
+        try {
+            const emailsList = contactMode === 'bulk' 
+                ? consents.filter(c => c.accepted_marketing).map(c => c.email)
+                : null
+            const r = await fetch('/api/admin/contact', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    to_email: contactTo, to_name: contactName,
+                    subject: contactSubject, body: contactBody,
+                    send_to_all: contactMode === 'bulk', emails_list: emailsList
+                })
+            })
+            const d = await r.json()
+            setContactResult(d)
+            if (!d.error) { setContactSubject(''); setContactBody(''); fetchMsgHistory() }
+        } catch {}
+        setContactSending(false)
     }
 
-    const exportToCSV = () => {
-        const headers = ['Azienda,Amministratore,Email,Piano,MRR (€),Stato,Feedback,Token AI\n'];
-        const csvData = companies.map(c => 
-            `"${c.name}","${c.admin}","${c.email}","${c.plan}","${c.mrr}","${c.status}","${c.rating}/5","${c.aiTokens}"`
-        ).join('\n');
-        
-        const blob = new Blob([headers + csvData], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `IntegraOS_Aziende_${new Date().toLocaleDateString()}.csv`;
-        link.click();
+    const copyToClipboard = (text: string, id: string) => {
+        navigator.clipboard.writeText(text)
+        setCopied(id)
+        setTimeout(() => setCopied(null), 2000)
     }
 
-    const filteredCompanies = companies.filter(c => {
-        const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.email.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesFilter = companyFilter === 'Tutti' || 
-                              (companyFilter === 'Sospesi' && c.status === 'Sospeso') || 
-                              (companyFilter === 'In Trial' && c.status === 'Trial');
-        return matchesSearch && matchesFilter;
+    const exportCSV = () => {
+        const headers = 'Email,Nome,Piano,Registrato,Confermato\n'
+        const rows = accounts.map(a => `${a.email},${a.full_name || a.company_name || ''},${a.plan || 'Base'},${new Date(a.created_at_auth || a.created_at).toLocaleDateString('it-IT')},${a.email_confirmed ? 'Sì' : 'No'}`).join('\n')
+        const blob = new Blob([headers + rows], { type: 'text/csv' })
+        const link = document.createElement('a'); link.href = URL.createObjectURL(blob)
+        link.download = `IntegraOS_Account_${new Date().toLocaleDateString()}.csv`; link.click()
+    }
+
+    const filteredAccounts = accounts.filter(a => {
+        const q = searchQuery.toLowerCase()
+        const matchQ = !q || a.email?.toLowerCase().includes(q) || (a.company_name || '').toLowerCase().includes(q) || (a.full_name || '').toLowerCase().includes(q)
+        const matchPlan = filterPlan === 'Tutti' || (a.plan || 'Base') === filterPlan
+        return matchQ && matchPlan
     })
 
-    const handleContactLead = (email: string) => {
-        // In una vera app aprirebbe il client mail (es. window.location.href = `mailto:${email}`)
-        alert(`Apertura bozza email diretta a: ${email}\nOggetto: Integrazione IntegraOS - Abbiamo un'offerta per te.`);
-    }
-
-    const simulateSystemRestart = () => {
-        setSystemRestarting(true)
-        setTimeout(() => setSystemRestarting(false), 3000)
-    }
-
-    const handleAction = (action: string) => {
-        setIsSaving(true)
-        setTimeout(() => {
-            setIsSaving(false)
-            alert(`Azione: "${action}" eseguita.`)
-        }, 1000)
-    }
-
-    const toggleCompanyStatus = () => {
-        setIsSaving(true)
-        setTimeout(() => {
-            const newStatus = companyDetailsModal.status === 'Sospeso' ? 'Attivo' : 'Sospeso';
-            setCompanies(companies.map(c => c.id === companyDetailsModal.id ? {...c, status: newStatus} : c));
-            setCompanyDetailsModal({...companyDetailsModal, status: newStatus});
-            setIsSaving(false);
-        }, 1000)
-    }
-
-    const activateAIGrowthCampaign = () => {
-        setAiActionStatus('running')
-        setTimeout(() => setAiActionStatus('success'), 2000)
-    }
+    const TABS: { id: Tab; label: string; icon: any }[] = [
+        { id: 'overview', label: 'Overview', icon: BarChart3 },
+        { id: 'accounts', label: 'Account Registrati', icon: Users },
+        { id: 'consents', label: 'Privacy & Consensi', icon: UserCheck },
+        { id: 'views', label: 'Visualizzazioni', icon: Eye },
+        { id: 'contact', label: 'Contatta Utenti', icon: Mail },
+        { id: 'server', label: 'Infrastruttura', icon: Server },
+    ]
 
     return (
-        <div className="min-h-screen bg-[#02050A] font-sans selection:bg-emerald-500 selection:text-white p-6 md:p-8 lg:p-12 text-slate-200">
-            
-            {/* --- HEADER ADMIN --- */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-slate-800 pb-8">
-                <div>
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="w-12 h-12 bg-gradient-to-br from-emerald-600 to-teal-900 rounded-xl flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.2)]">
-                            <Shield size={24} className="text-white"/>
-                        </div>
-                        <h1 className="text-3xl font-black text-white tracking-tight">Root Master <span className="text-emerald-500 font-light">| IntegraOS</span></h1>
-                    </div>
-                    <p className="text-slate-400">Controllo SaaS: MRR, Server, Upselling e Sicurezza.</p>
-                </div>
-                <div className="flex gap-3 flex-wrap">
-                    <Link href="/admin/formazione" className="bg-indigo-600/10 border border-indigo-500/30 hover:bg-indigo-600 text-indigo-400 hover:text-white font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2">
-                        <PlayCircle size={18}/> Switch to Academy
-                    </Link>
-                    <button onClick={exportToCSV} className="bg-slate-900 border border-slate-700 hover:border-emerald-500 text-slate-300 hover:text-emerald-400 font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-lg">
-                        <Download size={18}/> Export CSV
-                    </button>
-                    <Link href="/admin/login" className="bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2">
-                        <LogOut size={18}/> Lock Terminal
-                    </Link>
-                </div>
-            </div>
+        <div className="min-h-screen bg-[#F8FAFC] text-gray-900 font-sans pb-20">
 
-            {/* --- MENU TABS --- */}
-            <div className="flex border-b border-slate-800 mb-8 overflow-x-auto custom-scrollbar">
-                <button onClick={() => setActiveTab('overview')} className={`flex items-center gap-2 px-6 py-4 font-bold text-sm whitespace-nowrap transition border-b-2 ${activeTab === 'overview' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}><BarChart3 size={18}/> Overview & Growth</button>
-                <button onClick={() => setActiveTab('aziende')} className={`flex items-center gap-2 px-6 py-4 font-bold text-sm whitespace-nowrap transition border-b-2 ${activeTab === 'aziende' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}><Building size={18}/> Imprese & Licenze</button>
-                <button onClick={() => setActiveTab('server')} className={`flex items-center gap-2 px-6 py-4 font-bold text-sm whitespace-nowrap transition border-b-2 ${activeTab === 'server' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}><Server size={18}/> Health & Architettura</button>
-            </div>
-
-            {/* ========================================================= */}
-            {/* TAB 1: OVERVIEW SAAS E GROWTH                             */}
-            {/* ========================================================= */}
-            {activeTab === 'overview' && (
-                <div className="space-y-8 animate-in fade-in">
-                    
-                    {/* Filtri Temporali Vivi */}
-                    <div className="flex items-center gap-2 bg-slate-900 p-2 rounded-xl border border-slate-800 w-fit">
-                        {['oggi', '7gg', 'mese', 'anno'].map(f => (
-                            <button key={f} onClick={() => handleTimeFilter(f)} className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition ${timeFilter === f ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}>{f}</button>
-                        ))}
-                    </div>
-
-                    {/* KPI CARDS (Dinamici con filtro) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden">
-                            <div className="flex items-center gap-3 text-slate-400 font-bold text-sm mb-4"><CreditCard size={18} className="text-emerald-500"/> MRR (Ricavi)</div>
-                            <div className="text-4xl font-black text-white">€{Math.round(12450 * kpiMultiplier).toLocaleString()}</div>
-                        </div>
-                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden">
-                            <div className="flex items-center gap-3 text-slate-400 font-bold text-sm mb-4"><Activity size={18} className="text-blue-500"/> LTV (Permanenza)</div>
-                            <div className="text-4xl font-black text-white">18 <span className="text-xl text-slate-500">mesi</span></div>
-                            <p className="text-slate-500 text-xs font-bold mt-2">Lifetime Value medio</p>
-                        </div>
-                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden">
-                            <div className="flex items-center gap-3 text-slate-400 font-bold text-sm mb-4"><Target size={18} className="text-indigo-400"/> Conversion Rate Vetrina</div>
-                            <div className="text-4xl font-black text-white">3.2%</div>
-                            <p className="text-emerald-500 text-xs font-bold mt-2 flex items-center gap-1">{Math.round(2450 * kpiMultiplier)} Visite uniche</p>
-                        </div>
-                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden">
-                            <div className="flex items-center gap-3 text-slate-400 font-bold text-sm mb-4"><Smile size={18} className="text-amber-400"/> Feedback (NPS)</div>
-                            <div className="text-4xl font-black text-white">72<span className="text-xl text-slate-500">/100</span></div>
-                        </div>
-                    </div>
-
-                    {/* NUOVO GRAFICO CRESCITA MRR */}
-                    <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl flex flex-col">
-                        <h3 className="text-white font-bold mb-8 flex items-center gap-2"><BarChart3 className="text-emerald-500"/> Crescita Entrate (MRR Growth)</h3>
-                        <div className="flex items-end justify-between gap-2 md:gap-4 h-48 mt-auto">
-                            {[30, 40, 45, 60, 55, 75, 90].map((h, i) => (
-                                <div key={i} className="flex-1 flex flex-col items-center gap-2 group h-full justify-end">
-                                    <div className="w-full bg-slate-800/50 rounded-t-xl relative overflow-hidden" style={{height: `${h * (kpiMultiplier > 1 ? 1 : kpiMultiplier)}%`}}>
-                                        <div className="absolute bottom-0 w-full bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-xl group-hover:opacity-80 transition-opacity h-full"></div>
-                                    </div>
-                                    <span className="text-[10px] text-slate-500 font-bold uppercase">Mes {i+1}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                        {/* SEZIONE ACQUISIZIONE E LEADS (RADAR) */}
-                        <div className="xl:col-span-2 bg-slate-900 border border-slate-800 p-8 rounded-3xl flex flex-col">
-                            <div className="flex justify-between items-center mb-6">
-                                <div>
-                                    <h3 className="text-white font-bold flex items-center gap-2"><UserPlus className="text-blue-500"/> Hot Leads Radar</h3>
-                                    <p className="text-xs text-slate-400">Aziende che stanno guardando IntegraOS in questo momento.</p>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs font-bold bg-blue-500/10 text-blue-400 px-3 py-1.5 rounded-lg border border-blue-500/20">
-                                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span> Tracker Attivo
-                                </div>
-                            </div>
-                            
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left">
-                                    <thead>
-                                        <tr className="text-slate-500 text-[10px] uppercase tracking-widest border-b border-slate-800">
-                                            <th className="pb-3">Contatto Trovato (Email/IP)</th>
-                                            <th className="pb-3">Comportamento</th>
-                                            <th className="pb-3">Ultima Azione</th>
-                                            <th className="pb-3 text-right">Azione Commerciale</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-800/50">
-                                        {HOT_LEADS.map(lead => (
-                                            <tr key={lead.id} className="hover:bg-slate-800/30 transition">
-                                                <td className="py-4 text-sm font-bold text-white">{lead.email}</td>
-                                                <td className="py-4">
-                                                    <span className={`px-2 py-1 text-[10px] rounded border ${lead.intent.includes('Alto') ? 'bg-rose-500/10 text-rose-400 border-rose-500/30' : 'bg-amber-500/10 text-amber-400 border-amber-500/30'}`}>
-                                                        {lead.intent} ({lead.visits} visite)
-                                                    </span>
-                                                </td>
-                                                <td className="py-4 text-xs text-slate-400">{lead.time}</td>
-                                                <td className="py-4 text-right">
-                                                    {/* Pulsante Contatta Funzionante */}
-                                                    <button onClick={() => handleContactLead(lead.email)} className="bg-slate-800 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 ml-auto">
-                                                        <Send size={12}/> Contatta
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        {/* AI BUSINESS ADVISOR */}
-                        <div className="bg-gradient-to-br from-teal-900/30 to-slate-900 border border-emerald-500/30 p-8 rounded-3xl flex flex-col relative overflow-hidden">
-                            <div className="absolute -right-10 -top-10 text-emerald-500/10"><BrainCircuit size={150}/></div>
-                            <h3 className="text-white font-bold mb-2 flex items-center gap-2 relative z-10"><Sparkles className="text-emerald-400"/> AI Growth Advisor</h3>
-                            <p className="text-xs text-emerald-200/50 mb-6 relative z-10">Suggerimenti per aumentare l'MRR.</p>
-
-                            <div className="space-y-4 relative z-10 flex-1">
-                                <div className="bg-[#02050A] p-4 rounded-xl border border-slate-800">
-                                    <p className="text-xs text-amber-400 font-bold mb-1">Opportunità Rilevata</p>
-                                    <p className="text-sm text-slate-300">Ci sono 12 aziende in "Starter" che usano l'AI Agent tutti i giorni.</p>
-                                </div>
-                                <div className="bg-emerald-600/10 p-4 rounded-xl border border-emerald-500/30">
-                                    <p className="text-xs text-emerald-400 font-bold mb-1">Azione Consigliata</p>
-                                    <p className="text-sm text-slate-300">Invia proposta di Upgrade al piano "Pro" (-15% primo mese).</p>
-                                </div>
-                            </div>
-                            
-                            {aiActionStatus === 'success' ? (
-                                <div className="w-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold py-3 rounded-xl mt-4 flex items-center justify-center gap-2 relative z-10">
-                                    <CheckCircle2 size={18}/> Campagna Upsell Inviata
-                                </div>
-                            ) : (
-                                <button onClick={activateAIGrowthCampaign} disabled={aiActionStatus === 'running'} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 rounded-xl mt-4 transition shadow-[0_0_20px_rgba(16,185,129,0.3)] relative z-10 flex items-center justify-center gap-2 disabled:opacity-50">
-                                    {aiActionStatus === 'running' ? <Loader2 size={16} className="animate-spin"/> : <Zap size={16}/>} Genera Email Upsell
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ========================================================= */}
-            {/* TAB 2: GESTIONE AZIENDE E LICENZE (+ COLONNA FEEDBACK)    */}
-            {/* ========================================================= */}
-            {activeTab === 'aziende' && (
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl animate-in fade-in">
-                    <div className="p-6 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center flex-wrap gap-4">
-                        <div className="relative w-full md:w-72">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16}/>
-                            <input 
-                                type="text" 
-                                placeholder="Cerca impresa (Nome, Email)..." 
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-[#02050A] border border-slate-800 rounded-lg py-2 pl-10 pr-4 text-sm text-white outline-none focus:border-emerald-500"
-                            />
-                        </div>
-                        <div className="flex gap-2">
-                            <button onClick={() => setCompanyFilter('Tutti')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition ${companyFilter === 'Tutti' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>Tutti</button>
-                            <button onClick={() => setCompanyFilter('Sospesi')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition ${companyFilter === 'Sospesi' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>Sospesi</button>
-                            <button onClick={() => setCompanyFilter('In Trial')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition ${companyFilter === 'In Trial' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>In Trial</button>
-                        </div>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse whitespace-nowrap">
-                            <thead>
-                                <tr className="text-slate-400 text-xs uppercase tracking-widest font-bold border-b border-slate-800 bg-[#02050A]">
-                                    <th className="p-6">Azienda (Workspace)</th>
-                                    <th className="p-6">Piano & Licenze</th>
-                                    <th className="p-6">Stato Sistema</th>
-                                    <th className="p-6">Feedback</th> {/* NUOVA COLONNA */}
-                                    <th className="p-6 text-right">Azioni Root</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800/50">
-                                {filteredCompanies.map(comp => (
-                                    <tr key={comp.id} className="hover:bg-slate-800/20 transition group">
-                                        <td className="p-6">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-slate-800 rounded-lg border border-slate-700 flex items-center justify-center text-slate-400">
-                                                    <Building size={18}/>
-                                                </div>
-                                                <div>
-                                                    <p className="font-bold text-white text-base">{comp.name}</p>
-                                                    <p className="text-xs text-slate-400 mt-0.5">Root: {comp.admin} • {comp.email}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="p-6">
-                                            <p className="text-sm text-white font-bold mb-1">{comp.plan} <span className="text-slate-500 font-normal ml-1">(€{comp.mrr}/mese)</span></p>
-                                            <p className="text-xs text-slate-400 flex items-center gap-1"><Users size={12}/> {comp.users} Utenti</p>
-                                        </td>
-                                        <td className="p-6">
-                                            <span className={`px-3 py-1 text-[10px] uppercase tracking-wider font-black rounded-full border inline-block ${
-                                                comp.status === 'Attivo' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
-                                                (comp.status === 'Sospeso' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 
-                                                (comp.status === 'In Ritardo' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'))
-                                            }`}>
-                                                {comp.status}
-                                            </span>
-                                        </td>
-                                        <td className="p-6">
-                                            {/* VISUALIZZAZIONE FEEDBACK STELLINE */}
-                                            <div className="flex text-amber-400">
-                                                {[...Array(5)].map((_, i) => (
-                                                    <Star key={i} size={14} fill={i < comp.rating ? "currentColor" : "transparent"} className={i < comp.rating ? "" : "text-slate-600"}/>
-                                                ))}
-                                            </div>
-                                            <span className="text-[10px] text-slate-500 mt-1 block">NPS Score</span>
-                                        </td>
-                                        <td className="p-6 text-right space-x-2">
-                                            <button onClick={() => setCompanyDetailsModal(comp)} className="bg-slate-800 hover:bg-emerald-600 text-white px-3 py-2 rounded-lg text-xs font-bold transition inline-flex items-center gap-1">
-                                                <Settings size={14}/> Gestisci
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {filteredCompanies.length === 0 && (
-                                    <tr><td colSpan={5} className="p-8 text-center text-slate-500 font-bold">Nessun Workspace trovato.</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
-            {/* ========================================================= */}
-            {/* TAB 3: HEALTH E API (+ COLLI DI BOTTIGLIA)                */}
-            {/* ========================================================= */}
-            {activeTab === 'server' && (
-                <div className="space-y-6 animate-in fade-in">
-                    
-                    <div className="bg-rose-950/20 border border-rose-900/50 p-6 rounded-3xl flex justify-between items-center">
+            {/* HEADER */}
+            <div className="border-b border-gray-200 bg-white sticky top-0 z-30 shadow-sm">
+                <div className="max-w-[1600px] mx-auto px-6 py-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 w-full">
+                    <div className="flex items-center gap-4">
+                        <img src="/logo-integraos.png" alt="IntegraOS Logo" className="h-[48px] object-contain drop-shadow-sm" />
                         <div>
-                            <h3 className="text-white font-bold flex items-center gap-2"><AlertTriangle className="text-rose-500"/> Azioni di Rete (Pericolo)</h3>
-                            <p className="text-xs text-rose-200/50 mt-1">Azioni che impattano tutte le aziende collegate.</p>
+                            <h1 className="text-2xl font-black text-[#00665E] leading-none">Root Master</h1>
+                            <p className="text-sm text-gray-500 mt-1 font-medium">Pannello controllo SaaS <span className="font-bold text-[#00665E]">IntegraOS</span></p>
                         </div>
-                        <button onClick={simulateSystemRestart} disabled={systemRestarting} className="bg-rose-600 hover:bg-rose-500 text-white font-bold px-6 py-3 rounded-xl transition flex items-center gap-2 shadow-[0_0_20px_rgba(225,29,72,0.4)] disabled:opacity-50">
-                            {systemRestarting ? <><Loader2 size={18} className="animate-spin"/> Riavvio in corso...</> : <><Power size={18}/> Hard Restart Container</>}
-                        </button>
                     </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        
-                        {/* MAPPA RETE SERVER ANIMATA CON BOTTLENECK */}
-                        <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl flex flex-col relative overflow-hidden">
-                            <h3 className="text-white font-bold mb-2 flex items-center gap-2 relative z-10"><Network className="text-emerald-500"/> Flusso Dati & Colli di Bottiglia</h3>
-                            <p className="text-xs text-slate-400 mb-8 relative z-10">Monitoraggio live del flusso dati. Le linee rosse indicano blocchi di rete.</p>
-                            
-                            <div className="flex-1 min-h-[300px] relative flex items-center justify-center">
-                                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'linear-gradient(to right, #475569 1px, transparent 1px), linear-gradient(to bottom, #475569 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
-                                
-                                {/* SVG ANIMAZIONI FLUSSO DATI E BLOCCHI (Bottlenecks) */}
-                                <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-                                    {/* Linea Supabase -> Core (Sana) */}
-                                    <path id="path-db" d="M 20% 30% L 50% 50%" stroke="rgba(59, 130, 246, 0.2)" strokeWidth="2" fill="none" />
-                                    <circle r="3" fill="#3b82f6" className="drop-shadow-[0_0_5px_#3b82f6]"><animateMotion dur="1.5s" repeatCount="indefinite"><mpath href="#path-db"/></animateMotion></circle>
-                                    
-                                    {/* Linea Core -> Chatwoot (Sana) */}
-                                    <path id="path-chat" d="M 50% 50% L 80% 30%" stroke="rgba(245, 158, 11, 0.2)" strokeWidth="2" fill="none" />
-                                    <circle r="3" fill="#f59e0b" className="drop-shadow-[0_0_5px_#f59e0b]"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#path-chat"/></animateMotion></circle>
-                                    
-                                    {/* Linea Core -> AI (Sana) */}
-                                    <path id="path-ai" d="M 50% 50% L 30% 80%" stroke="rgba(99, 102, 241, 0.2)" strokeWidth="2" fill="none" />
-                                    <circle r="3" fill="#6366f1" className="drop-shadow-[0_0_5px_#6366f1]"><animateMotion dur="1s" repeatCount="indefinite"><mpath href="#path-ai"/></animateMotion></circle>
-                                    
-                                    {/* COLLO DI BOTTIGLIA: Linea Core -> Resend (Rossa, lenta, pulsante) */}
-                                    <path id="path-mail" d="M 50% 50% L 70% 80%" stroke="rgba(244, 63, 94, 0.8)" strokeWidth="3" fill="none" strokeDasharray="5,5" className="animate-pulse" />
-                                    <circle r="5" fill="#f43f5e" className="drop-shadow-[0_0_10px_#f43f5e]">
-                                        {/* Va lentissimo per indicare il blocco */}
-                                        <animateMotion dur="8s" repeatCount="indefinite"><mpath href="#path-mail"/></animateMotion>
-                                    </circle>
-                                </svg>
-
-                                {/* Nodo Centrale */}
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center">
-                                    <div className="w-20 h-20 bg-slate-950 border-2 border-emerald-500 rounded-2xl shadow-[0_0_40px_rgba(16,185,129,0.3)] flex items-center justify-center relative"><Box size={32} className="text-emerald-400"/><div className="absolute -inset-2 border border-emerald-500/30 rounded-3xl animate-ping opacity-20"></div></div>
-                                    <span className="mt-2 text-xs font-black text-white tracking-widest bg-slate-900 px-2 py-1 rounded-md border border-slate-800">CORE SERVER</span>
-                                </div>
-
-                                {/* Nodi Periferici */}
-                                <div className="absolute top-[20%] left-[10%] z-10 flex flex-col items-center">
-                                    <div className="w-12 h-12 bg-slate-900 border border-blue-500 rounded-xl flex items-center justify-center"><Database size={20} className="text-blue-400"/></div>
-                                    <span className="mt-2 text-[10px] font-bold text-slate-400">SUPABASE</span>
-                                </div>
-                                <div className="absolute top-[20%] right-[10%] z-10 flex flex-col items-center">
-                                    <div className="w-12 h-12 bg-slate-900 border border-amber-500 rounded-xl flex items-center justify-center"><MessageSquare size={20} className="text-amber-400"/></div>
-                                    <span className="mt-2 text-[10px] font-bold text-slate-400">CHATWOOT</span>
-                                </div>
-                                <div className="absolute bottom-[10%] left-[20%] z-10 flex flex-col items-center">
-                                    <div className="w-12 h-12 bg-slate-900 border border-indigo-500 rounded-xl flex items-center justify-center"><BrainCircuit size={20} className="text-indigo-400"/></div>
-                                    <span className="mt-2 text-[10px] font-bold text-slate-400">AI AGENTS</span>
-                                </div>
-                                
-                                {/* Nodo con Errore / Bottleneck */}
-                                <div className="absolute bottom-[10%] right-[20%] z-10 flex flex-col items-center">
-                                    <div className="w-12 h-12 bg-rose-950 border border-rose-500 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(244,63,94,0.4)] animate-pulse"><Mail size={20} className="text-rose-400"/></div>
-                                    <span className="mt-2 text-[10px] font-bold text-rose-500 bg-rose-950 px-1 rounded border border-rose-900">RESEND API (BLOCCATO)</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-6">
-                            {/* API Limits */}
-                            <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl">
-                                <h3 className="text-white font-bold mb-6 flex items-center gap-2"><Zap className="text-amber-400"/> Limiti API Esterne</h3>
-                                <div className="space-y-6">
-                                    <div>
-                                        <div className="flex justify-between text-sm mb-2"><span className="text-slate-300 font-bold">Anthropic (Claude)</span><span className="text-emerald-400 font-mono">$140 / $500</span></div>
-                                        <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden"><div className="bg-emerald-500 h-full w-[28%]"></div></div>
-                                    </div>
-                                    <div>
-                                        <div className="flex justify-between text-sm mb-2"><span className="text-slate-300 font-bold">Resend (Email Queue)</span><span className="text-rose-400 font-mono text-xs">ERRORE: TIMEOUT API</span></div>
-                                        <div className="w-full bg-rose-950 border border-rose-900 h-2 rounded-full overflow-hidden"><div className="bg-rose-500 h-full w-full animate-pulse"></div></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Configurazione Sicurezza con Toggle FUNZIONANTE e Tasto Logs */}
-                            <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl">
-                                <h3 className="text-white font-bold mb-6 flex items-center gap-2"><Lock className="text-indigo-400"/> Sicurezza e Accessi</h3>
-                                <div className="space-y-4">
-                                    <div className="p-4 bg-[#02050A] rounded-xl border border-slate-800 flex justify-between items-center">
-                                        <div>
-                                            <p className="text-sm font-bold text-white">Forza 2FA (Aziende)</p>
-                                            <p className="text-xs text-slate-500">Stato: {force2FA ? 'Attivo' : 'Disattivato'}</p>
-                                        </div>
-                                        <button onClick={() => { setForce2FA(!force2FA); handleAction(force2FA ? '2FA Disattivata' : '2FA Attivata'); }} className={`w-12 h-6 rounded-full relative transition-colors duration-300 ${force2FA ? 'bg-emerald-500' : 'bg-slate-700'}`}>
-                                            <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform duration-300 ${force2FA ? 'translate-x-7' : 'translate-x-1'}`}></div>
-                                        </button>
-                                    </div>
-                                    
-                                    <div className="p-4 bg-[#02050A] rounded-xl border border-slate-800 flex justify-between items-center">
-                                        <div>
-                                            <p className="text-sm font-bold text-white">Log di Sistema</p>
-                                            <p className="text-xs text-rose-500 font-bold">1 Errore Critico Rilevato</p>
-                                        </div>
-                                        {/* Tasto Vedi Logs FUNZIONANTE */}
-                                        <button onClick={() => setLogsModalOpen(true)} className="text-xs font-bold text-indigo-400 bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20 hover:bg-indigo-600 hover:text-white transition">Vedi Logs</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+                        <button onClick={() => { fetchAccounts(); fetchViews() }} className="p-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-[#00665E] transition border border-gray-200" title="Aggiorna dati">
+                            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+                        </button>
+                        <button onClick={exportCSV} className="flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-bold px-5 py-2.5 rounded-xl border border-gray-200 transition text-sm shadow-sm whitespace-nowrap">
+                            <Download size={16} /> Export CSV
+                        </button>
+                        <Link href="/admin/formazione" className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold px-5 py-2.5 rounded-xl border border-indigo-200 transition text-sm whitespace-nowrap">
+                            <PlayCircle size={16} /> Formazione
+                        </Link>
+                        <Link href="/admin/login" className="flex items-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold px-5 py-2.5 rounded-xl border border-rose-200 transition text-sm">
+                            <LogOut size={16} /> Esci
+                        </Link>
                     </div>
                 </div>
-            )}
 
-            {/* ========================================================= */}
-            {/* MODALE DETTAGLI AZIENDA (Sospensione e Impersonate)       */}
-            {/* ========================================================= */}
-            {companyDetailsModal && (
-                <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-                    <div className="bg-[#02050A] border border-slate-700 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95">
-                        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-                            <h2 className="text-xl font-black text-white flex items-center gap-2"><Settings size={20} className="text-emerald-500"/> Gestione: {companyDetailsModal.name}</h2>
-                            <button onClick={() => setCompanyDetailsModal(null)} className="text-slate-400 hover:text-white"><X size={20}/></button>
+                {/* TABS */}
+                <div className="max-w-[1600px] mx-auto px-6 flex gap-2 overflow-x-auto pt-2">
+                    {TABS.map(t => (
+                        <button key={t.id} onClick={() => setActiveTab(t.id)}
+                            className={`flex items-center gap-2 px-6 py-4 font-bold text-sm whitespace-nowrap border-b-4 transition ${activeTab === t.id ? 'border-[#00665E] text-[#00665E]' : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50 rounded-t-lg'}`}>
+                            <t.icon size={18} /> {t.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="max-w-[1600px] mx-auto px-6 py-8">
+
+                {/* ===== TAB: OVERVIEW ===== */}
+                {activeTab === 'overview' && (
+                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <KpiCard icon={Users} label="Account Totali" value={accountStats?.total ?? '—'} sub={`+${accountStats?.new_today ?? 0} oggi`} color="emerald" />
+                            <KpiCard icon={UserCheck} label="Consensi Privacy" value={consentStats?.total ?? '—'} sub={`${consentStats?.marketing_yes ?? 0} marketing OK`} color="blue" />
+                            <KpiCard icon={Eye} label="Visualizzazioni (30gg)" value={viewStats?.total_views ?? '—'} sub={`${viewStats?.unique_visitors ?? 0} visitatori unici`} color="indigo" />
+                            <KpiCard icon={TrendingUp} label="Attivi questo mese" value={accountStats?.active_this_month ?? '—'} sub="utenti con attività" color="amber" />
                         </div>
-                        
-                        <div className="p-8">
-                            <div className="grid grid-cols-2 gap-4 mb-6">
-                                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
-                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Piano Attuale</p>
-                                    <p className="text-lg font-black text-white">{companyDetailsModal.plan}</p>
-                                    <button className="text-xs text-indigo-400 font-bold mt-2 hover:underline">Forza Upgrade</button>
-                                </div>
-                                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
-                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Consumo Token AI</p>
-                                    <p className="text-lg font-black text-white">{companyDetailsModal.aiTokens}</p>
-                                    <button className="text-xs text-amber-400 font-bold mt-2 hover:underline">Resetta Limiti</button>
-                                </div>
+
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                            {/* Trend visualizzazioni 7gg */}
+                            <div className="bg-white border border-gray-100 p-8 rounded-3xl shadow-sm">
+                                <h3 className="text-gray-900 font-black text-xl mb-6 flex items-center gap-2"><Eye className="text-[#00665E]" size={24} /> Trend Visualizzazioni (7gg)</h3>
+                                {viewStats?.last7_trend ? (
+                                    <ResponsiveContainer width="100%" height={250}>
+                                        <AreaChart data={viewStats.last7_trend}>
+                                            <defs>
+                                                <linearGradient id="viewGrad" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#00665E" stopOpacity={0.2}/>
+                                                    <stop offset="95%" stopColor="#00665E" stopOpacity={0}/>
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                            <XAxis dataKey="day" tick={{ fill: '#64748b', fontSize: 12, fontWeight: 'bold' }} axisLine={false} tickLine={false} dy={10} />
+                                            <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} dx={-10} />
+                                            <Tooltip contentStyle={{ backgroundColor: '#fff', border: 'none', borderRadius: 12, boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                                            <Area type="monotone" dataKey="views" stroke="#00665E" strokeWidth={4} fill="url(#viewGrad)" />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="h-[250px] flex items-center justify-center text-gray-400 text-sm font-medium bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                                        {loading ? <Loader2 className="animate-spin text-[#00665E]" /> : 'Nessun dato ancora — esegui admin_tables.sql su Supabase'}
+                                    </div>
+                                )}
                             </div>
 
-                            <h4 className="text-white font-bold mb-4 border-b border-slate-800 pb-2">Azioni Root Access</h4>
-                            <div className="space-y-3">
-                                <button disabled={isSaving} onClick={() => handleAction('Impersonate User')} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold p-4 rounded-xl transition flex justify-between items-center group">
-                                    <span className="flex items-center gap-2"><Eye size={18}/> Impersonifica Amministratore (Entra nel CRM cliente)</span>
-                                    <ArrowRight size={18} className="text-indigo-300 group-hover:translate-x-1 transition"/>
-                                </button>
-                                <button disabled={isSaving} onClick={() => handleAction('Invio Sollecito')} className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold p-4 rounded-xl transition flex items-center gap-2">
-                                    <Mail size={18} className="text-amber-400"/> Invia sollecito di pagamento manuale
-                                </button>
-                                
-                                {companyDetailsModal.status === 'Sospeso' ? (
-                                    <button disabled={isSaving} onClick={toggleCompanyStatus} className="w-full bg-emerald-600/20 border border-emerald-500/50 hover:bg-emerald-600/40 text-emerald-400 font-bold p-4 rounded-xl transition flex items-center gap-2 mt-4">
-                                        {isSaving ? <Loader2 size={18} className="animate-spin"/> : <CheckCircle2 size={18}/>} Riattiva Accesso Workspace
-                                    </button>
+                            {/* Distribuzione piani */}
+                            <div className="bg-white border border-gray-100 p-8 rounded-3xl shadow-sm flex flex-col">
+                                <h3 className="text-gray-900 font-black text-xl mb-6 flex items-center gap-2"><Database className="text-[#00665E]" size={24} /> Account per Piano</h3>
+                                {accountStats?.by_plan && Object.keys(accountStats.by_plan).length > 0 ? (
+                                    <div className="flex flex-col sm:flex-row gap-8 items-center flex-1 justify-center">
+                                        <ResponsiveContainer width={220} height={220}>
+                                            <PieChart>
+                                                <Pie data={Object.entries(accountStats.by_plan).map(([name, value]) => ({ name, value }))}
+                                                    cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" paddingAngle={5}>
+                                                    {Object.keys(accountStats.by_plan).map((_: any, i: number) => <Cell key={i} fill={COLORS_PIE[i % COLORS_PIE.length]} />)}
+                                                </Pie>
+                                                <Tooltip contentStyle={{ backgroundColor: '#fff', border: 'none', borderRadius: 12, boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                        <div className="space-y-4 w-full sm:w-auto">
+                                            {Object.entries(accountStats.by_plan).map(([plan, count]: any, i) => (
+                                                <div key={plan} className="flex items-center gap-4 bg-gray-50 px-4 py-2 rounded-xl">
+                                                    <div className="w-4 h-4 rounded-full shadow-sm" style={{ backgroundColor: COLORS_PIE[i % COLORS_PIE.length] }} />
+                                                    <span className="text-gray-700 text-sm font-black">{plan}</span>
+                                                    <span className="text-gray-900 text-lg font-black ml-auto bg-white px-2 py-0.5 rounded-lg border border-gray-100">{count}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
                                 ) : (
-                                    <button disabled={isSaving} onClick={toggleCompanyStatus} className="w-full border border-rose-900/50 hover:bg-rose-950/30 text-rose-500 font-bold p-4 rounded-xl transition flex items-center gap-2 mt-4">
-                                        {isSaving ? <Loader2 size={18} className="animate-spin"/> : <Power size={18}/>} Sospendi Accesso Workspace
-                                    </button>
+                                    <div className="flex-1 flex items-center justify-center text-gray-400 text-sm font-medium bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                                        {loading ? <Loader2 className="animate-spin text-[#00665E]" /> : 'Carica account per vedere statistiche'}
+                                    </div>
                                 )}
                             </div>
                         </div>
-                    </div>
-                </div>
-            )}
 
-            {/* ========================================================= */}
-            {/* MODALE VISUALIZZATORE LOGS (Nuovo)                        */}
-            {/* ========================================================= */}
-            {logsModalOpen && (
-                <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[200] flex items-center justify-center p-4">
-                    <div className="bg-[#02050A] border border-slate-700 rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden animate-in zoom-in-95">
-                        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-                            <h2 className="text-xl font-black text-white flex items-center gap-2"><Activity size={20} className="text-blue-500"/> Console Logs Server</h2>
-                            <button onClick={() => setLogsModalOpen(false)} className="text-slate-400 hover:text-white"><X size={20}/></button>
-                        </div>
-                        <div className="p-6 bg-[#010306] font-mono text-sm h-96 overflow-y-auto custom-scrollbar">
-                            {SYSTEM_LOGS.map(log => (
-                                <div key={log.id} className="mb-3 border-b border-slate-800/50 pb-2">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold mr-3 ${log.type === 'error' ? 'bg-rose-500/20 text-rose-500' : (log.type === 'warning' ? 'bg-amber-500/20 text-amber-500' : 'bg-emerald-500/20 text-emerald-500')}`}>
-                                        {log.type}
-                                    </span>
-                                    <span className="text-slate-500 mr-3">[{log.time}]</span>
-                                    <span className="text-slate-300">{log.msg}</span>
+                        {/* Top pagine viste */}
+                        {viewStats?.by_page?.length > 0 && (
+                            <div className="bg-white border border-gray-100 p-8 rounded-3xl shadow-sm">
+                                <h3 className="text-gray-900 font-black text-xl mb-6 flex items-center gap-2"><Globe className="text-blue-500" size={24} /> Pagine Più Visitate</h3>
+                                <div className="space-y-5">
+                                    {viewStats.by_page.slice(0, 8).map((p: any, i: number) => (
+                                        <div key={p.page} className="flex items-center gap-4">
+                                            <span className="text-gray-400 font-black w-6 text-center">{i + 1}</span>
+                                            <div className="flex-1">
+                                                <div className="flex justify-between mb-2">
+                                                    <span className="text-sm font-bold text-gray-700">{p.page}</span>
+                                                    <span className="text-sm font-black text-[#00665E] bg-[#00665E]/10 px-2 py-0.5 rounded-lg">{p.count} views</span>
+                                                </div>
+                                                <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-[#00665E] rounded-full transition-all duration-1000" style={{ width: `${(p.count / viewStats.by_page[0].count) * 100}%` }} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                            <div className="text-slate-600 mt-4 animate-pulse">&gt; In attesa di nuovi log...</div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* ===== TAB: ACCOUNT REGISTRATI ===== */}
+                {activeTab === 'accounts' && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="flex flex-col md:flex-row gap-6 mb-8 items-start md:items-center justify-between">
+                            <div>
+                                <h2 className="text-2xl font-black text-gray-900">Account Registrati</h2>
+                                <p className="text-gray-500 text-sm mt-1 font-medium">Tutti gli utenti IntegraOS con dati reali dal database</p>
+                            </div>
+                            <div className="flex gap-2 flex-wrap bg-white p-1 rounded-xl border border-gray-200 shadow-sm">
+                                {['Tutti', 'Base', 'Pro', 'Enterprise', 'Ambassador'].map(p => (
+                                    <button key={p} onClick={() => setFilterPlan(p)}
+                                        className={`px-4 py-2 rounded-lg text-xs font-black transition ${filterPlan === p ? 'bg-[#00665E] text-white shadow-md' : 'bg-transparent text-gray-600 hover:bg-gray-50'}`}>
+                                        {p}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                        <div className="p-4 border-t border-slate-800 bg-slate-900/50 text-right">
-                            <button onClick={() => handleAction('Svuota Logs')} className="text-xs font-bold text-slate-400 hover:text-white">Pulisci Console</button>
+
+                        <div className="relative mb-6">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                                placeholder="Cerca per email, nome azienda..."
+                                className="w-full bg-white border border-gray-200 rounded-2xl py-4 pl-12 pr-4 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-[#00665E] focus:ring-4 focus:ring-[#00665E]/10 transition shadow-sm font-medium" />
+                        </div>
+
+                        {loading ? (
+                            <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin text-[#00665E]" size={40} /></div>
+                        ) : filteredAccounts.length === 0 ? (
+                            <div className="bg-white border border-gray-200 rounded-3xl p-16 text-center shadow-sm">
+                                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100">
+                                    <Users size={32} className="text-gray-400" />
+                                </div>
+                                <p className="text-gray-900 font-black text-xl">Nessun account trovato</p>
+                                <p className="text-gray-500 text-sm mt-2">Verifica che l'API admin sia configurata correttamente</p>
+                            </div>
+                        ) : (
+                            <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left">
+                                        <thead>
+                                            <tr className="border-b border-gray-100 bg-gray-50/50">
+                                                {['Utente', 'Piano', 'Registrato', 'Ultimo Accesso', 'Email Confermata', 'Azioni'].map(h => (
+                                                    <th key={h} className="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-50">
+                                            {filteredAccounts.map(acc => (
+                                                <tr key={acc.id} className="hover:bg-gray-50/80 transition group">
+                                                    <td className="px-6 py-5">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-10 h-10 rounded-xl bg-[#00665E]/10 flex items-center justify-center text-[#00665E] font-black text-sm shrink-0">
+                                                                {(acc.company_name || acc.full_name || acc.email || 'U')[0].toUpperCase()}
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-bold text-gray-900 text-sm">{acc.company_name || acc.full_name || 'Utente'}</p>
+                                                                <button onClick={() => copyToClipboard(acc.email, acc.id)}
+                                                                    className="text-xs text-gray-500 hover:text-[#00665E] flex items-center gap-1.5 transition font-medium mt-0.5">
+                                                                    {acc.email}
+                                                                    {copied === acc.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="opacity-0 group-hover:opacity-100 text-gray-300" />}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <span className="px-3 py-1.5 text-xs font-black rounded-lg bg-gray-100 text-gray-700 border border-gray-200">{acc.plan || 'Base'}</span>
+                                                    </td>
+                                                    <td className="px-6 py-5 text-sm text-gray-600 font-medium">
+                                                        {acc.created_at_auth ? new Date(acc.created_at_auth).toLocaleDateString('it-IT') : '—'}
+                                                    </td>
+                                                    <td className="px-6 py-5 text-sm text-gray-600 font-medium">
+                                                        {acc.last_sign_in ? new Date(acc.last_sign_in).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Mai'}
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        {acc.email_confirmed
+                                                            ? <span className="text-emerald-600 bg-emerald-50 px-2 py-1 flex w-fit items-center gap-1.5 rounded-md text-xs font-bold border border-emerald-100"><CheckCircle2 size={14} /> Sì</span>
+                                                            : <span className="text-amber-600 bg-amber-50 px-2 py-1 flex w-fit items-center gap-1.5 rounded-md text-xs font-bold border border-amber-100"><AlertTriangle size={14} /> No</span>}
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <button onClick={() => { setContactTo(acc.email); setContactName(acc.company_name || acc.full_name || ''); setActiveTab('contact') }}
+                                                            className="inline-flex items-center gap-2 bg-white border border-gray-200 hover:border-[#00665E] hover:text-[#00665E] hover:bg-[#00665E]/5 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold transition shadow-sm">
+                                                            <Mail size={16} /> Contatta
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 text-xs text-gray-500 font-bold uppercase tracking-widest">
+                                    {filteredAccounts.length} account mostrati
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* ===== TAB: CONSENSI PRIVACY ===== */}
+                {activeTab === 'consents' && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                            <KpiCard icon={UserCheck} label="Totale Consensi" value={consentStats?.total ?? '—'} sub="hanno accettato Privacy Policy" color="emerald" />
+                            <KpiCard icon={MessageSquare} label="Consenso Marketing" value={consentStats?.marketing_yes ?? '—'} sub="contattabili via email" color="blue" />
+                            <KpiCard icon={TrendingUp} label="Questo mese" value={consentStats?.this_month ?? '—'} sub="nuovi consensi" color="indigo" />
+                        </div>
+
+                        {loading ? (
+                            <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin text-[#00665E]" size={40} /></div>
+                        ) : consents.length === 0 ? (
+                            <div className="bg-white border border-gray-200 rounded-3xl p-16 text-center shadow-sm">
+                                <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+                                    <FileText size={32} className="text-emerald-500" />
+                                </div>
+                                <p className="text-gray-900 font-black text-xl">Nessun consenso registrato</p>
+                                <p className="text-gray-500 text-sm mt-2">Usa l'API <code className="text-[#00665E] bg-[#00665E]/10 px-2 py-0.5 rounded font-bold">/api/admin/consents</code> (POST) dalla tua landing page per registrare i consensi</p>
+                            </div>
+                        ) : (
+                            <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm">
+                                <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                                    <span className="text-gray-900 font-black text-lg">{consents.length} utenti con consenso registrato</span>
+                                    <button onClick={() => { setContactMode('bulk'); setActiveTab('contact') }}
+                                        className="inline-flex items-center gap-2 bg-[#00665E] hover:bg-[#004d46] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-md shadow-[#00665E]/20">
+                                        <Send size={16} /> Invia Email a Tutti
+                                    </button>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left">
+                                        <thead>
+                                            <tr className="border-b border-gray-100 bg-white">
+                                                {['Email', 'Nome', 'Privacy', 'Marketing', 'Versione', 'Data'].map(h => (
+                                                    <th key={h} className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{h}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-50">
+                                            {consents.map(c => (
+                                                <tr key={c.id} className="hover:bg-gray-50/80 transition">
+                                                    <td className="px-6 py-4 text-sm text-gray-900 font-bold">{c.email}</td>
+                                                    <td className="px-6 py-4 text-sm text-gray-500 font-medium">{c.full_name || '—'}</td>
+                                                    <td className="px-6 py-4"><span className="text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded w-fit text-xs font-bold flex items-center gap-1.5"><CheckCircle2 size={14} /> Sì</span></td>
+                                                    <td className="px-6 py-4">
+                                                        {c.accepted_marketing
+                                                            ? <span className="text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded w-fit text-xs font-bold flex items-center gap-1.5"><CheckCircle2 size={14} /> Sì</span>
+                                                            : <span className="text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200 text-xs font-bold">No</span>}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-xs text-gray-400 font-mono font-bold">v{c.consent_version}</td>
+                                                    <td className="px-6 py-4 text-sm text-gray-500 font-medium">{new Date(c.created_at).toLocaleDateString('it-IT')}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* ===== TAB: VISUALIZZAZIONI ===== */}
+                {activeTab === 'views' && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+                        <div className="flex items-center gap-4 bg-white p-2 rounded-2xl w-fit border border-gray-200 shadow-sm">
+                            <span className="text-gray-500 text-sm font-bold pl-4">Periodo:</span>
+                            {[7, 30, 90].map(d => (
+                                <button key={d} onClick={() => setViewDays(d)}
+                                    className={`px-5 py-2 rounded-xl text-sm font-black transition ${viewDays === d ? 'bg-[#00665E]/10 text-[#00665E]' : 'bg-transparent text-gray-600 hover:bg-gray-50'}`}>
+                                    {d} Giorni
+                                </button>
+                            ))}
+                        </div>
+
+                        {loading ? (
+                            <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin text-[#00665E]" size={40} /></div>
+                        ) : !viewStats || viewStats.total_views === 0 ? (
+                            <div className="bg-white border border-gray-200 rounded-3xl p-16 text-center shadow-sm">
+                                <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-indigo-100">
+                                    <Eye size={32} className="text-indigo-500" />
+                                </div>
+                                <p className="text-gray-900 font-black text-xl">Nessuna visualizzazione registrata</p>
+                                <p className="text-gray-500 text-sm mt-2 max-w-md mx-auto">Integra il tracker chiamando l'API <code className="text-[#00665E] font-bold">/api/admin/views</code> o usa l'hook da ogni pagina che vuoi monitorare.</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                                    <KpiCard icon={Eye} label="Visualizzazioni Totali" value={viewStats.total_views} color="indigo" />
+                                    <KpiCard icon={Users} label="Visitatori Unici" value={viewStats.unique_visitors} color="blue" />
+                                    <KpiCard icon={Globe} label="Pagine Tracciate" value={viewStats.by_page?.length || 0} color="emerald" />
+                                    <KpiCard icon={BookOpen} label="Sezioni Tracciate" value={viewStats.by_section?.length || 0} color="amber" />
+                                </div>
+
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                                    <div className="bg-white border border-gray-100 p-8 rounded-3xl shadow-sm">
+                                        <h3 className="text-gray-900 font-black text-xl mb-6 flex items-center gap-2"><TrendingUp className="text-indigo-500" size={24} /> Trend Giornaliero</h3>
+                                        <ResponsiveContainer width="100%" height={250}>
+                                            <AreaChart data={viewStats.last7_trend}>
+                                                <defs>
+                                                    <linearGradient id="vg2" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
+                                                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                                                    </linearGradient>
+                                                </defs>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                                <XAxis dataKey="day" tick={{ fill: '#64748b', fontSize: 12, fontWeight: 'bold' }} axisLine={false} tickLine={false} dy={10} />
+                                                <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} dx={-10} />
+                                                <Tooltip contentStyle={{ backgroundColor: '#fff', border: 'none', borderRadius: 12, boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                                                <Area type="monotone" dataKey="views" stroke="#6366f1" strokeWidth={4} fill="url(#vg2)" />
+                                            </AreaChart>
+                                        </ResponsiveContainer>
+                                    </div>
+
+                                    <div className="bg-white border border-gray-100 p-8 rounded-3xl shadow-sm">
+                                        <h3 className="text-gray-900 font-black text-xl mb-6 flex items-center gap-2"><Globe className="text-[#00665E]" size={24} /> Top Pagine</h3>
+                                        <div className="space-y-4 overflow-y-auto max-h-60 pr-4">
+                                            {viewStats.by_page?.slice(0, 10).map((p: any, i: number) => (
+                                                <div key={p.page} className="flex items-center gap-4">
+                                                    <span className="text-gray-400 font-black w-6 text-center">{i + 1}</span>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex justify-between mb-2">
+                                                            <span className="text-sm font-bold text-gray-700 truncate">{p.page}</span>
+                                                            <span className="text-xs font-black text-[#00665E] bg-[#00665E]/10 px-2 py-0.5 rounded-lg shrink-0">{p.count} views</span>
+                                                        </div>
+                                                        <div className="w-full h-2.5 bg-gray-100 rounded-full">
+                                                            <div className="h-full bg-[#00665E] rounded-full transition-all duration-1000" style={{ width: `${(p.count / viewStats.by_page[0].count) * 100}%` }} />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Ultimi accessi */}
+                                <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm">
+                                    <div className="px-8 py-6 border-b border-gray-100 bg-gray-50/50">
+                                        <h3 className="text-gray-900 font-black text-lg flex items-center gap-2"><Activity className="text-[#00665E]" size={20}/> Log Eventi Recenti</h3>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left">
+                                            <thead>
+                                                <tr className="border-b border-gray-100 bg-white">
+                                                    {['Pagina', 'Sezione', 'Utente', 'Ora'].map(h => (
+                                                        <th key={h} className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{h}</th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-50">
+                                                {viewStats.recent?.slice(0, 20).map((v: any) => (
+                                                    <tr key={v.id} className="hover:bg-gray-50/80 transition">
+                                                        <td className="px-8 py-4 text-sm text-gray-900 font-bold">{v.page}</td>
+                                                        <td className="px-8 py-4 text-sm text-gray-500 font-medium bg-gray-50/50 border-r border-l border-white">{v.section || '—'}</td>
+                                                        <td className="px-8 py-4 text-sm text-gray-600 font-medium">{v.user_email || <span className="italic text-gray-400">Anonimo</span>}</td>
+                                                        <td className="px-8 py-4 text-sm text-gray-500 font-medium">{new Date(v.viewed_at).toLocaleString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {/* ===== TAB: CONTATTA UTENTI ===== */}
+                {activeTab === 'contact' && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 grid grid-cols-1 xl:grid-cols-2 gap-8">
+                        {/* Form */}
+                        <div className="bg-white border border-gray-100 rounded-3xl p-8 shadow-sm h-fit">
+                            <div className="mb-8">
+                                <h2 className="text-2xl font-black text-gray-900 flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-[#00665E]/10 rounded-xl flex items-center justify-center"><Mail className="text-[#00665E]" size={20}/></div>
+                                    Nuovo Messaggio
+                                </h2>
+                                <p className="text-gray-500 text-sm mt-2 font-medium">Invia email con interfaccia premium e brandizzata IntegraOS.</p>
+                            </div>
+
+                            {/* Modalità */}
+                            <div className="flex gap-4 mb-8 bg-gray-50 p-2 rounded-2xl border border-gray-100">
+                                {(['single', 'bulk'] as const).map(m => (
+                                    <button key={m} onClick={() => setContactMode(m)}
+                                        className={`flex-1 py-3 rounded-xl text-sm font-black transition ${contactMode === m ? 'bg-white text-[#00665E] shadow-sm border border-gray-200' : 'bg-transparent text-gray-500 hover:text-gray-900'}`}>
+                                        {m === 'single' ? '👤 Utente Singolo' : '📢 Invio Massivo (Newsletter)'}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div className="space-y-6">
+                                {contactMode === 'single' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Email Destinatario *</label>
+                                            <input value={contactTo} onChange={e => setContactTo(e.target.value)}
+                                                placeholder="mario.rossi@azienda.it"
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3.5 px-4 text-sm text-gray-900 font-medium outline-none focus:border-[#00665E] focus:ring-4 focus:ring-[#00665E]/10 transition" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Nome (opzionale)</label>
+                                            <input value={contactName} onChange={e => setContactName(e.target.value)}
+                                                placeholder="Mario Rossi"
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3.5 px-4 text-sm text-gray-900 font-medium outline-none focus:border-[#00665E] focus:ring-4 focus:ring-[#00665E]/10 transition" />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {contactMode === 'bulk' && (
+                                    <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex items-start gap-4">
+                                        <div className="bg-blue-100 p-2 rounded-lg"><Users size={20} className="text-blue-600"/></div>
+                                        <div>
+                                            <p className="text-blue-900 text-sm font-black">Modalità Broadcast Attiva</p>
+                                            <p className="text-blue-700 text-sm mt-1 font-medium">L'email verrà recapitata a <strong className="font-black text-blue-900">{consentStats?.marketing_yes ?? 0} destinatari</strong> che hanno espresso il consenso commerciale (opt-in).</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Oggetto Email *</label>
+                                    <input value={contactSubject} onChange={e => setContactSubject(e.target.value)}
+                                        placeholder="Novità in arrivo sul tuo E-commerce..."
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3.5 px-4 text-sm text-gray-900 font-bold outline-none focus:border-[#00665E] focus:ring-4 focus:ring-[#00665E]/10 transition" />
+                                </div>
+
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Corpo del Messaggio *</label>
+                                    <textarea value={contactBody} onChange={e => setContactBody(e.target.value)}
+                                        rows={8} placeholder="Scrivi il contenuto. Il layout aziendale e i loghi verranno applicati automaticamente..."
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl py-4 px-4 text-sm text-gray-900 font-medium outline-none focus:border-[#00665E] focus:ring-4 focus:ring-[#00665E]/10 transition resize-none leading-relaxed" />
+                                </div>
+
+                                <button onClick={sendContact} disabled={contactSending}
+                                    className="w-full bg-[#00665E] hover:bg-[#004d46] text-white font-black py-4 rounded-xl transition flex items-center justify-center gap-3 shadow-lg shadow-[#00665E]/20 disabled:opacity-50 text-lg mt-4">
+                                    {contactSending ? <><Loader2 size={20} className="animate-spin" /> Elaborazione in corso...</> : <><Send size={20} /> Invia Messaggio</>}
+                                </button>
+
+                                {contactResult && (
+                                    <div className={`rounded-xl p-5 border flex items-start gap-4 animate-in zoom-in-95 ${contactResult.error ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                                        <div className={`p-2 rounded-lg ${contactResult.error ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                            {contactResult.error ? <AlertTriangle size={20}/> : <CheckCircle2 size={20}/>}
+                                        </div>
+                                        <div>
+                                            <p className={`text-sm font-black ${contactResult.error ? 'text-rose-900' : 'text-emerald-900'}`}>
+                                                {contactResult.error ? 'Errore di invio' : 'Invio completato!'}
+                                            </p>
+                                            <p className={`text-sm mt-1 font-medium ${contactResult.error ? 'text-rose-700' : 'text-emerald-700'}`}>
+                                                {contactResult.error || `${contactResult.sent} elaborazioni riuscite, ${contactResult.failed} fallite.`}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Storico messaggi */}
+                        <div className="bg-white border border-gray-100 rounded-3xl p-8 shadow-sm flex flex-col h-full max-h-[850px]">
+                            <h3 className="text-gray-900 font-black text-xl flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center"><Activity className="text-indigo-500" size={20}/></div>
+                                Registro Invii (Log)
+                            </h3>
+                            <div className="flex-1 overflow-y-auto pr-4 space-y-4">
+                                {msgHistory.length === 0 ? (
+                                    <div className="bg-gray-50 border border-dashed border-gray-200 rounded-2xl p-16 text-center h-full flex flex-col items-center justify-center">
+                                        <MessageSquare size={40} className="text-gray-300 mb-4" />
+                                        <p className="text-gray-900 font-black text-lg">Nessun log disponibile</p>
+                                        <p className="text-gray-500 text-sm mt-1 font-medium">Usa il form a lato per inviare il tuo primo messaggio.</p>
+                                    </div>
+                                ) : msgHistory.map(m => (
+                                    <div key={m.id} className="bg-white border border-gray-100 rounded-2xl p-5 hover:border-[#00665E]/50 transition shadow-sm group relative overflow-hidden">
+                                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-gray-100 group-hover:bg-[#00665E] transition-colors"></div>
+                                        <div className="flex items-start justify-between gap-4 mb-3 pl-3">
+                                            <p className="text-base font-black text-gray-900 leading-tight">{m.subject}</p>
+                                            <span className={`text-[10px] font-black px-2.5 py-1 rounded-md border shrink-0 uppercase tracking-widest ${m.status === 'sent' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'}`}>
+                                                {m.status}
+                                            </span>
+                                        </div>
+                                        <div className="pl-3 flex flex-col gap-2">
+                                            <p className="text-xs text-gray-500 font-medium flex items-center gap-2"><Users size={14} className="text-gray-400"/> Destinazione: <span className="font-bold text-gray-700">{m.to_email}</span></p>
+                                            <p className="text-xs text-gray-400 font-medium flex items-center gap-2"><Activity size={14} className="text-gray-300"/> Timestamp: {new Date(m.sent_at).toLocaleString('it-IT')}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+
+                {/* ===== TAB: SERVER / INFRASTRUTTURA ===== */}
+                {activeTab === 'server' && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+                        <div className="bg-rose-50 border border-rose-100 p-8 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm">
+                            <div className="flex items-center gap-5">
+                                <div className="w-14 h-14 bg-white border border-rose-100 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm"><AlertTriangle size={28} className="text-rose-500"/></div>
+                                <div>
+                                    <h3 className="text-rose-900 font-black text-xl mb-1">Zona Configurazione Critica</h3>
+                                    <p className="text-sm text-rose-700 font-medium">Queste impostazioni hanno impatto globale su architettura dati e server node.</p>
+                                </div>
+                            </div>
+                            <button className="bg-rose-600 hover:bg-rose-700 text-white font-black px-6 py-3.5 rounded-xl transition flex items-center gap-2 shadow-lg shadow-rose-600/20 whitespace-nowrap">
+                                <Power size={18} /> Riavvio Servizi Root
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {/* API Keys */}
+                            <div className="bg-white border border-gray-100 p-8 rounded-3xl shadow-sm">
+                                <h3 className="text-gray-900 font-black text-xl flex items-center gap-3 mb-8"><Zap className="text-amber-500" size={24} /> Stato Servizi Microservices</h3>
+                                <div className="space-y-2">
+                                    {[
+                                        { name: 'Supabase Postgres DB', status: 'Operativo', color: 'emerald' },
+                                        { name: 'Gemini AI Core (LLM)', status: 'Quota esaurita', color: 'rose' },
+                                        { name: 'Resend SMTP Gateway', status: 'Connesso', color: 'emerald' },
+                                        { name: 'Anthropic Claude Engine', status: 'Attivo', color: 'emerald' },
+                                        { name: 'Chatwoot WebSocket', status: 'Manutenzione', color: 'amber' },
+                                        { name: 'Stripe Billing & Payments', status: 'Sandbox mode', color: 'blue' },
+                                    ].map((s, i) => (
+                                        <div key={s.name} className="flex items-center justify-between py-4 border-b border-gray-100 last:border-0 hover:bg-gray-50 px-4 rounded-xl transition -mx-4 group">
+                                            <span className="text-gray-700 text-sm font-black group-hover:text-gray-900 transition">{s.name}</span>
+                                            <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 bg-${s.color}-50 text-${s.color}-600 border border-${s.color}-200 rounded-md shadow-sm`}>{s.status}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Security */}
+                            <div className="bg-white border border-gray-100 p-8 rounded-3xl shadow-sm">
+                                <h3 className="text-gray-900 font-black text-xl flex items-center gap-3 mb-8"><Shield className="text-indigo-500" size={24} /> Sicurezza & Compliance</h3>
+                                <div className="space-y-4">
+                                    {[
+                                        { label: 'Policy Row Level Security (RLS)', active: true, desc: "Isolamento dati multi-tenant attivo." },
+                                        { label: 'Service Role Key (Bypass)', active: true, desc: "Token amministrativo configurato correttamente." },
+                                        { label: 'Token ADMIN_SECRET (.env)', active: false, desc: "Header segreto per le API in produzione assente." },
+                                    ].map(item => (
+                                        <div key={item.label} className={`flex items-start gap-4 p-5 rounded-2xl border ${item.active ? 'bg-emerald-50/50 border-emerald-100' : 'bg-amber-50/50 border-amber-100'}`}>
+                                            <div className={`mt-0.5 ${item.active ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                                {item.active ? <CheckCircle2 size={24}/> : <AlertTriangle size={24}/>}
+                                            </div>
+                                            <div>
+                                                <span className={`text-sm font-black block mb-1 ${item.active ? 'text-emerald-900' : 'text-amber-900'}`}>{item.label}</span>
+                                                <span className={`text-xs font-medium ${item.active ? 'text-emerald-700' : 'text-amber-700'}`}>{item.desc}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Link utili */}
+                        <div className="bg-white border border-gray-100 p-8 rounded-3xl shadow-sm">
+                            <h3 className="text-gray-900 font-black text-xl mb-6 flex items-center gap-3"><ExternalLink className="text-blue-500" size={24} /> Link Root & Gestione Risorse</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {[
+                                    { label: 'Supabase SQL Editor', href: 'https://supabase.com/dashboard', icon: Database, color: 'emerald' },
+                                    { label: 'Logs Health Check API', href: '/api/health', icon: Activity, color: 'blue' },
+                                    { label: 'Genera Chiave Gemini', href: 'https://aistudio.google.com/apikey', icon: Zap, color: 'amber' },
+                                    { label: 'Pannello Formatori', href: '/admin/formazione', icon: PlayCircle, color: 'indigo' },
+                                ].map(l => (
+                                    <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer"
+                                        className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-white text-gray-700 hover:text-[#00665E] rounded-2xl text-sm font-black transition border border-gray-200 hover:border-[#00665E] hover:shadow-md group">
+                                        <div className={`w-10 h-10 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-${l.color}-500 group-hover:bg-[#00665E] group-hover:text-white transition group-hover:border-transparent`}><l.icon size={18}/></div> 
+                                        {l.label}
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     )
 }
