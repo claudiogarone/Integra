@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import { 
     ShieldAlert, Lock, Mail, Key, Loader2, ArrowRight, 
-    Fingerprint, Server, Activity, AlertTriangle
+    Fingerprint, Server, Activity, AlertTriangle, ShieldCheck
 } from 'lucide-react'
 
 export default function AdminLoginPage() {
@@ -81,95 +81,85 @@ export default function AdminLoginPage() {
     }
 
     return (
-        <main className="min-h-screen bg-[#02050A] font-sans selection:bg-rose-500 selection:text-white flex items-center justify-center relative overflow-hidden p-4">
+        <main className="min-h-screen bg-[#F8FAFC] font-sans selection:bg-[#00665E] selection:text-white flex items-center justify-center relative p-4">
             
-            {/* EFFETTI LUCE "SERVER ROOM" (Rosso/Viola scuro per indicare area critica) */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[400px] bg-rose-900/10 rounded-full blur-[150px] pointer-events-none -z-10"></div>
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay pointer-events-none z-0"></div>
+            {/* ELEMENTI GRAFICI DI SFONDO (Trasparenze) */}
+            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#00665E]/5 rounded-full blur-3xl pointer-events-none -z-10"></div>
+            <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none -z-10"></div>
 
-            {/* ELEMENTI GRAFICI DI SFONDO (Simulazione terminale) */}
-            <div className="absolute top-10 left-10 text-[10px] text-rose-900/50 font-mono hidden md:block z-0 pointer-events-none">
-                <p>&gt; SECURE_SHELL_INIT_v3.4.1</p>
-                <p>&gt; ESTABLISHING_ENCRYPTED_CONNECTION...</p>
-                <p>&gt; 256-BIT_AES_HANDSHAKE: OK</p>
-                <p className="text-rose-500/50 animate-pulse">&gt; WAITING_FOR_ROOT_AUTHORIZATION...</p>
-            </div>
-
-            <div className="w-full max-w-md bg-slate-950/80 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-[0_0_50px_rgba(225,29,72,0.05)] relative z-10 overflow-hidden">
+            <div className="w-full max-w-md bg-white border border-gray-200 rounded-3xl shadow-xl relative z-10 overflow-hidden">
                 
                 {/* HEADER DELLA CASSAFORTE */}
-                <div className="p-8 border-b border-slate-800 text-center relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-rose-500 to-transparent opacity-50"></div>
-                    <div className="w-16 h-16 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4 relative shadow-lg">
-                        <ShieldAlert size={32} className="text-rose-500"/>
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 rounded-full animate-ping"></div>
+                <div className="p-8 border-b border-gray-100 text-center relative overflow-hidden bg-gray-50/50">
+                    <div className="flex justify-center mb-6 relative">
+                        <img src="/logo-integraos.png" alt="IntegraOS Logo" className="h-[48px] object-contain drop-shadow-sm" />
                     </div>
-                    <h1 className="text-2xl font-black text-white tracking-tight">Root Access</h1>
-                    <p className="text-xs text-slate-500 font-mono mt-2 flex items-center justify-center gap-1">
-                        <Server size={12}/> INTEGRA<span className="text-rose-500">OS</span> SYSTEM CORE
+                    <h1 className="text-2xl font-black text-gray-900 tracking-tight">Root Access</h1>
+                    <p className="text-xs text-gray-500 font-bold mt-2 flex items-center justify-center gap-1 uppercase tracking-widest">
+                        <Server size={14} className="text-[#00665E]"/> Area Riservata
                     </p>
                 </div>
 
                 <div className="p-8">
                     {/* Toggle Login/Registrazione */}
-                    <div className="flex p-1 bg-[#02050A] rounded-lg mb-8 border border-slate-800">
-                        <button onClick={() => {setIsLoginMode(true); setError(null)}} className={`flex-1 py-2 text-xs font-bold rounded-md transition ${isLoginMode ? 'bg-slate-800 text-white shadow-md border border-slate-700' : 'text-slate-500 hover:text-white'}`}>
-                            Accesso Autenticato
+                    <div className="flex p-1 bg-gray-100 rounded-xl mb-8 border border-gray-200 shadow-inner">
+                        <button onClick={() => {setIsLoginMode(true); setError(null)}} className={`flex-1 py-2 text-xs font-black rounded-lg transition uppercase tracking-widest ${isLoginMode ? 'bg-white text-[#00665E] shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>
+                            Accesso Admin
                         </button>
-                        <button onClick={() => {setIsLoginMode(false); setError(null)}} className={`flex-1 py-2 text-xs font-bold rounded-md transition ${!isLoginMode ? 'bg-slate-800 text-white shadow-md border border-slate-700' : 'text-slate-500 hover:text-white'}`}>
-                            Nuovo Manutentore
+                        <button onClick={() => {setIsLoginMode(false); setError(null)}} className={`flex-1 py-2 text-xs font-black rounded-lg transition uppercase tracking-widest ${!isLoginMode ? 'bg-white text-[#00665E] shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>
+                            Registrazione
                         </button>
                     </div>
 
                     {error && (
-                        <div className="bg-rose-950/50 border border-rose-900 text-rose-400 p-4 rounded-xl mb-6 text-sm font-bold flex items-center gap-3 animate-in shake">
-                            <AlertTriangle size={20} className="shrink-0"/> {error}
+                        <div className="bg-rose-50 border border-rose-200 text-rose-600 p-4 rounded-2xl mb-6 text-sm font-bold flex items-center gap-3 animate-in shake shadow-sm">
+                            <AlertTriangle size={20} className="shrink-0 text-rose-500"/> {error}
                         </div>
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-5">
                         
                         <div>
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block font-mono">ID Amministratore (Email)</label>
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Email Amministratore</label>
                             <div className="relative">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={16}/>
-                                <input required type="email" value={formData.email} onChange={e=>setFormData({...formData, email: e.target.value})} className="w-full bg-[#02050A] border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:border-rose-500 transition font-mono text-sm" placeholder="root@integraos.it" />
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
+                                <input required type="email" value={formData.email} onChange={e=>setFormData({...formData, email: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-3.5 pl-12 pr-4 text-gray-900 outline-none focus:border-[#00665E] focus:ring-4 focus:ring-[#00665E]/10 transition font-medium text-sm placeholder:text-gray-400 font-sans" placeholder="root@integraos.it" />
                             </div>
                         </div>
 
                         <div>
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block font-mono">Chiave Crittografica (Password)</label>
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Password Sicura</label>
                             <div className="relative">
-                                <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={16}/>
-                                <input required type="password" value={formData.password} onChange={e=>setFormData({...formData, password: e.target.value})} className="w-full bg-[#02050A] border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:border-rose-500 transition font-mono text-sm tracking-widest" placeholder="••••••••••••" />
+                                <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
+                                <input required type="password" value={formData.password} onChange={e=>setFormData({...formData, password: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-3.5 pl-12 pr-4 text-gray-900 outline-none focus:border-[#00665E] focus:ring-4 focus:ring-[#00665E]/10 transition font-medium text-sm tracking-widest placeholder:text-gray-400 font-sans" placeholder="••••••••••••" />
                             </div>
                         </div>
 
                         {/* CAMPO EXTRA SOLO PER LA REGISTRAZIONE (Codice Segreto) */}
                         {!isLoginMode && (
-                            <div className="animate-in fade-in slide-in-from-top-2">
-                                <label className="text-[10px] font-bold text-rose-500 uppercase tracking-widest mb-2 flex items-center gap-1 font-mono">
-                                    <Fingerprint size={12}/> Autorizzazione di Sistema
+                            <div className="animate-in fade-in slide-in-from-top-2 pt-2">
+                                <label className="text-[10px] font-black text-[#00665E] uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                    <ShieldCheck size={14}/> Codice Di Autorizzazione
                                 </label>
                                 <div className="relative">
-                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-rose-900" size={16}/>
-                                    <input required type="password" value={formData.secretCode} onChange={e=>setFormData({...formData, secretCode: e.target.value})} className="w-full bg-rose-950/20 border border-rose-900/50 rounded-xl py-3 pl-12 pr-4 text-rose-300 outline-none focus:border-rose-500 transition font-mono text-sm placeholder:text-rose-900/50" placeholder="INSERISCI CODICE ROOT" />
+                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#00665E]" size={18}/>
+                                    <input required type="password" value={formData.secretCode} onChange={e=>setFormData({...formData, secretCode: e.target.value})} className="w-full bg-[#00665E]/5 border border-[#00665E]/20 rounded-2xl py-3.5 pl-12 pr-4 text-gray-900 outline-none focus:border-[#00665E] focus:ring-4 focus:ring-[#00665E]/20 transition font-bold text-sm placeholder:text-gray-500" placeholder="INSERISCI AUTH CODE" />
                                 </div>
-                                <p className="text-[9px] text-slate-600 mt-2 font-mono">Solo il personale autorizzato possiede il token di registrazione Master.</p>
+                                <p className="text-[10px] text-gray-500 mt-2 font-medium">L'accesso è limitato ai manutentori autorizzati di IntegraOS.</p>
                             </div>
                         )}
 
-                        <button type="submit" disabled={loading} className="w-full bg-slate-100 hover:bg-white text-slate-950 font-black py-3.5 rounded-xl transition mt-6 flex justify-center items-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.1)] disabled:opacity-50">
-                            {loading ? <><Loader2 size={18} className="animate-spin"/> VERIFICA CREDENZIALI...</> : (isLoginMode ? <><ArrowRight size={18}/> INIZIALIZZA SESSIONE</> : <><Fingerprint size={18}/> REGISTRA AMMINISTRATORE</>)}
+                        <button type="submit" disabled={loading} className="w-full bg-[#00665E] hover:bg-[#004d46] text-white font-black py-4 rounded-2xl transition mt-6 flex justify-center items-center gap-2 shadow-lg shadow-[#00665E]/20 disabled:opacity-50">
+                            {loading ? <><Loader2 size={20} className="animate-spin"/> VERIFICA CREDENZIALI...</> : (isLoginMode ? <><ArrowRight size={20}/> ACCEDI AL PANNELLO</> : <><Fingerprint size={20}/> REGISTRA AMMINISTRATORE</>)}
                         </button>
                     </form>
                 </div>
                 
                 {/* FOOTER SICUREZZA */}
-                <div className="bg-[#02050A] p-4 text-center border-t border-slate-800">
-                    <p className="text-[9px] text-slate-600 font-mono flex items-center justify-center gap-1 uppercase">
-                        <Activity size={10} className="text-emerald-500"/>
-                        Il tuo IP è stato registrato a fini di sicurezza.
+                <div className="bg-gray-50 p-5 text-center border-t border-gray-100">
+                    <p className="text-[10px] text-gray-500 font-bold flex items-center justify-center gap-1.5 uppercase tracking-widest">
+                        <Activity size={14} className="text-[#00665E]"/>
+                        Connessione protetta
                     </p>
                 </div>
             </div>
