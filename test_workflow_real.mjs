@@ -9,13 +9,36 @@ async function testWorkflow() {
     console.log("🚀 Starting CRM Workflow Backend Test...");
 
     // 1. Prendi un utente di test
-    const { data: profile } = await supabase.from('profiles').select('id').limit(1).single();
+    let { data: profile } = await supabase.from('profiles').select('id').limit(1).single();
+    
     if (!profile) {
-        console.error("❌ No user profile found to test with.");
-        return;
+        console.warn("⚠️ No profile found in 'profiles' table. Attempting to create one from Auth...");
+        const { data: { users } } = await supabase.auth.admin.listUsers({ perPage: 1 });
+        if (!users || users.length === 0) {
+            console.error("❌ No users found in Auth. Please register a user first.");
+            return;
+        }
+        
+        const firstUser = users[0];
+        console.log(`Creating test profile for ${firstUser.email}...`);
+        
+        const { data: newProfile, error: insErr } = await supabase.from('profiles').insert({
+            id: firstUser.id,
+            email: firstUser.email,
+            company_name: 'IntegraOS Test Corp',
+            role: 'admin',
+            plan: 'Ambassador'
+        }).select().single();
+
+        if (insErr) {
+            console.error("❌ Failed to create test profile:", insErr.message);
+            return;
+        }
+        profile = newProfile;
     }
+    
     const userId = profile.id;
-    console.log(`Using UserID: ${userId}`);
+    console.log(`✅ Using UserID: ${userId}`);
 
     // 2. Crea un workflow di test (Nuovo Lead -> AI -> Email)
     const testWorkflow = {

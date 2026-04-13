@@ -232,8 +232,8 @@ export default function LaunchpadPage() {
       if(plannerFormRef.current) {
           plannerFormRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
           // Animazione per far capire dove guardare
-          plannerFormRef.current.classList.add('ring-4', 'ring-indigo-500', 'ring-offset-2', 'rounded-xl');
-          setTimeout(() => plannerFormRef.current?.classList.remove('ring-4', 'ring-indigo-500', 'ring-offset-2', 'rounded-xl'), 1500);
+          plannerFormRef.current.classList.add('ring-4', 'ring-[#00665E]', 'ring-offset-2', 'rounded-xl');
+          setTimeout(() => plannerFormRef.current?.classList.remove('ring-4', 'ring-[#00665E]', 'ring-offset-2', 'rounded-xl'), 1500);
       }
   }
 
@@ -357,16 +357,16 @@ export default function LaunchpadPage() {
       {/* HEADER E LIMITI */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-200">
         <div>
-          <h1 className="text-3xl font-black text-[#00665E] tracking-tight flex items-center gap-3"><Sparkles size={32} className="text-purple-600"/> Launchpad Marketing</h1>
+          <h1 className="text-3xl font-black text-[#00665E] tracking-tight flex items-center gap-3"><Sparkles size={32} className="text-[#00665E]"/> Launchpad Marketing</h1>
           <p className="text-gray-500 text-sm mt-1">Crea grafiche AI, genera QR Code e pianifica il budget pubblicitario sul territorio.</p>
         </div>
         
         <div className="flex flex-col items-end mt-4 md:mt-0">
-            <div className="bg-indigo-50 border border-indigo-100 px-4 py-2 rounded-xl flex items-center gap-3 shadow-sm">
-                <BrainCircuit className={currentPlan === 'Ambassador' ? "text-purple-500" : mediaPlansUsed >= aiMediaPlanLimits[currentPlan] * 0.9 ? "text-rose-500" : "text-indigo-500"} size={20}/>
+            <div className="bg-[#00665E]/10 border border-[#00665E]/20 px-4 py-2 rounded-xl flex items-center gap-3 shadow-sm">
+                <BrainCircuit className={currentPlan === 'Ambassador' ? "text-[#00665E]" : mediaPlansUsed >= aiMediaPlanLimits[currentPlan] * 0.9 ? "text-rose-500" : "text-[#00665E]"} size={20}/>
                 <div className="flex flex-col items-start">
-                    <span className="text-[9px] font-bold text-indigo-800 uppercase tracking-widest">Piani Marketing Generati</span>
-                    <span className={`font-bold text-sm ${currentPlan === 'Ambassador' ? 'text-purple-600' : mediaPlansUsed >= aiMediaPlanLimits[currentPlan] * 0.9 ? 'text-rose-600' : 'text-indigo-900'}`}>
+                    <span className="text-[9px] font-bold text-[#00665E] uppercase tracking-widest">Piani Marketing Generati</span>
+                    <span className={`font-bold text-sm ${currentPlan === 'Ambassador' ? 'text-[#00665E]' : mediaPlansUsed >= aiMediaPlanLimits[currentPlan] * 0.9 ? 'text-rose-600' : 'text-[#00665E]'}`}>
                         {currentPlan === 'Ambassador' ? 'Illimitati' : `${mediaPlansUsed} / ${aiMediaPlanLimits[currentPlan]}`}
                     </span>
                 </div>
@@ -378,7 +378,7 @@ export default function LaunchpadPage() {
       <div className="flex flex-wrap gap-2 mb-8 sticky top-0 z-20 bg-[#F8FAFC] py-2">
           <button onClick={() => setActiveTab('flyer')} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 ${activeTab === 'flyer' ? 'bg-[#00665E] text-white shadow-lg' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}><ImageIcon size={16}/> Studio Grafico AI</button>
           <button onClick={() => setActiveTab('qr')} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 ${activeTab === 'qr' ? 'bg-[#00665E] text-white shadow-lg' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}><Share2 size={16}/> Cavalieri QR Code</button>
-          <button onClick={() => setActiveTab('radar')} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 ${activeTab === 'radar' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}><MapPin size={16}/> Radar & Media Planner AI</button>
+          <button onClick={() => setActiveTab('radar')} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 ${activeTab === 'radar' ? 'bg-[#00665E] text-white shadow-lg' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}><MapPin size={16}/> Radar & Media Planner AI</button>
       </div>
 
       {/* ========================================================= */}
@@ -413,7 +413,7 @@ export default function LaunchpadPage() {
                     <div>
                         <div className="flex justify-between items-center mb-1">
                             <label className="text-xs font-bold text-gray-500 uppercase">Titolo</label>
-                            <button onClick={handleAiCopy} disabled={aiCopyLoading} className="text-[10px] text-purple-600 bg-purple-50 px-2 py-1 rounded font-bold flex items-center gap-1 hover:bg-purple-100 disabled:opacity-50">
+                            <button onClick={handleAiCopy} disabled={aiCopyLoading} className="text-[10px] text-[#00665E] bg-[#00665E]/10 px-2 py-1 rounded font-bold flex items-center gap-1 hover:bg-[#00665E]/20 disabled:opacity-50">
                                 {aiCopyLoading ? <Loader2 size={10} className="animate-spin"/> : <Sparkles size={10}/>} Genera con AI
                             </button>
                         </div>
@@ -522,10 +522,10 @@ export default function LaunchpadPage() {
               <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm">
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                       <div>
-                          <h3 className="font-black text-2xl text-gray-900 flex items-center gap-2"><Share2 className="text-purple-600"/> Gestione e Cavalieri QR Code</h3>
+                          <h3 className="font-black text-2xl text-gray-900 flex items-center gap-2"><Share2 className="text-[#00665E]"/> Gestione e Cavalieri QR Code</h3>
                           <p className="text-sm text-gray-500 mt-1">Scarica i codici ad alta definizione o crea nuovi link personalizzati (es. Menu Digitale, Promozioni).</p>
                       </div>
-                      <div className="bg-purple-50 text-purple-700 px-4 py-2 rounded-xl text-xs font-bold border border-purple-200 shadow-sm">
+                      <div className="bg-[#00665E]/10 text-[#00665E] px-4 py-2 rounded-xl text-xs font-bold border border-[#00665E]/20 shadow-sm">
                           QR Personalizzati Creati: <span className="text-lg">{customQRs.length}</span> / {qrLimits[currentPlan] === 999 ? '∞' : qrLimits[currentPlan]}
                       </div>
                   </div>
@@ -537,11 +537,11 @@ export default function LaunchpadPage() {
                               Nome/Etichetta (es. Menu)
                               {editingQrId && <span className="text-amber-600 font-black">Modalità Modifica Attiva</span>}
                           </label>
-                          <input type="text" placeholder="Es. Scarica il nostro Menu" value={newQRForm.label} onChange={e => setNewQRForm({...newQRForm, label: e.target.value})} className={`w-full mt-1 p-3 rounded-xl border outline-none font-bold ${editingQrId ? 'focus:border-amber-500 border-amber-200' : 'focus:border-purple-500'}`} />
+                          <input type="text" placeholder="Es. Scarica il nostro Menu" value={newQRForm.label} onChange={e => setNewQRForm({...newQRForm, label: e.target.value})} className={`w-full mt-1 p-3 rounded-xl border outline-none font-bold ${editingQrId ? 'focus:border-amber-500 border-amber-200' : 'focus:border-[#00665E] focus:ring-4 focus:ring-[#00665E]/10'}`} />
                       </div>
                       <div className="flex-1 w-full">
                           <label className="text-[10px] font-bold text-gray-500 uppercase">Link URL di destinazione</label>
-                          <input type="url" placeholder="https://..." value={newQRForm.url} onChange={e => setNewQRForm({...newQRForm, url: e.target.value})} className={`w-full mt-1 p-3 rounded-xl border outline-none text-purple-600 font-mono text-sm ${editingQrId ? 'focus:border-amber-500 border-amber-200' : 'focus:border-purple-500'}`} />
+                          <input type="url" placeholder="https://..." value={newQRForm.url} onChange={e => setNewQRForm({...newQRForm, url: e.target.value})} className={`w-full mt-1 p-3 rounded-xl border outline-none text-[#00665E] font-mono text-sm ${editingQrId ? 'focus:border-amber-500 border-amber-200' : 'focus:border-[#00665E] focus:ring-4 focus:ring-[#00665E]/10'}`} />
                       </div>
                       <div className="flex gap-2 w-full md:w-auto">
                           {editingQrId && (
@@ -549,7 +549,7 @@ export default function LaunchpadPage() {
                                   Annulla
                               </button>
                           )}
-                          <button onClick={handleSaveCustomQR} className={`${editingQrId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-purple-600 hover:bg-purple-700'} text-white font-bold px-6 py-3.5 rounded-xl transition shadow-md w-full md:w-auto flex items-center justify-center gap-2`}>
+                          <button onClick={handleSaveCustomQR} className={`${editingQrId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-[#00665E] hover:bg-[#004d46]'} text-white font-bold px-6 py-3.5 rounded-xl transition shadow-md w-full md:w-auto flex items-center justify-center gap-2`}>
                               {editingQrId ? <><CheckCircle2 size={18}/> Salva Modifiche</> : <><Plus size={18}/> Aggiungi QR</>}
                           </button>
                       </div>
@@ -571,7 +571,7 @@ export default function LaunchpadPage() {
                                   <button onClick={() => handleEditCustomQR(qr)} className="bg-amber-500 text-white p-2 rounded-full shadow-lg hover:scale-110" title="Modifica"><Edit3 size={14}/></button>
                                   <button onClick={() => handleDeleteCustomQR(qr.id)} className="bg-red-500 text-white p-2 rounded-full shadow-lg hover:scale-110" title="Elimina"><Trash2 size={14}/></button>
                               </div>
-                              <QRCodeCard url={qr.url} icon="🔗" label={qr.label} color="text-purple-600" />
+                              <QRCodeCard url={qr.url} icon="🔗" label={qr.label} color="text-[#00665E]" />
                           </div>
                       ))}
                   </div>
@@ -596,13 +596,13 @@ export default function LaunchpadPage() {
               {/* RADAR CONFIGURATION E AI INPUT */}
               <div className="lg:col-span-5 space-y-6">
                   <div className="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full blur-3xl pointer-events-none"></div>
-                      <h2 className="text-xl font-black text-gray-900 mb-2 relative z-10 flex items-center gap-2"><MapPin className="text-indigo-600"/> Cerca Editori Locali</h2>
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-[#00665E]/10 rounded-full blur-3xl pointer-events-none"></div>
+                      <h2 className="text-xl font-black text-gray-900 mb-2 relative z-10 flex items-center gap-2"><MapPin className="text-[#00665E]"/> Cerca Editori Locali</h2>
                       <p className="text-sm text-gray-500 mb-6 relative z-10">L'Intelligenza Artificiale analizzerà il territorio della città indicata per suggerirti i migliori partner pubblicitari locali.</p>
 
                       <form onSubmit={scanLocalMedia} className="relative z-10 flex gap-2">
-                          <input type="text" required value={searchCity} onChange={e=>setSearchCity(e.target.value)} placeholder="Es. Roma, Milano, Napoli..." className="flex-1 bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-indigo-500 font-bold text-sm"/>
-                          <button type="submit" disabled={isScanning || !searchCity} className="bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-indigo-700 transition disabled:opacity-50 flex items-center gap-2 shadow-md">
+                          <input type="text" required value={searchCity} onChange={e=>setSearchCity(e.target.value)} placeholder="Es. Roma, Milano, Napoli..." className="flex-1 bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-[#00665E] focus:ring-4 focus:ring-[#00665E]/10 font-bold text-sm"/>
+                          <button type="submit" disabled={isScanning || !searchCity} className="bg-[#00665E] text-white font-bold px-6 py-3 rounded-xl hover:bg-[#004d46] transition disabled:opacity-50 flex items-center gap-2 shadow-md">
                               {isScanning ? <Loader2 size={16} className="animate-spin"/> : <Search size={16}/>} Scansiona AI
                           </button>
                       </form>
@@ -641,32 +641,32 @@ export default function LaunchpadPage() {
                   
                   {/* RISULTATO MEDIA PLANNER AI (CON LE SETTIMANE!) */}
                   {mediaPlan && (
-                      <div className="bg-white border border-indigo-200 rounded-3xl p-8 shadow-md animate-in slide-in-from-top-4">
+                      <div className="bg-white border border-[#00665E]/20 rounded-3xl p-8 shadow-md animate-in slide-in-from-top-4">
                           <div className="flex justify-between items-start border-b border-gray-100 pb-4 mb-6">
                               <div>
-                                  <h3 className="font-black text-2xl text-indigo-900 flex items-center gap-2"><CheckCircle2 className="text-emerald-500"/> Masterplan Elaborato</h3>
-                                  <p className="text-sm font-bold text-indigo-500 mt-1">Focus Zona: {searchCity} | Budget: €{budget}</p>
+                                  <h3 className="font-black text-2xl text-[#00665E] flex items-center gap-2"><CheckCircle2 className="text-emerald-500"/> Masterplan Elaborato</h3>
+                                  <p className="text-sm font-bold text-[#00665E] mt-1">Focus Zona: {searchCity} | Budget: €{budget}</p>
                               </div>
-                              <button onClick={downloadMediaPlan} className="text-indigo-600 hover:bg-indigo-50 p-3 rounded-xl transition font-bold text-sm flex items-center gap-2 shadow-sm border border-indigo-100"><Download size={16}/> Salva TXT</button>
+                              <button onClick={downloadMediaPlan} className="text-[#00665E] hover:bg-[#00665E]/10 p-3 rounded-xl transition font-bold text-sm flex items-center gap-2 shadow-sm border border-[#00665E]/20"><Download size={16}/> Salva TXT</button>
                           </div>
                           
                           <div className="mb-8">
                               <h4 className="text-xs font-black uppercase text-gray-400 tracking-widest mb-3">Analisi Strategica</h4>
-                              <p className="text-sm font-medium text-gray-700 leading-relaxed bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100">{mediaPlan.strategy}</p>
+                              <p className="text-sm font-medium text-gray-700 leading-relaxed bg-[#00665E]/10/50 p-5 rounded-2xl border border-[#00665E]/20">{mediaPlan.strategy}</p>
                           </div>
 
                           <div className="mb-8">
                               <h4 className="text-xs font-black uppercase text-gray-400 tracking-widest mb-3">Allocazione Fondi Suggerita</h4>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                   {mediaPlan.allocations?.map((item:any, i:any) => (
-                                      <div key={i} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-indigo-300 transition">
+                                      <div key={i} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-[#00665E]/30 transition">
                                           <p className="font-bold text-gray-900 text-sm flex items-center gap-2 line-clamp-1" title={item.channel}>
-                                              <span className="w-2 h-2 rounded-full bg-indigo-500 inline-block shrink-0"></span> 
+                                              <span className="w-2 h-2 rounded-full bg-[#00665E]/100 inline-block shrink-0"></span> 
                                               {item.channel}
                                           </p>
                                           <div className="flex justify-between items-end mt-3">
                                               <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">ROI: {item.roi}</span>
-                                              <span className="font-black text-lg text-indigo-600">€ {item.amount}</span>
+                                              <span className="font-black text-lg text-[#00665E]">€ {item.amount}</span>
                                           </div>
                                       </div>
                                   ))}
@@ -677,14 +677,14 @@ export default function LaunchpadPage() {
                           {mediaPlan.weekly_plan && (
                               <div>
                                   <h4 className="text-xs font-black uppercase text-gray-400 tracking-widest mb-3 flex items-center gap-2"><Calendar size={14}/> Roadmap Mensile (Action Plan)</h4>
-                                  <div className="space-y-3 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-indigo-100 before:via-indigo-200 before:to-transparent">
+                                  <div className="space-y-3 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-[#00665E]/10 before:via-[#00665E]/20 before:to-transparent">
                                       {mediaPlan.weekly_plan.map((step:any, i:number) => (
                                           <div key={i} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group">
-                                              <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-indigo-500 text-white shadow-md shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 relative z-10 text-xs font-black">
+                                              <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-[#00665E]/100 text-white shadow-md shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 relative z-10 text-xs font-black">
                                                   W{i+1}
                                               </div>
                                               <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition">
-                                                  <h5 className="font-black text-indigo-900 text-sm mb-1">{step.week}</h5>
+                                                  <h5 className="font-black text-[#00665E] text-sm mb-1">{step.week}</h5>
                                                   <p className="text-xs text-gray-600 leading-relaxed font-medium">{step.action}</p>
                                               </div>
                                           </div>
@@ -707,7 +707,7 @@ export default function LaunchpadPage() {
                       )}
 
                       {isScanning && (
-                          <div className="flex-1 flex flex-col items-center justify-center text-indigo-500 py-10">
+                          <div className="flex-1 flex flex-col items-center justify-center text-[#00665E] py-10">
                               <Loader2 size={40} className="animate-spin mb-4"/>
                               <p className="font-bold">L'Intelligenza Artificiale sta mappando il territorio locale...</p>
                           </div>
@@ -716,9 +716,9 @@ export default function LaunchpadPage() {
                       {localMedia.length > 0 && !isScanning && (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in">
                               {localMedia.map(media => (
-                                  <div key={media.id} className="p-4 rounded-2xl border border-gray-100 bg-gray-50 flex flex-col justify-between gap-4 group hover:bg-white hover:border-indigo-200 hover:shadow-md transition">
+                                  <div key={media.id} className="p-4 rounded-2xl border border-gray-100 bg-gray-50 flex flex-col justify-between gap-4 group hover:bg-white hover:border-[#00665E]/20 hover:shadow-md transition">
                                       <div className="flex items-start gap-4">
-                                          <div className="w-10 h-10 bg-white text-indigo-600 rounded-xl flex items-center justify-center shadow-sm border border-gray-100 shrink-0 group-hover:bg-indigo-50 transition">
+                                          <div className="w-10 h-10 bg-white text-[#00665E] rounded-xl flex items-center justify-center shadow-sm border border-gray-100 shrink-0 group-hover:bg-[#00665E]/10 transition">
                                               {media.icon || <Globe size={20}/>}
                                           </div>
                                           <div>
@@ -738,7 +738,7 @@ export default function LaunchpadPage() {
                                       <div className="bg-white p-3 rounded-xl border border-gray-100 text-xs">
                                           <div className="flex justify-between mb-1"><span className="text-gray-500">Copertura:</span><span className="font-bold text-gray-800">{media.reach}</span></div>
                                           <div className="flex justify-between mb-1"><span className="text-gray-500">Costo:</span><span className={`font-bold ${media.cost.includes('Alto') ? 'text-rose-500' : 'text-emerald-500'}`}>{media.cost}</span></div>
-                                          <div className="flex justify-between"><span className="text-gray-500">Match AI:</span><span className="font-black text-indigo-600">{media.match}%</span></div>
+                                          <div className="flex justify-between"><span className="text-gray-500">Match AI:</span><span className="font-black text-[#00665E]">{media.match}%</span></div>
                                       </div>
                                       
                                       {/* BOTTONE DINAMICO: SPONSOR VS LEAD */}
@@ -747,7 +747,7 @@ export default function LaunchpadPage() {
                                               <Target size={14}/> Includi nel Piano
                                           </button>
                                       ) : (
-                                          <button onClick={() => handleDiscoverPartner(media)} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2 text-xs shadow-lg shadow-indigo-200">
+                                          <button onClick={() => handleDiscoverPartner(media)} className="w-full bg-[#00665E] hover:bg-[#004d46] text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2 text-xs shadow-lg shadow-[#00665E]/20">
                                               <Search size={14}/> Richiedi Identità Partner
                                           </button>
                                       )}

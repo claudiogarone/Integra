@@ -21,10 +21,12 @@ export default function SettingsPage() {
   const [copied, setCopied] = useState(false)
   const [affiliatesCount, setAffiliatesCount] = useState(0)
 
-  // --- CHATWOOT AUTO-CONFIG ---
-  const [chatwootConfiguring, setChatwootConfiguring] = useState(false)
-  const [chatwootResults, setChatwootResults] = useState<any[]>([])
-  const [chatwootSummary, setChatwootSummary] = useState<any>(null)
+  // --- NATIVE INBOX CHANNELS ---
+  const [telegramToken, setTelegramToken] = useState('')
+  const [telegramBotEnabled, setTelegramBotEnabled] = useState(true)
+  const [whatsappToken, setWhatsappToken] = useState('')
+  const [whatsappBotEnabled, setWhatsappBotEnabled] = useState(false)
+  const [botPrompt, setBotPrompt] = useState('Sei un cordiale e professionale assistente clienti. Rispondi in modo conciso ma esaustivo.')
 
   const defaultHours = {
       lunedì: { open: '09:00', close: '18:00', closed: false },
@@ -42,7 +44,9 @@ export default function SettingsPage() {
     websites: { main: '', ecommerce: '' },
     social_links: { facebook: '', instagram: '', linkedin: '', tiktok: '', x: '', youtube: '', telegram: '' },
     business_hours: defaultHours,
-    ai_settings: { allow_auto_booking: false }
+    ai_settings: { allow_auto_booking: false },
+    voice_budget_limit: 100,
+    voice_current_spend: 0
   })
 
   const usage = {
@@ -91,13 +95,32 @@ export default function SettingsPage() {
             websites: data.websites || { main: '', ecommerce: '' },
             social_links: data.social_links || { facebook: '', instagram: '', linkedin: '', tiktok: '', x: '', youtube: '', telegram: '' },
             business_hours: data.business_hours || defaultHours,
-            ai_settings: data.ai_settings || { allow_auto_booking: false }
+            ai_settings: data.ai_settings || { allow_auto_booking: false },
+            voice_budget_limit: data.voice_budget_limit || 100,
+            voice_current_spend: data.voice_current_spend || 0
           })
           if(actualLogo) setLogoPreview(actualLogo)
         }
         
         const { count } = await supabase.from('affiliates').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
         if (count !== null) setAffiliatesCount(count)
+
+        // Native Inbox Channels Fetch
+        const { data: channels } = await supabase.from('inbox_channels').select('*').eq('user_id', user.id)
+        if (channels) {
+            const tg = channels.find((c: any) => c.provider === 'telegram')
+            if (tg) { 
+                setTelegramToken(tg.access_token || '')
+                setTelegramBotEnabled(tg.bot_enabled)
+                if (tg.bot_prompt) setBotPrompt(tg.bot_prompt)
+            }
+            const wa = channels.find((c: any) => c.provider === 'whatsapp')
+            if (wa) { 
+                setWhatsappToken(wa.access_token || '')
+                setWhatsappBotEnabled(wa.bot_enabled)
+                if (wa.bot_prompt) setBotPrompt(wa.bot_prompt)
+            }
+        }
       } catch (error) {
           console.error("Errore caricamento impostazioni:", error)
       } finally {
@@ -153,9 +176,25 @@ export default function SettingsPage() {
         websites: formData.websites,
         social_links: formData.social_links,
         business_hours: formData.business_hours,
-        ai_settings: formData.ai_settings
+        ai_settings: formData.ai_settings,
+        voice_budget_limit: formData.voice_budget_limit
     })
     
+    // Salva i canali Native Inbox
+    if (telegramToken || telegramBotEnabled !== undefined) {
+        await supabase.from('inbox_channels').upsert({ 
+            user_id: user.id, provider: 'telegram', provider_id: 'default_tg', name: 'Telegram Bot', 
+            access_token: telegramToken, bot_enabled: telegramBotEnabled, bot_prompt: botPrompt 
+        }, { onConflict: 'user_id,provider,provider_id' })
+    }
+    
+    if (whatsappToken || whatsappBotEnabled !== undefined) {
+        await supabase.from('inbox_channels').upsert({ 
+            user_id: user.id, provider: 'whatsapp', provider_id: 'default_wa', name: 'WhatsApp', 
+            access_token: whatsappToken, bot_enabled: whatsappBotEnabled, bot_prompt: botPrompt 
+        }, { onConflict: 'user_id,provider,provider_id' })
+    }
+
     if (!error) alert('✅ Dati Hub Aziendale salvati con successo!')
     else alert('Errore Database: ' + error.message)
     setSaving(false)
@@ -172,47 +211,7 @@ export default function SettingsPage() {
   const updateWebsite = (type: string, value: string) => setFormData(prev => ({...prev, websites: {...prev.websites, [type]: value}}))
   const updateHour = (day: string, field: string, value: any) => setFormData(prev => ({...prev, business_hours: {...prev.business_hours, [day]: {...(prev.business_hours as any)[day], [field]: value}}}))
 
-  // --- CHATWOOT AUTO-CONFIGURAZIONE ---
-  const handleChatwootAutoConfig = async () => {
-      setChatwootConfiguring(true)
-      setChatwootResults([])
-      setChatwootSummary(null)
 
-      try {
-          // Prima salva i dati correnti nelle impostazioni
-          await handleSave({ preventDefault: () => {} } as any)
-          
-          const res = await fetch('/api/chatwoot/setup-inbox', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId: user?.id })
-          })
-          
-          const data = await res.json()
-          
-          if (!res.ok) {
-              throw new Error(data.error || 'Errore durante la configurazione')
-          }
-          
-          setChatwootResults(data.results || [])
-          setChatwootSummary(data.summary || null)
-      } catch (err: any) {
-          alert('❌ Errore auto-configurazione: ' + err.message)
-      } finally {
-          setChatwootConfiguring(false)
-      }
-  }
-
-  const getStatusIcon = (status: string) => {
-      switch(status) {
-          case 'ok': return <CheckCircle size={16} className="text-emerald-500" />
-          case 'skip': return <SkipForward size={16} className="text-blue-400" />
-          case 'warning': case 'partial': return <AlertTriangle size={16} className="text-amber-500" />
-          case 'manual': return <Info size={16} className="text-purple-500" />
-          case 'error': return <XCircle size={16} className="text-red-500" />
-          default: return null
-      }
-  }
 
   if (loading) return <div className="p-10 text-[#00665E] animate-pulse font-bold">Caricamento Hub Aziendale...</div>
 
@@ -341,53 +340,85 @@ export default function SettingsPage() {
                       </div>
                   </div>
 
-                  {/* CHATWOOT AUTO-CONFIGURAZIONE */}
-                  <div className="bg-gradient-to-br from-teal-50 to-emerald-50 p-8 rounded-3xl border-2 border-teal-200 shadow-sm relative overflow-hidden">
-                      <div className="flex items-center gap-4 mb-4">
-                          <div className="bg-[#00665E] text-white p-3 rounded-xl shadow-lg"><Zap size={24}/></div>
+                  {/* NATIVE INBOX CHANNELS */}
+                  <div className="bg-gradient-to-br from-[#F8FAFC] to-blue-50 p-8 rounded-3xl border border-blue-100 shadow-sm relative overflow-hidden">
+                      <div className="flex items-center gap-4 mb-6">
+                          <div className="bg-[#00665E] text-white p-3 rounded-xl shadow-lg"><MessageCircle size={24}/></div>
                           <div>
-                              <h3 className="text-xl font-black text-[#00665E]">Auto-Configurazione Canali Inbox</h3>
-                              <p className="text-sm text-gray-600">Collega automaticamente Email, Telegram, Live Chat e tutti i canali compilati qui sopra alla tua Inbox Unificata.</p>
+                              <h3 className="text-xl font-black text-gray-900">Canali Omnichannel & AI</h3>
+                              <p className="text-sm text-gray-600">Gestisci i token per ricevere messaggi dai social direttamente nell'Inbox di IntegraOS.</p>
                           </div>
                       </div>
-                      <p className="text-xs text-gray-500 mb-6 leading-relaxed bg-white/60 p-4 rounded-xl border border-teal-100">Cliccando il pulsante, IntegraOS leggerà i dati che hai inserito in questa pagina (email, WhatsApp, social links) e creerà automaticamente i canali di comunicazione su Chatwoot. I canali già configurati non verranno duplicati.</p>
-                      
-                      <button 
-                          onClick={handleChatwootAutoConfig} 
-                          disabled={chatwootConfiguring}
-                          className="bg-[#00665E] text-white font-black px-8 py-4 rounded-xl shadow-xl hover:bg-[#004d46] hover:scale-[1.02] transition-all flex items-center gap-3 disabled:opacity-50 disabled:hover:scale-100"
-                      >
-                          {chatwootConfiguring ? <Loader2 size={20} className="animate-spin"/> : <Zap size={20}/>}
-                          {chatwootConfiguring ? 'Configurazione in corso...' : '⚡ Configura Tutti i Canali Automaticamente'}
-                      </button>
 
-                      {/* RISULTATI AUTO-CONFIG */}
-                      {chatwootResults.length > 0 && (
-                          <div className="mt-6 space-y-3 animate-in fade-in slide-in-from-bottom-4">
-                              {chatwootSummary && (
-                                  <div className="flex gap-4 text-xs font-bold mb-4">
-                                      {chatwootSummary.created > 0 && <span className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg border border-emerald-200">✅ {chatwootSummary.created} creati</span>}
-                                      {chatwootSummary.skipped > 0 && <span className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg border border-blue-200">⏭️ {chatwootSummary.skipped} già esistenti</span>}
-                                      {chatwootSummary.warnings > 0 && <span className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg border border-amber-200">⚠️ {chatwootSummary.warnings} da completare</span>}
-                                      {chatwootSummary.errors > 0 && <span className="bg-red-100 text-red-700 px-3 py-1.5 rounded-lg border border-red-200">❌ {chatwootSummary.errors} errori</span>}
+                      <div className="grid grid-cols-1 gap-6">
+                          
+                          {/* TELEGRAM */}
+                          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-[#00665E] transition">
+                              <div className="flex justify-between items-start mb-4">
+                                  <div className="flex items-center gap-3">
+                                      <div className="bg-blue-100 text-blue-500 p-2 rounded-lg"><MessageCircle size={20}/></div>
+                                      <div><h4 className="font-bold text-gray-800">Bot Telegram</h4><p className="text-xs text-gray-500">Apri BotFather su Telegram e crea un bot.</p></div>
                                   </div>
-                              )}
-                              {chatwootResults.map((r: any, i: number) => (
-                                  <div key={i} className={`flex items-start gap-3 p-4 rounded-xl border ${
-                                      r.status === 'ok' ? 'bg-emerald-50 border-emerald-200' :
-                                      r.status === 'skip' ? 'bg-blue-50 border-blue-200' :
-                                      r.status === 'error' ? 'bg-red-50 border-red-200' :
-                                      'bg-amber-50 border-amber-200'
-                                  }`}>
-                                      <div className="mt-0.5 shrink-0">{getStatusIcon(r.status)}</div>
-                                      <div>
-                                          <p className="font-bold text-sm text-gray-900">{r.channel}</p>
-                                          <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">{r.detail}</p>
+                                  <label className="flex items-center gap-2 text-xs font-bold text-[#00665E] cursor-pointer">
+                                      <input type="checkbox" checked={telegramBotEnabled} onChange={e => setTelegramBotEnabled(e.target.checked)} className="accent-[#00665E] w-4 h-4"/> 
+                                      {telegramBotEnabled ? 'AI Risponde' : 'Risposta Manuale'}
+                                  </label>
+                              </div>
+                              <input type="text" value={telegramToken} onChange={e => setTelegramToken(e.target.value)} placeholder="Incolla il Token del Bot (es. 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11)" className="w-full bg-gray-50 border p-3 rounded-xl text-sm font-mono outline-none focus:border-[#00665E] text-gray-700" />
+                          </div>
+
+                          {/* WHATSAPP */}
+                          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-emerald-500 transition opacity-80">
+                              <div className="flex justify-between items-start mb-4">
+                                  <div className="flex items-center gap-3">
+                                      <div className="bg-emerald-100 text-emerald-600 p-2 rounded-lg"><Phone size={20}/></div>
+                                      <div><h4 className="font-bold text-gray-800">WhatsApp Cloud API</h4><p className="text-xs text-gray-500">Incolla l'Access Token dell'App Meta Developers.</p></div>
+                                  </div>
+                                  <label className="flex items-center gap-2 text-xs font-bold text-emerald-600 cursor-pointer">
+                                      <input type="checkbox" checked={whatsappBotEnabled} onChange={e => setWhatsappBotEnabled(e.target.checked)} className="accent-emerald-600 w-4 h-4"/> 
+                                      {whatsappBotEnabled ? 'AI Risponde' : 'Risposta Manuale'}
+                                  </label>
+                              </div>
+                              <input type="text" value={whatsappToken} onChange={e => setWhatsappToken(e.target.value)} placeholder="EAAI... Access Token Meta Permanente" className="w-full bg-gray-50 border p-3 rounded-xl text-sm font-mono outline-none focus:border-emerald-600 text-gray-700" />
+                          </div>
+
+                          {/* AI PROMPT */}
+                          {(telegramBotEnabled || whatsappBotEnabled) && (
+                              <div className="bg-purple-50 p-5 rounded-2xl border border-purple-100 animate-in fade-in">
+                                  <h4 className="font-bold text-purple-900 mb-2 flex items-center gap-2"><BrainCircuit size={16}/> Comportamento e Personalità Bot</h4>
+                                  <p className="text-xs text-purple-700 mb-3">Descrivi come l'intelligenza artificiale deve rispondere ai clienti quando ti scrivono sui canali in cui è attivata.</p>
+                                  <textarea value={botPrompt} onChange={e => setBotPrompt(e.target.value)} rows={3} className="w-full bg-white border border-purple-200 p-3 rounded-xl text-sm outline-none focus:border-purple-500 text-gray-700 resize-none"/>
+                              </div>
+                          )}
+
+                          {/* VOICE AI BUDGETING */}
+                          <div className="bg-emerald-50 p-5 rounded-2xl border border-emerald-100 shadow-sm mt-4">
+                              <h4 className="font-black text-emerald-900 mb-2 flex items-center gap-2"><Mic size={20}/> Call Center Voice AI (Autonomo)</h4>
+                              <p className="text-xs text-emerald-700 mb-6 leading-relaxed">Imposta un tetto massimo di spesa per il tuo centralino pilotato dall'Intelligenza Artificiale. Il costo per te è di circa <b>7€ / ora</b> di chiamate effettive. Se la soglia viene superata, i workflow automatici smetteranno di fare chiamate in uscita.</p>
+                              
+                              <div className="flex flex-col md:flex-row items-center gap-6 bg-white p-4 rounded-xl border border-emerald-200">
+                                  <div className="w-full md:w-1/2">
+                                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Tetto Massimo di Sicurezza Mensile (€)</label>
+                                      <div className="relative">
+                                          <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-500">€</span>
+                                          <input type="number" min="10" step="5" className="w-full bg-gray-50 border p-3 pl-8 rounded-xl font-bold outline-none focus:border-emerald-500 transition text-gray-900" value={formData.voice_budget_limit} onChange={e => setFormData({...formData, voice_budget_limit: parseFloat(e.target.value) || 0})}/>
                                       </div>
                                   </div>
-                              ))}
+
+                                  <div className="w-full md:w-1/2 flex flex-col items-center justify-center p-2">
+                                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Spesa Corrente (Questo Mese)</p>
+                                      <div className="flex items-end gap-2">
+                                          <span className="text-2xl font-black text-emerald-600">€ {Number(formData.voice_current_spend || 0).toFixed(2)}</span>
+                                          <span className="text-sm font-bold text-gray-400 mb-1">/ € {formData.voice_budget_limit}</span>
+                                      </div>
+                                      <div className="w-full bg-gray-100 h-2 rounded-full mt-2 overflow-hidden">
+                                          <div className={`h-full ${formData.voice_current_spend >= formData.voice_budget_limit ? 'bg-red-500' : 'bg-emerald-500'}`} style={{width: `${Math.min((formData.voice_current_spend / (formData.voice_budget_limit || 1)) * 100, 100)}%`}}></div>
+                                      </div>
+                                  </div>
+                              </div>
                           </div>
-                      )}
+
+                      </div>
                   </div>
 
                   <div className="bg-white p-8 rounded-3xl border shadow-sm relative overflow-hidden">

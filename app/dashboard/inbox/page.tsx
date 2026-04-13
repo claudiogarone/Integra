@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import { getConversations, getMessages, sendMessage } from '@/app/actions/chatwoot'
+import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { 
   MessageSquare, Phone, Mail, User, DollarSign, Award, 
@@ -11,35 +11,30 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 
-// Tipi Chatwoot
-type ChatwootConversation = {
-  id: number;
-  meta: {
-    sender: {
-      name: string;
-      email?: string;
-      phone_number?: string;
-      thumbnail?: string;
-    };
-  };
-  messages?: Array<{ content: string; created_at: number }>;
-  channel: string;
-  unread_count: number;
+// Tipi Native
+type NativeContact = {
+  id: string;
+  name: string;
+  channel_id: string;
+  external_id: string;
+  provider: string;
+  bot_enabled?: boolean;
+  unread_count?: number;
 };
 
-type ChatwootMessage = {
-  id: number;
+type NativeMessage = {
+  id: string;
   content: string;
-  message_type: 'incoming' | 'outgoing' | 'template';
-  created_at: number;
-  sender?: { name: string };
+  direction: 'inbound' | 'outbound';
+  created_at: string;
+  is_ai_generated?: boolean;
 };
 
 export default function InboxPage() {
   const [activeTab, setActiveTab] = useState<'inbox' | 'voip'>('inbox')
-  const [conversations, setConversations] = useState<ChatwootConversation[]>([]);
-  const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
-  const [chatMessages, setChatMessages] = useState<ChatwootMessage[]>([]);
+  const [conversations, setConversations] = useState<NativeContact[]>([]);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<NativeMessage[]>([]);
   const [crmContacts, setCrmContacts] = useState<any[]>([]);
   const [activeCrmContact, setActiveCrmContact] = useState<any>(null);
   
@@ -48,6 +43,11 @@ export default function InboxPage() {
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [sending, setSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Modulo Lead Import
+  const [importingLead, setImportingLead] = useState(false);
+  const [leadFormData, setLeadFormData] = useState({ email: '', phone: '' });
+  const [leadSaving, setLeadSaving] = useState(false);
 
   // VoIP States
   const [isVoipModalOpen, setIsVoipModalOpen] = useState(false)
@@ -84,9 +84,14 @@ export default function InboxPage() {
       }
 
       try {
-        const data = await getConversations();
-        if (Array.isArray(data)) setConversations(data);
-
+        const { data: contactsData } = await supabase.from('inbox_contacts').select('*, inbox_channels(id, provider, bot_enabled)').order('last_interaction', { ascending: false });
+        if (contactsData) {
+            setConversations(contactsData.map(c => ({
+                id: c.id, name: c.name || 'Sconosciuto', channel_id: c.channel_id,
+                external_id: c.external_id, provider: c.inbox_channels?.provider || 'web',
+                bot_enabled: c.inbox_channels?.bot_enabled || false
+            })));
+        }
         const { data: contacts } = await supabase.from('contacts').select('*');
         if (contacts) setCrmContacts(contacts);
       } catch (e) {
@@ -97,11 +102,14 @@ export default function InboxPage() {
     };
     initInbox();
     
-    const interval = setInterval(async () => {
-        const data = await getConversations();
-        if (Array.isArray(data)) setConversations(data);
-    }, 15000);
-    return () => clearInterval(interval);
+    // Supabase Realtime Listener per update UI live
+    const channel = supabase.channel('schema-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inbox_messages' }, () => {
+         // Ricarica chat quando arriva un db event
+         if (selectedChatId) setLoadingMsgs(true) // trigger refresh
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
   }, []);
 
   const toggleAiReply = async () => {
@@ -124,18 +132,12 @@ export default function InboxPage() {
     const loadChatDetails = async () => {
       setLoadingMsgs(true);
       try {
-        const msgs = await getMessages(selectedChatId);
-        setChatMessages(Array.isArray(msgs) ? msgs : []);
+        const { data: msgs } = await supabase.from('inbox_messages').select('*').eq('inbox_contact_id', selectedChatId).order('created_at', { ascending: false })
+        if (msgs) setChatMessages(msgs);
         
         const currentConv = conversations.find(c => c.id === selectedChatId);
         if (currentConv) {
-            const email = currentConv.meta.sender.email;
-            const name = currentConv.meta.sender.name;
-            
-            const matched = crmContacts.find(c => 
-                (email && c.email === email) || 
-                (c.name.toLowerCase() === name.toLowerCase())
-            );
+            const matched = crmContacts.find(c => c.name?.toLowerCase() === currentConv.name.toLowerCase());
             setActiveCrmContact(matched || null);
         }
       } catch (e) {
@@ -145,7 +147,9 @@ export default function InboxPage() {
       }
     };
     loadChatDetails();
-  }, [selectedChatId, conversations, crmContacts]);
+    setImportingLead(false); // Resetta il form quando si cambia chat
+    setLeadFormData({ email: '', phone: '' });
+  }, [selectedChatId, conversations, crmContacts, loadingMsgs]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -153,12 +157,29 @@ export default function InboxPage() {
 
       setSending(true);
       try {
-          await sendMessage(selectedChatId, replyText);
-          const tempMsg: ChatwootMessage = {
-              id: Date.now(),
+          const currentConv = conversations.find(c => c.id === selectedChatId);
+          if (!currentConv) return;
+          
+          const { data: { user } } = await supabase.auth.getUser()
+          if (!user) return;
+
+          // Inserimento a DB (questo farà triggerare il Webhook per inviarlo fisicamente a Meta/Telegram, implementazione futura)
+          await supabase.from('inbox_messages').insert({
+              user_id: user.id,
+              channel_id: currentConv.channel_id,
+              inbox_contact_id: currentConv.id,
+              direction: 'outbound',
+              message_type: 'text',
               content: replyText,
-              message_type: 'outgoing',
-              created_at: Date.now() / 1000
+              status: 'sent'
+          })
+          
+          // Forza update locale temporaneo per UX istantanea
+          const tempMsg: NativeMessage = {
+              id: Date.now().toString(),
+              content: replyText,
+              direction: 'outbound',
+              created_at: new Date().toISOString()
           };
           setChatMessages([tempMsg, ...chatMessages]);
           setReplyText('');
@@ -167,6 +188,40 @@ export default function InboxPage() {
       } finally {
           setSending(false);
       }
+  }
+
+  const handleImportLead = async () => {
+    const currentConv = conversations.find(c => c.id === selectedChatId);
+    if (!currentConv) return;
+    
+    setLeadSaving(true);
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+        // Usa il numero del provider se è WA e non l'hanno specificato
+        let finalPhone = leadFormData.phone;
+        if (!finalPhone && currentConv.provider === 'whatsapp') {
+            finalPhone = currentConv.external_id;
+        }
+
+        const { data: newContact, error } = await supabase.from('contacts').insert({
+            user_id: user.id,
+            name: currentConv.name,
+            email: leadFormData.email || null,
+            phone: finalPhone || null,
+            status: 'Lead',
+            source: currentConv.provider,
+            value: 0
+        }).select().single()
+
+        if (!error && newContact) {
+            // Aggiorna lo stato locale per re-triggerare l'Intelligence CRM block in tempo reale
+            setCrmContacts([...crmContacts, newContact]);
+            setImportingLead(false);
+        } else {
+            alert("Errore salvataggio Lead. Verifica i dati inseriti.");
+        }
+    }
+    setLeadSaving(false);
   }
 
   const handleSaveVoip = () => {
@@ -180,8 +235,8 @@ export default function InboxPage() {
 
   const filteredConversations = useMemo(() => {
       return conversations.filter(c => 
-        c.meta.sender.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.id.toString().includes(searchTerm)
+        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.external_id.includes(searchTerm)
       )
   }, [conversations, searchTerm]);
 
@@ -268,19 +323,14 @@ export default function InboxPage() {
                           >
                               <div className="flex justify-between items-start mb-1">
                                   <div className="flex items-center gap-2">
-                                      <span className="font-bold text-sm text-gray-900">{chat.meta?.sender?.name || "Utente"}</span>
-                                      {chat.unread_count > 0 && <span className="bg-[#00665E] text-white text-[10px] font-black px-1.5 py-0.5 rounded-full animate-bounce">{chat.unread_count}</span>}
+                                      <span className="font-bold text-sm text-gray-900">{chat.name}</span>
+                                      {(chat.unread_count || 0) > 0 && <span className="bg-[#00665E] text-white text-[10px] font-black px-1.5 py-0.5 rounded-full animate-bounce">{chat.unread_count}</span>}
                                   </div>
-                                  <span className="text-[10px] font-bold text-gray-400 flex items-center gap-1"><Clock size={10}/> {chat.messages && chat.messages.length > 0 ? new Date(chat.messages[0].created_at * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</span>
                               </div>
                               <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2 overflow-hidden">
-                                      <div className="shrink-0">{getPlatformIcon(chat.channel)}</div>
-                                      <p className="text-xs truncate text-gray-500 font-medium">
-                                        {chat.messages && chat.messages.length > 0 
-                                            ? chat.messages[chat.messages.length -1].content 
-                                            : "Nessun messaggio..."}
-                                      </p>
+                                  <div className="flex items-center gap-2 overflow-hidden mt-1">
+                                      <div className="shrink-0">{getPlatformIcon(chat.provider)}</div>
+                                      <p className="text-xs text-gray-500 font-medium">#{chat.external_id.substring(0,8)}</p>
                                   </div>
                               </div>
                           </div>
@@ -295,11 +345,17 @@ export default function InboxPage() {
                         <div className="p-4 bg-white border-b border-gray-200 flex justify-between items-center shadow-sm">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-[#00665E]/10 rounded-full flex items-center justify-center font-bold text-[#00665E] border border-[#00665E]/20">
-                                    {conversations.find(c => c.id === selectedChatId)?.meta.sender.name.charAt(0)}
+                                    {conversations.find(c => c.id === selectedChatId)?.name.charAt(0) || 'U'}
                                 </div>
                                 <div>
-                                    <h3 className="font-black text-sm text-gray-900 leading-tight">{conversations.find(c => c.id === selectedChatId)?.meta.sender.name}</h3>
-                                    <p className="text-[10px] font-bold text-emerald-600 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Connesso</p>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-black text-sm text-gray-900 leading-tight">{conversations.find(c => c.id === selectedChatId)?.name || 'Utente'}</h3>
+                                        <span className="bg-gray-100 text-gray-500 rounded p-1 flex items-center">{getPlatformIcon(conversations.find(c => c.id === selectedChatId)?.provider || '')}</span>
+                                    </div>
+                                    <p className="text-[10px] font-bold flex items-center gap-1 mt-0.5">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> <span className="text-emerald-600 mr-2">Connesso</span>
+                                        {conversations.find(c => c.id === selectedChatId)?.bot_enabled && <span className="text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded flex items-center gap-1"><Sparkles size={10}/> AI Attiva</span>}
+                                    </p>
                                 </div>
                             </div>
                             <button className="p-2 text-gray-400 hover:text-gray-600 transition"><MoreVertical size={20}/></button>
@@ -311,15 +367,16 @@ export default function InboxPage() {
                             ) : (
                                 <div className="flex flex-col gap-4">
                                     {chatMessages.map((msg) => (
-                                        <div key={msg.id} className={`flex ${msg.message_type === 'outgoing' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}>
+                                        <div key={msg.id} className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}>
                                             <div className={`max-w-[75%] p-3.5 rounded-2xl text-sm shadow-sm leading-relaxed ${
-                                                msg.message_type === 'outgoing'
-                                                ? 'bg-[#00665E] text-white rounded-tr-none' 
+                                                msg.direction === 'outbound'
+                                                ? (msg.is_ai_generated ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-tr-none border border-purple-500' : 'bg-[#00665E] text-white rounded-tr-none')
                                                 : 'bg-white text-gray-800 rounded-tl-none border border-gray-200'
                                             }`}>
                                                 {msg.content}
-                                                <div className={`text-[9px] mt-1.5 font-bold ${msg.message_type === 'outgoing' ? 'text-white/60 text-right' : 'text-gray-400'}`}>
-                                                    {new Date(msg.created_at * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                                                <div className={`text-[9px] mt-1.5 flex items-center gap-1 font-bold ${msg.direction === 'outbound' ? 'text-white/60 justify-end' : 'text-gray-400 justify-start'}`}>
+                                                    {msg.is_ai_generated && <span className="flex items-center gap-1"><Sparkles size={10}/> AI Generato •</span>}
+                                                    {new Date(msg.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                                                 </div>
                                             </div>
                                         </div>
@@ -430,10 +487,50 @@ export default function InboxPage() {
                       </div>
                   ) : selectedChatId ? (
                       <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
-                          <ShieldCheck size={48} className="text-gray-200 mb-4"/>
-                          <h4 className="font-bold text-gray-900 mb-2">Lead Esterno Rilevato</h4>
-                          <p className="text-xs text-gray-500 leading-relaxed">Questo utente ti ha scritto ma non è ancora presente nel CRM. Importalo per tracciare i suoi acquisti.</p>
-                          <Link href="/dashboard/crm" className="mt-6 text-[#00665E] font-black text-xs uppercase tracking-widest hover:underline">+ Salva nel CRM</Link>
+                          {!importingLead ? (
+                              <div className="animate-in zoom-in-95">
+                                  <ShieldCheck size={48} className="text-gray-200 mb-4 mx-auto"/>
+                                  <h4 className="font-bold text-gray-900 mb-2">Lead Esterno Rilevato</h4>
+                                  <p className="text-xs text-gray-500 leading-relaxed max-w-[200px] mb-6">Questo utente non è ancora presente nel CRM. Importalo per tracciare i suoi acquisti.</p>
+                                  <button 
+                                      onClick={() => setImportingLead(true)}
+                                      className="bg-gray-900 text-white font-black text-xs px-5 py-3 rounded-xl hover:bg-black transition shadow flex items-center gap-2 mx-auto"
+                                  >
+                                      <User size={14}/> Importa nel CRM
+                                  </button>
+                              </div>
+                          ) : (
+                              <div className="w-full text-left animate-in fade-in slide-in-from-bottom-4">
+                                  <div className="flex items-center justify-between mb-6">
+                                      <h4 className="font-black text-sm text-gray-900 flex items-center gap-2"><User size={16} className="text-[#00665E]"/> Nuovo Lead CRM</h4>
+                                      <button onClick={() => setImportingLead(false)} className="text-gray-400 hover:text-gray-900"><X size={16}/></button>
+                                  </div>
+                                  
+                                  <div className="space-y-4">
+                                      <div>
+                                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Nome Contatto</label>
+                                          <input type="text" readOnly className="w-full bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 text-xs text-gray-500 font-bold" value={conversations.find(c => c.id === selectedChatId)?.name} />
+                                      </div>
+                                      <div>
+                                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Indirizzo Email (Opzionale)</label>
+                                          <input autoFocus type="email" placeholder="esempio@email.com" className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs text-gray-900 outline-none focus:border-[#00665E]" value={leadFormData.email} onChange={e=>setLeadFormData({...leadFormData, email: e.target.value})} />
+                                      </div>
+                                      <div>
+                                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Numero Telefono (Opzionale)</label>
+                                          <input type="tel" placeholder="+39..." className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs text-gray-900 outline-none focus:border-[#00665E]" value={leadFormData.phone} onChange={e=>setLeadFormData({...leadFormData, phone: e.target.value})} />
+                                      </div>
+                                  </div>
+
+                                  <button 
+                                      onClick={handleImportLead}
+                                      disabled={leadSaving}
+                                      className="w-full mt-6 bg-[#00665E] text-white font-black text-xs py-3.5 rounded-xl transition shadow hover:bg-[#004d46] disabled:opacity-50 flex items-center justify-center gap-2"
+                                  >
+                                      {leadSaving ? <Loader2 className="animate-spin" size={14}/> : <CheckCircle2 size={14}/>}
+                                      Salva & Attiva Intelligence
+                                  </button>
+                              </div>
+                          )}
                       </div>
                   ) : null}
               </div>

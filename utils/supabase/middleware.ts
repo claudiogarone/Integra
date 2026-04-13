@@ -37,15 +37,19 @@ export async function updateSession(request: NextRequest) {
 
   const currentPath = request.nextUrl.pathname
 
-  // PROTEZIONE DELLE ROTTE ADMIN (eccetto la rotta di login)
-  if (
-    currentPath.startsWith('/admin') &&
-    currentPath !== '/admin/login'
-  ) {
+  // PROTEZIONE DELLE ROTTE ADMIN E DASHBOARD
+  if (currentPath.startsWith('/admin') && currentPath !== '/admin/login') {
     if (!user) {
-      // Non è utente autenticato, reindirizza al login
       const url = request.nextUrl.clone()
       url.pathname = '/admin/login'
+      return NextResponse.redirect(url)
+    }
+  }
+
+  if (currentPath.startsWith('/dashboard')) {
+    if (!user) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login' // Reindirizza l'utente non loggato fuori dall'app B2B
       return NextResponse.redirect(url)
     }
   }

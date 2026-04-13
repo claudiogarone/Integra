@@ -16,17 +16,27 @@ async function chatwootAPI(endpoint: string, method: string = 'GET', body?: any)
     const cleanBase = CHATWOOT_BASE.replace(/\/$/, '');
     const url = `${cleanBase}/api/v1/accounts/${CHATWOOT_ACCOUNT}${endpoint}`;
     
-    const res = await fetch(url, {
-        method,
-        headers: {
-            'api_access_token': CHATWOOT_TOKEN,
-            'Content-Type': 'application/json',
-        },
-        body: body ? JSON.stringify(body) : undefined,
-    });
+    console.log(`[CHATWOOT API] ${method} ${url}`);
     
-    const data = await res.json().catch(() => ({}));
-    return { ok: res.ok, status: res.status, data };
+    try {
+        const res = await fetch(url, {
+            method,
+            headers: {
+                'api_access_token': CHATWOOT_TOKEN,
+                'Content-Type': 'application/json',
+            },
+            body: body ? JSON.stringify(body) : undefined,
+        });
+        
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            console.error(`[CHATWOOT ERROR] ${res.status}: ${JSON.stringify(data)}`);
+        }
+        return { ok: res.ok, status: res.status, data };
+    } catch (err: any) {
+        console.error(`[CHATWOOT EXCEPTION] ${err.message}`);
+        return { ok: false, status: 500, data: { error: err.message } };
+    }
 }
 
 // GET: Ritorna lo stato degli inbox attualmente configurati su Chatwoot

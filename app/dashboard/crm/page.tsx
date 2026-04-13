@@ -9,7 +9,7 @@ import {
 } from 'recharts'
 import { 
   Users, DollarSign, TrendingUp, Filter, ChevronDown, ChevronUp, 
-  Activity, Download, Bot, Sparkles, X, Store, Globe, Calendar, Search, Zap, Target, BarChart3
+  Activity, Download, Bot, Sparkles, X, Store, Globe, Calendar, Search, Zap, Target, BarChart3, Mic
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -37,6 +37,7 @@ interface Contact {
     churn_date: string | null;
     preferred_category: string;
     orders: Order[];
+    voice_logs?: any[];
 }
 
 export default function CRMPage() {
@@ -63,7 +64,7 @@ export default function CRMPage() {
   const initialForm: Contact = {
     id: '', name: '', email: '', phone: '', source: 'Sito Web', notes: '', status: 'Nuovo',
     created_at: new Date().toISOString(), ltv: 0, total_orders: 0, last_order_date: null, churn_date: null,
-    preferred_category: 'Generale', orders: []
+    preferred_category: 'Generale', orders: [], voice_logs: []
   }
   const [formData, setFormData] = useState<Contact>(initialForm)
 
@@ -85,17 +86,17 @@ export default function CRMPage() {
 
   const fetchContacts = async () => {
     try {
-        const { data, error } = await supabase.from('contacts').select('*, orders(*)').order('created_at', { ascending: false });
+        const { data, error } = await supabase.from('contacts').select('*, orders(*), voice_logs(*)').order('created_at', { ascending: false });
         if (error) throw error;
 
         if (data) {
             const enrichedData = data.map((c: any) => ({
                 ...c,
                 name: c.name || 'Senza Nome',
-                // Calcola il Lifetime Value reale in base agli ordini E-Commerce agganciati, oppure fallo ripiegare sul valore generico B2B
                 ltv: c.orders?.reduce((acc: number, o: any) => acc + (Number(o.amount) || 0), 0) || Number(c.value) || 0,
                 total_orders: c.orders?.length || 0,
-                orders: c.orders || []
+                orders: c.orders || [],
+                voice_logs: c.voice_logs || []
             }))
             setContacts(enrichedData)
         }
@@ -489,8 +490,9 @@ export default function CRMPage() {
                         {editingId ? formData.name : 'Nuovo Lead'}
                     </h2>
                     <div className="flex bg-gray-200 p-1 rounded-lg">
-                        <button onClick={() => setActiveTab('profile')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition ${activeTab === 'profile' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>Profilo</button>
-                        <button onClick={() => setActiveTab('orders')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition ${activeTab === 'orders' ? 'bg-white shadow text-purple-600' : 'text-gray-500'}`}>Acquisti</button>
+                        <button onClick={() => setActiveTab('profile')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition ${activeTab === 'profile' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:bg-gray-300'}`}>Profilo</button>
+                        <button onClick={() => setActiveTab('orders')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition ${activeTab === 'orders' ? 'bg-white shadow text-purple-600' : 'text-gray-500 hover:bg-gray-300'}`}>Acquisti</button>
+                        <button onClick={() => setActiveTab('voice' as any)} className={`px-4 py-1.5 text-xs font-bold rounded-md transition flex items-center gap-1 ${activeTab === 'voice' as any ? 'bg-[#00665E] shadow text-white' : 'text-gray-500 hover:bg-gray-300'}`}><Mic size={12}/> Chiamate AI</button>
                     </div>
                   </div>
                   <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-900 bg-gray-200 rounded-full p-2"><X size={16}/></button>
@@ -542,6 +544,57 @@ export default function CRMPage() {
                                   </div>
                               ))}
                           </div>
+                      </div>
+                  )}
+
+                  {activeTab === 'voice' as any && (
+                      <div className="space-y-6">
+                            <div className="bg-emerald-50 border border-emerald-100 p-5 rounded-2xl flex items-center justify-between mb-8 shadow-sm">
+                                <div>
+                                    <h3 className="font-black text-emerald-900 flex items-center gap-2"><Bot size={18}/> Storico Call Center AI</h3>
+                                    <p className="text-xs text-emerald-700 mt-1">Trascrizioni e resoconti delle chiamate effettuate o ricevute dall'AI verso questo cliente.</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] font-bold text-emerald-600 uppercase">Minuti Consumati</p>
+                                    <p className="text-xl font-black text-emerald-800">{formData.voice_logs?.reduce((acc: number, log: any) => acc + (log.duration_minutes || 0), 0).toFixed(1) || '0'} min</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                {(!formData.voice_logs || formData.voice_logs.length === 0) ? (
+                                    <p className="text-gray-400 text-sm italic py-4 text-center">Nessuna interazione vocale registrata per questo cliente.</p>
+                                ) : null}
+                                
+                                {formData.voice_logs?.map((log:any, i:number) => (
+                                    <div key={i} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col group">
+                                        <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`p-2 rounded-xl ${log.direction === 'outbound' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'}`}>
+                                                    <Mic size={16}/>
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-sm text-gray-900">{log.direction === 'outbound' ? 'Chiamata in Uscita (AI)' : 'Chiamata in Entrata (AI)'}</p>
+                                                    <p className="text-[10px] text-gray-500 uppercase flex items-center gap-2">
+                                                        <span>{new Date(log.created_at).toLocaleString()}</span> • <span>{(log.duration_minutes||0).toFixed(1)} Minuti</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                                                log.status === 'completed' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-yellow-50 text-yellow-600 border-yellow-100'
+                                            }`}>{log.status === 'completed' ? 'Effettuata' : 'Segreteria/Mancata'}</span>
+                                        </div>
+                                        <div className="p-5">
+                                            <h4 className="text-[10px] font-black uppercase text-gray-400 mb-2">Riassunto AI</h4>
+                                            <p className="text-sm text-gray-800 font-medium mb-6 bg-yellow-50 p-3 rounded-xl border border-yellow-100">{log.summary || 'Nessun riassunto disponibile.'}</p>
+                                            
+                                            <h4 className="text-[10px] font-black uppercase text-gray-400 mb-2">Trascrizione Completa</h4>
+                                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 h-40 overflow-y-auto text-xs text-gray-700 font-mono leading-relaxed whitespace-pre-wrap">
+                                                {log.transcript || 'Nessuna trascrizione disponibile.'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                       </div>
                   )}
               </div>
