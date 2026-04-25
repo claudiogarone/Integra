@@ -39,6 +39,7 @@ export default function MarketingPage() {
   const [filteredContacts, setFilteredContacts] = useState<any[]>([]) 
   const [activeFilter, setActiveFilter] = useState<'all' | 'dormant' | 'vip' | 'new' | 'engaged' | 'retarget'>('all')
   const [retargetCampaignId, setRetargetCampaignId] = useState<string>('')
+  const [campaignGoal, setCampaignGoal] = useState<string>('Notorietà')
   
   // Costi per singolo messaggio (Markup 40% applicato)
   const channelCosts: Record<string, number> = {
@@ -230,7 +231,7 @@ export default function MarketingPage() {
           opened_count: 0,
           clicked_count: 0,
           recipients_details: validTargets.map(t => ({ email: t.email, name: t.name })),
-          target_filters: { filter: activeFilter, meta: metaInfo }
+          target_filters: { filter: activeFilter, goal: campaignGoal, meta: metaInfo }
       }).select().single()
 
       if(error) { setSending(false); return alert("Errore DB: " + error.message); }
@@ -337,7 +338,7 @@ export default function MarketingPage() {
           </h1>
           <p className="text-gray-500 text-sm mt-1 font-medium">Invio campagne, integrazione e-commerce e tracciamento in tempo reale.</p>
         </div>
-        <button onClick={() => { setIsModalOpen(true); setStep(1); setSelectedIds([]); setActiveFilter('all'); setFilteredContacts(contacts); setScheduleDate(''); setSelectedCatalogProducts([]); setCustomProduct({name:'', price:'', url:''}); setLegalConsent(false); setRetargetCampaignId(''); }} className="bg-[#00665E] text-white px-6 py-3.5 rounded-xl font-bold hover:bg-[#004d46] shadow-[0_10px_20px_rgba(0,102,94,0.2)] flex items-center gap-2 transition transform hover:scale-[1.02]">
+        <button onClick={() => { setIsModalOpen(true); setStep(1); setSelectedIds([]); setActiveFilter('all'); setFilteredContacts(contacts); setScheduleDate(''); setSelectedCatalogProducts([]); setCustomProduct({name:'', price:'', url:''}); setLegalConsent(false); setRetargetCampaignId(''); setCampaignGoal('Notorietà'); }} className="bg-[#00665E] text-white px-6 py-3.5 rounded-xl font-bold hover:bg-[#004d46] shadow-[0_10px_20px_rgba(0,102,94,0.2)] flex items-center gap-2 transition transform hover:scale-[1.02]">
            <Plus size={20}/> Crea Nuova Campagna
         </button>
       </div>
@@ -360,6 +361,9 @@ export default function MarketingPage() {
                      <div key={camp.id} onClick={() => setViewCampaign(camp)} className="p-4 mb-3 border border-gray-100 hover:border-blue-300 bg-gray-50/50 hover:bg-blue-50/50 transition cursor-pointer group rounded-2xl">
                          <div className="flex justify-between items-start mb-2">
                              <h4 className="font-bold text-gray-900 line-clamp-1 group-hover:text-blue-700">{camp.title}</h4>
+                             {camp.target_filters?.goal && (
+                                 <span className="text-[9px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-0.5 rounded-full shrink-0 ml-2">{camp.target_filters.goal}</span>
+                             )}
                          </div>
                          <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 mb-3">
                              <span>{new Date(camp.created_at).toLocaleDateString('it-IT')}</span>
@@ -515,8 +519,35 @@ export default function MarketingPage() {
 
                      {step === 1 && (
                          <div className="animate-in slide-in-from-right flex-1 flex flex-col pt-4">
-                             <h3 className="text-2xl font-black text-gray-900 mb-2">Scegli il Canale di Invio</h3>
-                             <p className="text-gray-500 text-sm mb-6 font-medium">Le campagne email sono sempre gratuite. I canali Social/SMS hanno un costo a consumo stimato.</p>
+                             <h3 className="text-2xl font-black text-gray-900 mb-2">Obiettivo e Canale di Invio</h3>
+                             <p className="text-gray-500 text-sm mb-6 font-medium">Definisci prima l'obiettivo della campagna, poi seleziona il canale di distribuzione.</p>
+
+                             {/* SEZIONE OBIETTIVO */}
+                             <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-3 block ml-1">1. Obiettivo della Campagna</label>
+                             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
+                                 {[
+                                     { id: 'Notorietà', emoji: '📣', desc: 'Far conoscere il brand' },
+                                     { id: 'Riacquisto', emoji: '🔄', desc: 'Riportare clienti inattivi' },
+                                     { id: 'Fidelizzazione', emoji: '❤️', desc: 'Premiare i clienti fedeli' },
+                                     { id: 'Promozione', emoji: '🏷️', desc: 'Spingere un\'offerta speciale' },
+                                     { id: 'Lancio Prodotto', emoji: '🚀', desc: 'Presentare una novità' },
+                                     { id: 'Evento', emoji: '🎪', desc: 'Invitare a un evento' },
+                                 ].map(goal => (
+                                     <div
+                                         key={goal.id}
+                                         onClick={() => setCampaignGoal(goal.id)}
+                                         className={`p-4 rounded-2xl border-2 cursor-pointer transition flex flex-col items-center text-center gap-1 ${campaignGoal === goal.id ? 'border-indigo-500 bg-indigo-50 shadow-md scale-[1.02]' : 'border-gray-200 bg-white hover:border-indigo-200 hover:bg-indigo-50/30'}`}
+                                     >
+                                         <span className="text-2xl">{goal.emoji}</span>
+                                         <h4 className={`font-black text-sm ${campaignGoal === goal.id ? 'text-indigo-700' : 'text-gray-900'}`}>{goal.id}</h4>
+                                         <p className="text-[10px] text-gray-500 font-medium">{goal.desc}</p>
+                                     </div>
+                                 ))}
+                             </div>
+
+                             {/* SEZIONE CANALE */}
+                             <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-3 block ml-1">2. Canale di Invio</label>
+                             <p className="text-gray-500 text-xs mb-4 font-medium">Le campagne email sono sempre gratuite. I canali Social/SMS hanno un costo a consumo stimato.</p>
                              
                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                                  <div onClick={() => setChannel('email')} className={`p-6 rounded-2xl border-2 cursor-pointer transition flex flex-col items-center justify-center gap-3 text-center ${channel === 'email' ? 'border-[#00665E] bg-teal-50 shadow-md' : 'border-gray-200 bg-white hover:border-[#00665E]/30'}`}>

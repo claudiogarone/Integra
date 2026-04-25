@@ -199,10 +199,47 @@ export default function DataStudioPage() {
                         <div className="flex justify-between bg-white p-3 rounded-xl shadow-sm text-sm font-bold text-gray-700"><span className="flex items-center gap-2"><div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div> E-Commerce Orders</span></div>
                     </div>
                 </div>
+
+                {/* SEZIONE CHECKUP AZIENDALE */}
+                <div className="mb-8">
+                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Sparkles size={14} className="text-amber-500"/> Checkup Aziendale</h3>
+                    <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 mb-3">
+                        <p className="text-xs font-bold text-amber-800 leading-relaxed mb-3">Avvia un'analisi completa automatica della salute del business: lead, conversioni, prodotti e fatturato.</p>
+                        <button
+                            onClick={() => {
+                                const checkupQueries = [
+                                    "Quanti lead ho in totale e qual è la loro distribuzione per stato?",
+                                    "Qual è il fatturato totale e i prodotti più venduti?",
+                                    "Qual è il tasso di conversione dei lead e i canali di acquisizione principali?"
+                                ];
+                                let i = 0;
+                                const runNext = () => {
+                                    if (i < checkupQueries.length) {
+                                        handleAskAI(undefined, checkupQueries[i]);
+                                        i++;
+                                        setTimeout(runNext, 3500);
+                                    }
+                                };
+                                runNext();
+                            }}
+                            className="w-full bg-amber-500 text-white font-black py-2.5 px-3 rounded-xl text-xs hover:bg-amber-600 transition flex items-center justify-center gap-2 shadow-md"
+                        >
+                            <Sparkles size={14}/> Avvia Checkup Completo
+                        </button>
+                    </div>
+                </div>
+
                 <div>
                     <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Sparkles size={14}/> Prompts Rapidi</h3>
                     <div className="space-y-3">
-                        {["Storico vendite e fatturato", "Distribuzione dei lead", "Prodotti più presenti"].map((prompt, i) => (
+                        {[
+                            "Storico vendite e fatturato",
+                            "Distribuzione dei lead per stato",
+                            "Prodotti più presenti in catalogo",
+                            "Quanti lead ho acquisito questo mese?",
+                            "Quali sono i canali di acquisizione principali?",
+                            "Mostrami i clienti con il più alto LTV"
+                        ].map((prompt, i) => (
                             <button key={i} onClick={() => handleAskAI(undefined, prompt)} className="w-full text-left p-4 rounded-xl bg-white border border-gray-200 hover:border-[#00665E] hover:shadow-md transition text-sm text-gray-600 font-medium">{prompt}</button>
                         ))}
                     </div>

@@ -64,7 +64,7 @@ export default function QuotesPage() {
               })
           }
 
-          const { data: leads } = await supabase.from('contacts').select('*').order('name')
+          const { data: leads } = await supabase.from('contacts').select('*').eq('user_id', currentUser.id).order('name')
           if (leads) setContacts(leads)
 
           const { data: prods } = await supabase.from('products').select('*').neq('is_deleted', true)
@@ -194,8 +194,19 @@ export default function QuotesPage() {
   const chartData = [
       { name: 'Inviati', value: quotes.filter(q => q.status === 'Inviato').length, color: '#3B82F6' },
       { name: 'Visionati', value: quotes.filter(q => q.status === 'Visionato').length, color: '#F59E0B' },
-      { name: 'Accettati', value: quotes.filter(q => q.status === 'Accettato').length, color: '#10B981' }
+      { name: 'Accettati', value: quotes.filter(q => q.status === 'Accettato').length, color: '#10B981' },
+      { name: 'Rifiutati', value: quotes.filter(q => q.status === 'Rifiutato').length, color: '#EF4444' }
   ];
+
+  // NUOVO: aggiornamento manuale dello stato preventivo
+  const updateQuoteStatus = async (quoteId: string, newStatus: string) => {
+      const { error } = await supabase.from('quotes').update({ status: newStatus }).eq('id', quoteId)
+      if (error) { alert('Errore aggiornamento stato: ' + error.message); return; }
+      setViewQuoteModal((prev: any) => prev ? { ...prev, status: newStatus } : null)
+      // Ricarica lista
+      const { data: dbQuotes } = await supabase.from('quotes').select('*').eq('user_id', user?.id).order('created_at', { ascending: false })
+      if (dbQuotes) setQuotes(dbQuotes)
+  }
 
   if (loading) return <div className="p-10 text-[#00665E] font-bold animate-pulse">Inizializzazione Motore Preventivi...</div>
 
@@ -433,7 +444,7 @@ export default function QuotesPage() {
       {activeTab === 'archive' && (
           <div className="animate-in slide-in-from-right space-y-8">
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm flex items-center gap-4">
                       <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl"><Send size={24}/></div>
                       <div>
@@ -453,6 +464,13 @@ export default function QuotesPage() {
                       <div>
                           <p className="text-xs font-black text-gray-400 uppercase">Letti ma In Attesa</p>
                           <h3 className="text-3xl font-black text-amber-600">{quotes.filter(q => q.status === 'Visionato').length}</h3>
+                      </div>
+                  </div>
+                  <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm flex items-center gap-4">
+                      <div className="p-4 bg-red-50 text-red-600 rounded-2xl"><X size={24}/></div>
+                      <div>
+                          <p className="text-xs font-black text-gray-400 uppercase">Rifiutati / Persi</p>
+                          <h3 className="text-3xl font-black text-red-600">{quotes.filter(q => q.status === 'Rifiutato').length}</h3>
                       </div>
                   </div>
               </div>
@@ -564,14 +582,24 @@ export default function QuotesPage() {
                          <span className="text-2xl font-black">€ {Number(viewQuoteModal.total_amount).toLocaleString('it-IT', {minimumFractionDigits:2})}</span>
                      </div>
 
-                     <div className="flex justify-center">
+                     <div className="flex flex-col items-center gap-3">
                          <span className={`px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest flex items-center gap-2 ${
                               viewQuoteModal.status === 'Accettato' ? 'bg-emerald-100 text-emerald-700' :
                               viewQuoteModal.status === 'Visionato' ? 'bg-amber-100 text-amber-700' :
+                              viewQuoteModal.status === 'Rifiutato' ? 'bg-red-100 text-red-700' :
                               'bg-blue-100 text-blue-700'
                           }`}>
                               Stato Attuale: {viewQuoteModal.status}
                           </span>
+                         <div className="w-full pt-3 border-t border-gray-100">
+                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 text-center">Aggiorna Stato Manualmente</p>
+                             <div className="flex gap-2 flex-wrap justify-center">
+                                 {viewQuoteModal.status !== 'Accettato' && (<button onClick={() => updateQuoteStatus(viewQuoteModal.id, 'Accettato')} className="px-3 py-1.5 bg-emerald-500 text-white text-xs font-black rounded-lg hover:bg-emerald-600 transition flex items-center gap-1"><CheckCircle size={12}/> Vinto</button>)}
+                                 {viewQuoteModal.status !== 'Visionato' && (<button onClick={() => updateQuoteStatus(viewQuoteModal.id, 'Visionato')} className="px-3 py-1.5 bg-amber-500 text-white text-xs font-black rounded-lg hover:bg-amber-600 transition flex items-center gap-1"><Eye size={12}/> Visionato</button>)}
+                                 {viewQuoteModal.status !== 'Rifiutato' && (<button onClick={() => updateQuoteStatus(viewQuoteModal.id, 'Rifiutato')} className="px-3 py-1.5 bg-red-500 text-white text-xs font-black rounded-lg hover:bg-red-600 transition flex items-center gap-1"><X size={12}/> Perso</button>)}
+                                 {viewQuoteModal.status !== 'Inviato' && (<button onClick={() => updateQuoteStatus(viewQuoteModal.id, 'Inviato')} className="px-3 py-1.5 bg-blue-500 text-white text-xs font-black rounded-lg hover:bg-blue-600 transition flex items-center gap-1"><Send size={12}/> Reset</button>)}
+                             </div>
+                         </div>
                      </div>
                  </div>
              </div>

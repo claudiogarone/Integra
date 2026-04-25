@@ -74,13 +74,37 @@ export async function POST(request: Request) {
             body: JSON.stringify(payload)
         });
 
+        if (!res.ok) {
+            const errBody = await res.text();
+            throw new Error(`Gemini API error ${res.status}: ${errBody.substring(0, 200)}`);
+        }
+
         const result = await res.json();
         const textResponse = result.candidates?.[0]?.content?.parts?.[0]?.text;
         
         if (!textResponse) throw new Error("Nessuna risposta dall'AI.");
 
-        const cleanJson = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-        return NextResponse.json(JSON.parse(cleanJson), { status: 200 });
+        // Parsing robusto: gestisce sia JSON diretto che avvolto in markdown
+        const cleanJson = textResponse
+            .replace(/^```json\s*/i, '')
+            .replace(/^```\s*/i, '')
+            .replace(/\s*```$/i, '')
+            .trim();
+        
+        let parsed: any;
+        try {
+            parsed = JSON.parse(cleanJson);
+        } catch {
+            // Ultima chance: cerca il primo oggetto JSON valido nella risposta
+            const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                parsed = JSON.parse(jsonMatch[0]);
+            } else {
+                throw new Error("L'AI ha restituito un formato non valido. Riprova.");
+            }
+        }
+        
+        return NextResponse.json(parsed, { status: 200 });
 
     } catch (error: any) {
         console.error('❌ [CREATIVE-STUDIO AI-ERROR]:', error.message);

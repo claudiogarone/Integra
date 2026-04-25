@@ -29,6 +29,8 @@ export default function NurturingEnginePage() {
 
   const [isGenerating, setIsGenerating] = useState(false)
   const [autopilotActive, setAutopilotActive] = useState(false)
+  const [autopilotDay, setAutopilotDay] = useState('Venerdì')
+  const [autopilotTime, setAutopilotTime] = useState('17:00')
   
   // STATO PREVIEW MESSAGGIO
   const [activeMessage, setActiveMessage] = useState<number>(1)
@@ -38,29 +40,37 @@ export default function NurturingEnginePage() {
 
   useEffect(() => {
     const getData = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-          setUser(user)
-          const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
-          if (profile) setCurrentPlan(profile.plan || 'Base')
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+            setUser(user)
+            const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
+            if (profile) setCurrentPlan(profile.plan || 'Base')
 
-          // Carica ultima campagna salvata
-          const { data: campaign } = await supabase
-            .from('nurturing_campaigns')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle()
-          
-          if (campaign) {
-              setCampaignData(campaign.content)
-              setIndustry(campaign.industry || 'Ristorazione')
-              setToneOfVoice(campaign.tone || 'Amichevole ed Empatico')
-              setIsConfigOpen(false)
-          }
+            // Carica ultima campagna salvata
+            const { data: campaign, error: campError } = await supabase
+              .from('nurturing_campaigns')
+              .select('*')
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+            
+            if (campError) {
+              console.warn('Tabella nurturing_campaigns non trovata o errore:', campError.message)
+              // Non blocchiamo l'utente: il form è comunque disponibile per generare
+            } else if (campaign) {
+                setCampaignData(campaign.content || [])
+                setIndustry(campaign.industry || 'Ristorazione')
+                setToneOfVoice(campaign.tone || 'Amichevole ed Empatico')
+                setIsConfigOpen(false)
+            }
+        }
+      } catch (err) {
+        console.error('Errore inizializzazione Nurturing:', err)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
     getData()
   }, [])
@@ -90,7 +100,7 @@ export default function NurturingEnginePage() {
 
   const toggleAutopilot = () => {
       if (!autopilotActive) {
-          alert(`🚀 Autopilot ATTIVATO! L'AI leggerà le tue istruzioni e invierà i messaggi automaticamente ogni venerdì alle 17:00 a tutta la tua lista contatti.`)
+          alert(`🚀 Autopilot ATTIVATO!\n\nL'AI invierà automaticamente i messaggi ogni ${autopilotDay} alle ${autopilotTime} a tutta la tua lista contatti.\n\nPuoi modificare il giorno e l'orario in qualsiasi momento dal pannello.`)
       } else {
           alert(`⏸️ Autopilot DISATTIVATO. I messaggi sono in pausa.`)
       }
@@ -259,10 +269,38 @@ export default function NurturingEnginePage() {
                           </div>
                       </button>
                   </div>
+                  
+                  {/* CONFIGURAZIONE GIORNO E ORA */}
+                  <div className={`grid grid-cols-2 gap-3 mb-4 ${autopilotActive ? 'opacity-70' : ''}`}>
+                      <div>
+                          <label className={`text-[10px] font-black uppercase tracking-widest mb-1 block ${autopilotActive ? 'text-emerald-100' : 'text-gray-400'}`}>Giorno</label>
+                          <select
+                              value={autopilotDay}
+                              onChange={e => setAutopilotDay(e.target.value)}
+                              disabled={autopilotActive}
+                              className={`w-full p-2.5 rounded-xl border text-xs font-bold outline-none cursor-pointer transition ${autopilotActive ? 'bg-emerald-400 border-emerald-300 text-white' : 'bg-gray-50 border-gray-200 text-gray-800 focus:border-purple-500'}`}
+                          >
+                              {['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'].map(d => (
+                                  <option key={d} value={d}>{d}</option>
+                              ))}
+                          </select>
+                      </div>
+                      <div>
+                          <label className={`text-[10px] font-black uppercase tracking-widest mb-1 block ${autopilotActive ? 'text-emerald-100' : 'text-gray-400'}`}>Orario</label>
+                          <input
+                              type="time"
+                              value={autopilotTime}
+                              onChange={e => setAutopilotTime(e.target.value)}
+                              disabled={autopilotActive}
+                              className={`w-full p-2.5 rounded-xl border text-xs font-bold outline-none transition ${autopilotActive ? 'bg-emerald-400 border-emerald-300 text-white' : 'bg-gray-50 border-gray-200 text-gray-800 focus:border-purple-500'}`}
+                          />
+                      </div>
+                  </div>
+
                   <p className={`text-sm font-medium leading-relaxed ${autopilotActive ? 'text-emerald-50' : 'text-gray-500'}`}>
                       {autopilotActive 
-                          ? 'Attivo. Il sistema prenderà i dati dal CRM e invierà automaticamente i consigli personalizzati ogni venerdì alle 17:00.' 
-                          : 'Spento. L\'AI ha generato il contenuto, ma non lo invierà finché non attivi questa spunta.'}
+                          ? `✅ Attivo. Messaggi programmati ogni ${autopilotDay} alle ${autopilotTime} per tutti i contatti CRM.` 
+                          : 'Spento. Configura giorno e orario, poi attiva per inviare automaticamente.'}
                   </p>
               </div>
 

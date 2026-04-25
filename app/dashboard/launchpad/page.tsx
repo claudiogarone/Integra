@@ -31,8 +31,8 @@ export default function LaunchpadPage() {
   const [links, setLinks] = useState({ facebook: '', instagram: '', tiktok: '', google: '', whatsapp: '', website: '' })
   
   // --- QR CUSTOM DINAMICI E MODIFICA ---
-  const [customQRs, setCustomQRs] = useState<{id: string, label: string, url: string}[]>([])
-  const [newQRForm, setNewQRForm] = useState({ label: '', url: '' })
+  const [customQRs, setCustomQRs] = useState<{id: string, label: string, url: string, description?: string}[]>([])
+  const [newQRForm, setNewQRForm] = useState({ label: '', url: '', description: '' })
   const [editingQrId, setEditingQrId] = useState<string | null>(null) // STATO PER LA MODIFICA
 
   // --- STATI PER PERSONALIZZAZIONE FLYER ---
@@ -93,12 +93,12 @@ export default function LaunchpadPage() {
       
       if (editingQrId) {
           // MODIFICA ESISTENTE
-          newQRs = customQRs.map(qr => qr.id === editingQrId ? { ...qr, label: newQRForm.label, url: newQRForm.url } : qr);
+          newQRs = customQRs.map(qr => qr.id === editingQrId ? { ...qr, label: newQRForm.label, url: newQRForm.url, description: newQRForm.description } : qr);
       } else {
           // CREAZIONE NUOVO (Controllo Limiti Reale)
           const limit = qrLimits[currentPlan] || 2;
           if (customQRs.length >= limit) return alert(`⚠️ Limite raggiunto. Il tuo piano ${currentPlan} permette la creazione di massimo ${limit} QR Custom.`);
-          newQRs = [...customQRs, { id: Date.now().toString(), label: newQRForm.label, url: newQRForm.url }];
+          newQRs = [...customQRs, { id: Date.now().toString(), label: newQRForm.label, url: newQRForm.url, description: newQRForm.description }];
       }
 
       setCustomQRs(newQRs);
@@ -111,7 +111,7 @@ export default function LaunchpadPage() {
   }
 
   const handleEditCustomQR = (qr: any) => {
-      setNewQRForm({ label: qr.label, url: qr.url });
+      setNewQRForm({ label: qr.label, url: qr.url, description: qr.description || '' });
       setEditingQrId(qr.id);
       window.scrollTo({ top: 0, behavior: 'smooth' }); // Scorre in alto per comodità
   }
@@ -120,7 +120,7 @@ export default function LaunchpadPage() {
       if(!confirm("Vuoi davvero eliminare questo QR Code?")) return;
       const newQRs = customQRs.filter(qr => qr.id !== id);
       setCustomQRs(newQRs);
-      if(editingQrId === id) { setEditingQrId(null); setNewQRForm({label:'', url:''}); }
+      if(editingQrId === id) { setEditingQrId(null); setNewQRForm({label:'', url:'', description:''}); }
       const updatedSocialLinks = { ...(userData.social_links || {}), custom_qrs: newQRs };
       await supabase.from('profiles').update({ social_links: updatedSocialLinks }).eq('id', user.id);
   }
@@ -531,27 +531,41 @@ export default function LaunchpadPage() {
                   </div>
                   
                   {/* AGGIUNTA / MODIFICA QR PERSONALIZZATO */}
-                  <div className={`border p-6 rounded-2xl mb-8 flex flex-col md:flex-row gap-4 items-end transition-all ${editingQrId ? 'bg-amber-50 border-amber-300 ring-4 ring-amber-100' : 'bg-gray-50 border-gray-200'}`}>
-                      <div className="flex-1 w-full">
-                          <label className="text-[10px] font-bold text-gray-500 uppercase flex justify-between">
-                              Nome/Etichetta (es. Menu)
-                              {editingQrId && <span className="text-amber-600 font-black">Modalità Modifica Attiva</span>}
-                          </label>
-                          <input type="text" placeholder="Es. Scarica il nostro Menu" value={newQRForm.label} onChange={e => setNewQRForm({...newQRForm, label: e.target.value})} className={`w-full mt-1 p-3 rounded-xl border outline-none font-bold ${editingQrId ? 'focus:border-amber-500 border-amber-200' : 'focus:border-[#00665E] focus:ring-4 focus:ring-[#00665E]/10'}`} />
-                      </div>
-                      <div className="flex-1 w-full">
-                          <label className="text-[10px] font-bold text-gray-500 uppercase">Link URL di destinazione</label>
-                          <input type="url" placeholder="https://..." value={newQRForm.url} onChange={e => setNewQRForm({...newQRForm, url: e.target.value})} className={`w-full mt-1 p-3 rounded-xl border outline-none text-[#00665E] font-mono text-sm ${editingQrId ? 'focus:border-amber-500 border-amber-200' : 'focus:border-[#00665E] focus:ring-4 focus:ring-[#00665E]/10'}`} />
-                      </div>
-                      <div className="flex gap-2 w-full md:w-auto">
-                          {editingQrId && (
-                              <button onClick={() => { setEditingQrId(null); setNewQRForm({label:'', url:''}); }} className="bg-white text-gray-600 border border-gray-300 font-bold px-4 py-3.5 rounded-xl hover:bg-gray-100 transition shadow-sm flex items-center justify-center">
-                                  Annulla
+                  <div className={`border p-6 rounded-2xl mb-8 flex flex-col gap-4 transition-all ${editingQrId ? 'bg-amber-50 border-amber-300 ring-4 ring-amber-100' : 'bg-gray-50 border-gray-200'}`}>
+                      <div className="flex flex-col md:flex-row gap-4 items-end">
+                          <div className="flex-1 w-full">
+                              <label className="text-[10px] font-bold text-gray-500 uppercase flex justify-between">
+                                  Nome/Etichetta (es. Menu)
+                                  {editingQrId && <span className="text-amber-600 font-black">Modalità Modifica Attiva</span>}
+                              </label>
+                              <input type="text" placeholder="Es. Scarica il nostro Menu" value={newQRForm.label} onChange={e => setNewQRForm({...newQRForm, label: e.target.value})} className={`w-full mt-1 p-3 rounded-xl border outline-none font-bold ${editingQrId ? 'focus:border-amber-500 border-amber-200' : 'focus:border-[#00665E] focus:ring-4 focus:ring-[#00665E]/10'}`} />
+                          </div>
+                          <div className="flex-1 w-full">
+                              <label className="text-[10px] font-bold text-gray-500 uppercase">Link URL di destinazione</label>
+                              <input type="url" placeholder="https://..." value={newQRForm.url} onChange={e => setNewQRForm({...newQRForm, url: e.target.value})} className={`w-full mt-1 p-3 rounded-xl border outline-none text-[#00665E] font-mono text-sm ${editingQrId ? 'focus:border-amber-500 border-amber-200' : 'focus:border-[#00665E] focus:ring-4 focus:ring-[#00665E]/10'}`} />
+                          </div>
+                          <div className="flex gap-2 w-full md:w-auto">
+                              {editingQrId && (
+                                  <button onClick={() => { setEditingQrId(null); setNewQRForm({label:'', url:'', description:''}); }} className="bg-white text-gray-600 border border-gray-300 font-bold px-4 py-3.5 rounded-xl hover:bg-gray-100 transition shadow-sm flex items-center justify-center">
+                                      Annulla
+                                  </button>
+                              )}
+                              <button onClick={handleSaveCustomQR} className={`${editingQrId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-[#00665E] hover:bg-[#004d46]'} text-white font-bold px-6 py-3.5 rounded-xl transition shadow-md w-full md:w-auto flex items-center justify-center gap-2`}>
+                                  {editingQrId ? <><CheckCircle2 size={18}/> Salva Modifiche</> : <><Plus size={18}/> Aggiungi QR</>}
                               </button>
-                          )}
-                          <button onClick={handleSaveCustomQR} className={`${editingQrId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-[#00665E] hover:bg-[#004d46]'} text-white font-bold px-6 py-3.5 rounded-xl transition shadow-md w-full md:w-auto flex items-center justify-center gap-2`}>
-                              {editingQrId ? <><CheckCircle2 size={18}/> Salva Modifiche</> : <><Plus size={18}/> Aggiungi QR</>}
-                          </button>
+                          </div>
+                      </div>
+                      {/* CAMPO DESCRIZIONE (visibile nella pagina pubblica del QR) */}
+                      <div>
+                          <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Descrizione Pubblica (visibile nella pagina web del QR)</label>
+                          <textarea
+                              placeholder="Es. Scansiona per vedere il nostro menù aggiornato. Disponibile ogni giorno dalle 12:00. Allergeni disponibili su richiesta."
+                              value={newQRForm.description}
+                              onChange={e => setNewQRForm({...newQRForm, description: e.target.value})}
+                              rows={2}
+                              className={`w-full p-3 rounded-xl border outline-none text-sm resize-none font-medium text-gray-700 ${editingQrId ? 'focus:border-amber-500 border-amber-200 bg-amber-50/50' : 'focus:border-[#00665E] bg-white border-gray-200'}`}
+                          />
+                          <p className="text-[10px] text-gray-400 mt-1 font-medium">💡 Questo testo appare nella landing page pubblica accessibile dal QR, sotto al titolo e al codice.</p>
                       </div>
                   </div>
                   
@@ -571,7 +585,7 @@ export default function LaunchpadPage() {
                                   <button onClick={() => handleEditCustomQR(qr)} className="bg-amber-500 text-white p-2 rounded-full shadow-lg hover:scale-110" title="Modifica"><Edit3 size={14}/></button>
                                   <button onClick={() => handleDeleteCustomQR(qr.id)} className="bg-red-500 text-white p-2 rounded-full shadow-lg hover:scale-110" title="Elimina"><Trash2 size={14}/></button>
                               </div>
-                              <QRCodeCard url={qr.url} icon="🔗" label={qr.label} color="text-[#00665E]" />
+                              <QRCodeCard url={qr.url} icon="🔗" label={qr.label} color="text-[#00665E]" description={qr.description} />
                           </div>
                       ))}
                   </div>
@@ -765,14 +779,17 @@ export default function LaunchpadPage() {
   )
 }
 
-function QRCodeCard({ url, icon, label, color }: { url: string, icon: string, label: string, color: string }) {
+function QRCodeCard({ url, icon, label, color, description }: { url: string, icon: string, label: string, color: string, description?: string }) {
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(url)}`
     return (
         <div className="bg-gray-50 p-6 rounded-3xl flex flex-col items-center text-center border border-gray-200 hover:border-[#00665E] hover:shadow-xl transition group h-full">
             <div className="bg-white p-2 rounded-2xl shadow-sm mb-4 w-full aspect-square border border-gray-100 overflow-hidden flex items-center justify-center">
                 <img src={qrUrl} alt={label} className="max-w-full max-h-full object-contain mix-blend-multiply group-hover:scale-105 transition duration-300" crossOrigin="anonymous" />
             </div>
-            <span className={`text-sm font-black uppercase ${color} mb-3 flex items-center justify-center gap-2 w-full`}><span className="text-xl">{icon}</span> {label}</span>
+            <span className={`text-sm font-black uppercase ${color} mb-1 flex items-center justify-center gap-2 w-full`}><span className="text-xl">{icon}</span> {label}</span>
+            {description && (
+                <p className="text-[10px] text-gray-500 font-medium leading-snug line-clamp-2 mb-2 px-1" title={description}>{description}</p>
+            )}
             <a href={qrUrl} download={`qr-${label}.png`} target="_blank" className="mt-auto text-xs text-gray-600 bg-white border border-gray-200 font-bold px-4 py-2 rounded-xl hover:bg-[#00665E] hover:text-white hover:border-[#00665E] transition w-full shadow-sm">Scarica in HD</a>
         </div>
     )

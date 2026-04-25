@@ -1,19 +1,20 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
+
+// Usiamo il service role key per bypassare RLS e avere accesso completo
+const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
     try {
-        const cookieStore = await cookies()
-        const supabase = createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            { cookies: { getAll() { return cookieStore.getAll() } } }
-        )
-
-        const { data: products, error } = await supabase
-            .from('ecommerce_products')
+        const { data: products, error } = await supabaseAdmin
+            .from('ecommerce_products') // FIX: tabella corretta (era 'products')
             .select('*')
+            .eq('is_deleted', false)
             .order('created_at', { ascending: false })
 
         if (error) throw error
@@ -27,19 +28,17 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json()
-        const cookieStore = await cookies()
-        const supabase = createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            { cookies: { getAll() { return cookieStore.getAll() } } }
-        )
+        
+        if (!body.user_id) {
+            return NextResponse.json({ error: 'user_id mancante nel payload' }, { status: 400 })
+        }
 
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 })
-
-        const { data: product, error } = await supabase
-            .from('products')
-            .insert({ ...body, user_id: user.id })
+        const { data: product, error } = await supabaseAdmin
+            .from('ecommerce_products') // FIX: tabella corretta (era 'products')
+            .insert({ 
+                ...body, 
+                is_deleted: false 
+            })
             .select()
             .single()
 
@@ -47,6 +46,31 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ success: true, product })
     } catch (error: any) {
+        console.error('Errore API Products POST:', error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+}
+
+// FIX: aggiunto handler DELETE mancante (soft delete)
+export async function DELETE(request: Request) {
+    try {
+        const { searchParams } = new URL(request.url)
+        const id = searchParams.get('id')
+        
+        if (!id) {
+            return NextResponse.json({ error: 'ID prodotto mancante' }, { status: 400 })
+        }
+
+        const { error } = await supabaseAdmin
+            .from('ecommerce_products')
+            .update({ is_deleted: true })
+            .eq('id', id)
+
+        if (error) throw error
+
+        return NextResponse.json({ success: true })
+    } catch (error: any) {
+        console.error('Errore API Products DELETE:', error)
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 }

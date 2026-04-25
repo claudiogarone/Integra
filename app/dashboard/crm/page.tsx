@@ -108,7 +108,7 @@ export default function CRMPage() {
 
   const filteredContacts = useMemo(() => {
       return contacts.filter(c => {
-          const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.email.toLowerCase().includes(searchTerm.toLowerCase())
+          const matchesSearch = (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (c.email || '').toLowerCase().includes(searchTerm.toLowerCase())
           const matchesStatus = filterStatus === 'all' || c.status === filterStatus
           let matchesDate = true
           if(dateStart && dateEnd) {
@@ -173,6 +173,7 @@ export default function CRMPage() {
     if (!uuid) return;
 
     const payload = { 
+        id: editingId || undefined,  // CRITICAL FIX: passa l'id per fare UPDATE e non INSERT
         user_id: uuid,
         name: formData.name, 
         email: formData.email, 

@@ -21,10 +21,10 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { id, name, email, phone, status, value, notes, source, churn_date } = body;
+        const { id, user_id, name, email, phone, status, value, notes, source, churn_date } = body;
 
         // Prepariamo i dati ESATTI per le colonne della tabella 'contacts'
-        const leadData = {
+        const leadData: any = {
             name: name || 'Senza Nome',
             email: email || null,
             phone: phone || null,
@@ -32,17 +32,19 @@ export async function POST(request: Request) {
             value: value ? parseFloat(value) : 0,
             ltv: value ? parseFloat(value) : 0, 
             notes: notes || null,
-            source: source || 'Sito Web',
+            // Normalizziamo la fonte per evitare duplicati con case diversi
+            source: (source || 'Sito Web').trim(),
             churn_date: churn_date || null
         };
 
         if (id) {
-            // Aggiornamento
+            // AGGIORNAMENTO: aggiorna il record esistente tramite id
             const { data, error } = await supabase.from('contacts').update(leadData).eq('id', id).select().single();
             if (error) throw error;
             return NextResponse.json({ success: true, lead: data }, { status: 200 });
         } else {
-            // Creazione
+            // CREAZIONE: aggiunge user_id solo alla creazione
+            if (user_id) leadData.user_id = user_id;
             const { data, error } = await supabase.from('contacts').insert([leadData]).select().single();
             if (error) throw error;
             return NextResponse.json({ success: true, lead: data }, { status: 200 });

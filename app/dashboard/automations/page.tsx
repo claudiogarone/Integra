@@ -8,7 +8,10 @@ import {
     Settings, Trash2, CheckCircle2, UserPlus, CreditCard, X, Infinity, 
     Loader2, BrainCircuit, Sparkles, Activity, Edit3, FileText, 
     BarChart3, Download, Filter, AlertCircle, Calendar, 
-    ToggleLeft, ToggleRight, Wand2, ArrowRight
+    ToggleLeft, ToggleRight, Wand2, ArrowRight,
+    Star, Tag, RefreshCw, Smartphone, Globe, Bell, 
+    RotateCcw, SplitSquareHorizontal, PackageX, TrendingUp,
+    PhoneCall, Repeat, Webhook
 } from 'lucide-react'
 import { 
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -149,7 +152,7 @@ export default function AutomationsPage() {
       if (templateId === 'cart') {
           setWorkflowName('Recupero Carrello Abbandonato')
           setFlow([
-              { id: '1', type: 'trigger', title: 'Carrello Abbandonato', desc: 'Shopify / Woo', icon: <ShoppingCart size={20}/>, color: 'bg-orange-500', config: {} },
+              { id: '1', type: 'trigger', title: 'Carrello Abbandonato', desc: 'Shopify / WooCommerce', icon: <ShoppingCart size={20}/>, color: 'bg-orange-500', config: {} },
               { id: '2', type: 'delay', title: 'Attendi', desc: 'Pausa di 2 Ore', icon: <Clock size={20}/>, color: 'bg-amber-500', config: { time: 2, unit: 'Ore'} },
               { id: '3', type: 'action', title: 'Invia WhatsApp', desc: 'Template: Sconto 10%', icon: <MessageCircle size={20}/>, color: 'bg-emerald-600', config: { template: 'Sconto 10%'} }
           ])
@@ -158,7 +161,48 @@ export default function AutomationsPage() {
           setFlow([
               { id: '1', type: 'trigger', title: 'Ricorrenza Compleanno', desc: 'CRM Customer Data', icon: <Calendar size={20}/>, color: 'bg-pink-500', config: {} },
               { id: '2', type: 'action', title: 'Invia Email Auguri', desc: 'Template: Promo Compleanno', icon: <Mail size={20}/>, color: 'bg-blue-600', config: { template: 'Auguri VIP'} },
-              { id: '3', type: 'action', title: 'Assegna Punti Cassa', desc: '+50 Punti Fidelity', icon: <CreditCard size={20}/>, color: 'bg-indigo-600', config: {} }
+              { id: '3', type: 'action', title: 'Assegna Punti Fidelity', desc: '+50 Punti Fidelity', icon: <CreditCard size={20}/>, color: 'bg-indigo-600', config: {} }
+          ])
+      } else if (templateId === 'welcome') {
+          setWorkflowName('Benvenuto Nuovo Cliente')
+          setFlow([
+              { id: '1', type: 'trigger', title: 'Primo Acquisto', desc: 'Cliente nuovo — 1° ordine', icon: <TrendingUp size={20}/>, color: 'bg-teal-500', config: {} },
+              { id: '2', type: 'action', title: 'Invia Email Benvenuto', desc: 'Template: Benvenuto VIP', icon: <Mail size={20}/>, color: 'bg-blue-600', config: { template: 'Benvenuto VIP'} },
+              { id: '3', type: 'action', title: 'Assegna Punti Fidelity', desc: '+100 Punti Benvenuto', icon: <CreditCard size={20}/>, color: 'bg-indigo-600', config: { points: 100} },
+              { id: '4', type: 'action', title: 'Aggiorna Tag CRM', desc: 'Tag: Nuovo Cliente', icon: <Tag size={20}/>, color: 'bg-purple-500', config: { tag: 'Nuovo Cliente'} }
+          ])
+      } else if (templateId === 'dormant') {
+          setWorkflowName('Riattivazione Cliente Dormiente')
+          setFlow([
+              { id: '1', type: 'trigger', title: 'Cliente Inattivo', desc: 'Nessun acquisto da 60 giorni', icon: <RotateCcw size={20}/>, color: 'bg-slate-500', config: { days: 60 } },
+              { id: '2', type: 'action', title: 'Invia WhatsApp', desc: 'Template: Sconto Rientro 15%', icon: <MessageCircle size={20}/>, color: 'bg-emerald-600', config: { template: 'Sconto Rientro 15%'} },
+              { id: '3', type: 'delay', title: 'Attendi', desc: 'Pausa di 5 Giorni', icon: <Clock size={20}/>, color: 'bg-amber-500', config: { time: 5, unit: 'Giorni'} },
+              { id: '4', type: 'condition', title: 'Ha Acquistato?', desc: 'Se ha_acquistato = Sì', icon: <GitBranch size={20}/>, color: 'bg-purple-500', config: { rule: 'Ha Acquistato', value: 'Sì'} },
+              { id: '5', type: 'action', title: 'Aggiorna Tag CRM', desc: 'Tag: Cliente Riattivato', icon: <Tag size={20}/>, color: 'bg-purple-500', config: { tag: 'Riattivato'} }
+          ])
+      } else if (templateId === 'review') {
+          setWorkflowName('Richiesta Recensione Post-Acquisto')
+          setFlow([
+              { id: '1', type: 'trigger', title: 'Nuovo Scontrino Cassa', desc: 'Dopo ogni acquisto', icon: <CreditCard size={20}/>, color: 'bg-blue-600', config: {} },
+              { id: '2', type: 'delay', title: 'Attendi', desc: 'Pausa di 2 Giorni', icon: <Clock size={20}/>, color: 'bg-amber-500', config: { time: 2, unit: 'Giorni'} },
+              { id: '3', type: 'action', title: 'Invia WhatsApp', desc: 'Template: Lascia Recensione Google', icon: <MessageCircle size={20}/>, color: 'bg-emerald-600', config: { template: 'Richiesta Recensione Google'} }
+          ])
+      } else if (templateId === 'followup') {
+          setWorkflowName('Follow-up Preventivo Aperto')
+          setFlow([
+              { id: '1', type: 'trigger', title: 'Nuovo Preventivo Creato', desc: 'Dall\'app Agente', icon: <FileText size={20}/>, color: 'bg-teal-600', config: {} },
+              { id: '2', type: 'delay', title: 'Attendi', desc: 'Pausa di 3 Giorni', icon: <Clock size={20}/>, color: 'bg-amber-500', config: { time: 3, unit: 'Giorni'} },
+              { id: '3', type: 'condition', title: 'Verifica Stato', desc: 'Se Stato = Aperto', icon: <GitBranch size={20}/>, color: 'bg-purple-500', config: { rule: 'Stato Preventivo', value: 'Aperto'} },
+              { id: '4', type: 'action', title: 'Invia Email', desc: 'Template: Chiusura Deal', icon: <Mail size={20}/>, color: 'bg-blue-600', config: { template: 'Chiusura Deal'} },
+              { id: '5', type: 'action', title: 'Crea Task Agente', desc: 'Task: Richiama cliente', icon: <PhoneCall size={20}/>, color: 'bg-rose-500', config: { task: 'Richiama cliente per preventivo'} }
+          ])
+      } else if (templateId === 'vip') {
+          setWorkflowName('Promozione Soglia VIP (€500)')
+          setFlow([
+              { id: '1', type: 'trigger', title: 'Soglia Spesa Raggiunta', desc: 'Cliente supera €500 totali', icon: <TrendingUp size={20}/>, color: 'bg-yellow-500', config: { threshold: 500 } },
+              { id: '2', type: 'action', title: 'Aggiorna Tag CRM', desc: 'Tag: VIP', icon: <Tag size={20}/>, color: 'bg-purple-500', config: { tag: 'VIP'} },
+              { id: '3', type: 'action', title: 'Invia Email', desc: 'Template: Benvenuto Club VIP', icon: <Mail size={20}/>, color: 'bg-blue-600', config: { template: 'Benvenuto Club VIP'} },
+              { id: '4', type: 'action', title: 'Assegna Punti Fidelity', desc: '+200 Punti VIP Bonus', icon: <CreditCard size={20}/>, color: 'bg-indigo-600', config: { points: 200} }
           ])
       }
       setIsEditing(true)
@@ -325,14 +369,38 @@ export default function AutomationsPage() {
                           </button>
 
                           <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Wand2 size={14}/> Template Consigliati</h3>
-                          <div className="grid gap-3 mb-8">
-                              <div onClick={() => loadTemplate('cart')} className="bg-white border border-orange-200 hover:border-orange-500 p-4 rounded-2xl shadow-sm cursor-pointer transition group">
-                                  <h4 className="font-bold text-gray-900 text-sm mb-1 group-hover:text-orange-600">Recupero Carrello</h4>
-                                  <p className="text-xs text-gray-500">Se abbandona -{'>'} SMS Sconto</p>
+                          <div className="grid gap-2 mb-8">
+                              <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1">🛒 E-Commerce</p>
+                              <div onClick={() => loadTemplate('cart')} className="bg-white border border-orange-200 hover:border-orange-500 p-3 rounded-2xl shadow-sm cursor-pointer transition group">
+                                  <h4 className="font-bold text-gray-900 text-sm mb-0.5 group-hover:text-orange-600">Recupero Carrello</h4>
+                                  <p className="text-xs text-gray-500">Abbandono → WhatsApp Sconto</p>
                               </div>
-                              <div onClick={() => loadTemplate('birthday')} className="bg-white border border-pink-200 hover:border-pink-500 p-4 rounded-2xl shadow-sm cursor-pointer transition group">
-                                  <h4 className="font-bold text-gray-900 text-sm mb-1 group-hover:text-pink-600">Compleanno VIP</h4>
-                                  <p className="text-xs text-gray-500">Se compleanno -{'>'} Email + Punti</p>
+                              <div onClick={() => loadTemplate('review')} className="bg-white border border-yellow-200 hover:border-yellow-500 p-3 rounded-2xl shadow-sm cursor-pointer transition group">
+                                  <h4 className="font-bold text-gray-900 text-sm mb-0.5 group-hover:text-yellow-600">Richiesta Recensione</h4>
+                                  <p className="text-xs text-gray-500">Acquisto → WhatsApp Google Review</p>
+                              </div>
+                              <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1 mt-3">❤️ Fidelizzazione</p>
+                              <div onClick={() => loadTemplate('birthday')} className="bg-white border border-pink-200 hover:border-pink-500 p-3 rounded-2xl shadow-sm cursor-pointer transition group">
+                                  <h4 className="font-bold text-gray-900 text-sm mb-0.5 group-hover:text-pink-600">Compleanno VIP</h4>
+                                  <p className="text-xs text-gray-500">Compleanno → Email + Punti</p>
+                              </div>
+                              <div onClick={() => loadTemplate('welcome')} className="bg-white border border-teal-200 hover:border-teal-500 p-3 rounded-2xl shadow-sm cursor-pointer transition group">
+                                  <h4 className="font-bold text-gray-900 text-sm mb-0.5 group-hover:text-teal-600">Benvenuto Nuovo Cliente</h4>
+                                  <p className="text-xs text-gray-500">1° Acquisto → Email + 100 Punti</p>
+                              </div>
+                              <div onClick={() => loadTemplate('vip')} className="bg-white border border-yellow-200 hover:border-yellow-500 p-3 rounded-2xl shadow-sm cursor-pointer transition group">
+                                  <h4 className="font-bold text-gray-900 text-sm mb-0.5 group-hover:text-yellow-600">Promozione Soglia VIP</h4>
+                                  <p className="text-xs text-gray-500">€500 spesi → Tag VIP + Bonus</p>
+                              </div>
+                              <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1 mt-3">🔄 Riattivazione</p>
+                              <div onClick={() => loadTemplate('dormant')} className="bg-white border border-slate-200 hover:border-slate-500 p-3 rounded-2xl shadow-sm cursor-pointer transition group">
+                                  <h4 className="font-bold text-gray-900 text-sm mb-0.5 group-hover:text-slate-600">Cliente Dormiente</h4>
+                                  <p className="text-xs text-gray-500">Inattivo 60gg → WhatsApp 15%</p>
+                              </div>
+                              <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1 mt-3">📋 Vendite</p>
+                              <div onClick={() => loadTemplate('followup')} className="bg-white border border-blue-200 hover:border-blue-500 p-3 rounded-2xl shadow-sm cursor-pointer transition group">
+                                  <h4 className="font-bold text-gray-900 text-sm mb-0.5 group-hover:text-blue-600">Follow-up Preventivo</h4>
+                                  <p className="text-xs text-gray-500">3gg senza risposta → Email + Task</p>
                               </div>
                           </div>
 
@@ -620,54 +688,140 @@ export default function AutomationsPage() {
                       
                       {insertIndex === 0 ? (
                           <>
-                              <div className="col-span-1 md:col-span-2 mb-2"><p className="text-xs font-black text-gray-400 uppercase tracking-widest">Eventi E-commerce / Negozi</p></div>
-                              <button onClick={() => addNode('trigger', 'Scontrino POS Registrato', 'Quando Nexus Hub legge la cassa', <CreditCard size={20}/>, 'bg-blue-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-blue-500 hover:shadow-md transition text-left group">
+                              <div className="col-span-1 md:col-span-2 mb-2"><p className="text-xs font-black text-gray-400 uppercase tracking-widest">🛒 E-commerce / Negozi</p></div>
+                              <button onClick={() => addNode('trigger', 'Nuovo Scontrino Cassa', 'Quando Nexus Hub legge la cassa', <CreditCard size={20}/>, 'bg-blue-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-blue-500 hover:shadow-md transition text-left group">
                                   <div className="bg-blue-100 text-blue-600 p-3 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition"><CreditCard size={18}/></div>
-                                  <div><p className="font-bold text-sm text-gray-900">Nuovo Scontrino Cassa</p></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Nuovo Scontrino Cassa</p><p className="text-xs text-gray-400">POS / Nexus Hub</p></div>
                               </button>
-                              <button onClick={() => addNode('trigger', 'Nuovo Ordine E-commerce', 'Da Shopify o WooCommerce', <ShoppingCart size={20}/>, 'bg-orange-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-orange-500 hover:shadow-md transition text-left group">
+                              <button onClick={() => addNode('trigger', 'Ordine Online Creato', 'Da Shopify o WooCommerce', <ShoppingCart size={20}/>, 'bg-orange-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-orange-500 hover:shadow-md transition text-left group">
                                   <div className="bg-orange-100 text-orange-600 p-3 rounded-xl group-hover:bg-orange-500 group-hover:text-white transition"><ShoppingCart size={18}/></div>
-                                  <div><p className="font-bold text-sm text-gray-900">Ordine Online Creato</p></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Ordine Online Creato</p><p className="text-xs text-gray-400">Shopify / WooCommerce</p></div>
+                              </button>
+                              <button onClick={() => addNode('trigger', 'Carrello Abbandonato', 'Oltre 30 min senza checkout', <ShoppingCart size={20}/>, 'bg-red-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-red-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-red-100 text-red-600 p-3 rounded-xl group-hover:bg-red-500 group-hover:text-white transition"><ShoppingCart size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Carrello Abbandonato</p><p className="text-xs text-gray-400">Dopo 30 min senza pagamento</p></div>
+                              </button>
+                              <button onClick={() => addNode('trigger', 'Primo Acquisto', 'Cliente alla prima transazione', <TrendingUp size={20}/>, 'bg-teal-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-teal-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-teal-100 text-teal-600 p-3 rounded-xl group-hover:bg-teal-500 group-hover:text-white transition"><TrendingUp size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Primo Acquisto</p><p className="text-xs text-gray-400">Cliente nuovo — 1° ordine</p></div>
+                              </button>
+                              <button onClick={() => addNode('trigger', 'Soglia Spesa Raggiunta', 'Es. cliente supera €500 totali', <TrendingUp size={20}/>, 'bg-yellow-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-yellow-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-yellow-100 text-yellow-600 p-3 rounded-xl group-hover:bg-yellow-500 group-hover:text-white transition"><TrendingUp size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Soglia Spesa Raggiunta</p><p className="text-xs text-gray-400">Configurabile in €</p></div>
+                              </button>
+                              <button onClick={() => addNode('trigger', 'Reso / Rimborso Richiesto', 'Cliente apre pratica reso', <PackageX size={20}/>, 'bg-rose-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-rose-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-rose-100 text-rose-600 p-3 rounded-xl group-hover:bg-rose-600 group-hover:text-white transition"><PackageX size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Reso / Rimborso</p><p className="text-xs text-gray-400">Pratica reso aperta</p></div>
                               </button>
 
-                              <div className="col-span-1 md:col-span-2 mb-2 mt-4"><p className="text-xs font-black text-gray-400 uppercase tracking-widest">Eventi CRM / Agenti</p></div>
+                              <div className="col-span-1 md:col-span-2 mb-2 mt-4"><p className="text-xs font-black text-gray-400 uppercase tracking-widest">👥 CRM / Clienti</p></div>
                               <button onClick={() => addNode('trigger', 'Nuovo Lead nel CRM', 'Utente compila form sito', <UserPlus size={20}/>, 'bg-indigo-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-indigo-500 hover:shadow-md transition text-left group">
                                   <div className="bg-indigo-100 text-indigo-600 p-3 rounded-xl group-hover:bg-indigo-500 group-hover:text-white transition"><UserPlus size={18}/></div>
-                                  <div><p className="font-bold text-sm text-gray-900">Lead Entra nel CRM</p></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Lead Entra nel CRM</p><p className="text-xs text-gray-400">Da form web o importazione</p></div>
                               </button>
-                              <button onClick={() => addNode('trigger', 'Preventivo Inviato', 'Dall\'app Agente', <FileText size={20}/>, 'bg-teal-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-teal-500 hover:shadow-md transition text-left group">
+                              <button onClick={() => addNode('trigger', 'Nuovo Preventivo Creato', 'Dall\'app Agente', <FileText size={20}/>, 'bg-teal-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-teal-500 hover:shadow-md transition text-left group">
                                   <div className="bg-teal-100 text-teal-600 p-3 rounded-xl group-hover:bg-teal-600 group-hover:text-white transition"><FileText size={18}/></div>
-                                  <div><p className="font-bold text-sm text-gray-900">Nuovo Preventivo Creato</p></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Nuovo Preventivo Creato</p><p className="text-xs text-gray-400">Dall'app Agente</p></div>
                               </button>
-                              <button onClick={() => addNode('trigger', 'Data Calendario', 'Es. Compleanno o Scadenza', <Calendar size={20}/>, 'bg-pink-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-pink-500 hover:shadow-md transition text-left group">
+                              <button onClick={() => addNode('trigger', 'Cliente Inattivo', 'Nessun acquisto da X giorni', <RotateCcw size={20}/>, 'bg-slate-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-slate-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-slate-100 text-slate-600 p-3 rounded-xl group-hover:bg-slate-500 group-hover:text-white transition"><RotateCcw size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Cliente Inattivo / Dormiente</p><p className="text-xs text-gray-400">Configurabile in giorni</p></div>
+                              </button>
+                              <button onClick={() => addNode('trigger', 'Cambio Stato Pipeline', 'Lead → Trattativa → Cliente', <GitBranch size={20}/>, 'bg-violet-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-violet-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-violet-100 text-violet-600 p-3 rounded-xl group-hover:bg-violet-500 group-hover:text-white transition"><GitBranch size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Cambio Stato Pipeline CRM</p><p className="text-xs text-gray-400">Qualsiasi step configurabile</p></div>
+                              </button>
+                              <button onClick={() => addNode('trigger', 'Recensione Ricevuta', 'Google / TrustPilot', <Star size={20}/>, 'bg-yellow-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-yellow-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-yellow-100 text-yellow-600 p-3 rounded-xl group-hover:bg-yellow-500 group-hover:text-white transition"><Star size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Recensione Ricevuta</p><p className="text-xs text-gray-400">Google / TrustPilot</p></div>
+                              </button>
+                              <button onClick={() => addNode('trigger', 'Tag Cliente Assegnato', 'Es. VIP, At-Risk, Inattivo', <Tag size={20}/>, 'bg-purple-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-purple-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-purple-100 text-purple-600 p-3 rounded-xl group-hover:bg-purple-500 group-hover:text-white transition"><Tag size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Tag Cliente Assegnato</p><p className="text-xs text-gray-400">VIP, At-Risk, ecc.</p></div>
+                              </button>
+                              <button onClick={() => addNode('trigger', 'Form Sito Compilato', 'Landing page o sito web', <Globe size={20}/>, 'bg-cyan-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-cyan-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-cyan-100 text-cyan-600 p-3 rounded-xl group-hover:bg-cyan-500 group-hover:text-white transition"><Globe size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Form Sito Compilato</p><p className="text-xs text-gray-400">Contatto / richiesta info</p></div>
+                              </button>
+                              <button onClick={() => addNode('trigger', 'Messaggio Non Risposto', 'Inbox — dopo X ore senza risposta', <Bell size={20}/>, 'bg-amber-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-amber-600 hover:shadow-md transition text-left group">
+                                  <div className="bg-amber-100 text-amber-600 p-3 rounded-xl group-hover:bg-amber-600 group-hover:text-white transition"><Bell size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Messaggio Non Risposto</p><p className="text-xs text-gray-400">Da Inbox dopo X ore</p></div>
+                              </button>
+
+                              <div className="col-span-1 md:col-span-2 mb-2 mt-4"><p className="text-xs font-black text-gray-400 uppercase tracking-widest">⏰ Schedulato / Tempo</p></div>
+                              <button onClick={() => addNode('trigger', 'Ricorrenza Temporale', 'Es. Compleanno o Scadenza', <Calendar size={20}/>, 'bg-pink-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-pink-500 hover:shadow-md transition text-left group">
                                   <div className="bg-pink-100 text-pink-600 p-3 rounded-xl group-hover:bg-pink-500 group-hover:text-white transition"><Calendar size={18}/></div>
-                                  <div><p className="font-bold text-sm text-gray-900">Ricorrenza Temporale</p></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Ricorrenza Temporale</p><p className="text-xs text-gray-400">Compleanno, anniversario</p></div>
+                              </button>
+                              <button onClick={() => addNode('trigger', 'Ogni Settimana (Schedulato)', 'Giorno fisso della settimana', <Repeat size={20}/>, 'bg-gray-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-gray-600 hover:shadow-md transition text-left group">
+                                  <div className="bg-gray-100 text-gray-600 p-3 rounded-xl group-hover:bg-gray-600 group-hover:text-white transition"><Repeat size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Ogni Settimana</p><p className="text-xs text-gray-400">Giorno configurabile</p></div>
                               </button>
                           </>
                       ) : (
                           <>
-                              <div className="col-span-1 md:col-span-2 mb-2"><p className="text-xs font-black text-gray-400 uppercase tracking-widest">Azioni (Cosa fa il sistema?)</p></div>
+                              <div className="col-span-1 md:col-span-2 mb-2"><p className="text-xs font-black text-gray-400 uppercase tracking-widest">📤 Comunicazione</p></div>
                               <button onClick={() => addNode('action', 'Invia Messaggio WhatsApp', 'Tramite IntegraOS AI Agent', <MessageCircle size={20}/>, 'bg-emerald-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-emerald-500 hover:shadow-md transition text-left group">
                                   <div className="bg-emerald-100 text-emerald-600 p-3 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition"><MessageCircle size={18}/></div>
-                                  <div><p className="font-bold text-sm text-gray-900">Notifica WhatsApp</p></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Invia WhatsApp</p><p className="text-xs text-gray-400">AI Agent / Template</p></div>
                               </button>
-                              <button onClick={() => addNode('action', 'Invia Campagna Email', 'Dal modulo DEM', <Mail size={20}/>, 'bg-blue-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-blue-500 hover:shadow-md transition text-left group">
+                              <button onClick={() => addNode('action', 'Invia Email', 'Dal modulo DEM / Marketing', <Mail size={20}/>, 'bg-blue-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-blue-500 hover:shadow-md transition text-left group">
                                   <div className="bg-blue-100 text-blue-600 p-3 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition"><Mail size={18}/></div>
-                                  <div><p className="font-bold text-sm text-gray-900">Notifica Email</p></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Invia Email</p><p className="text-xs text-gray-400">Template DEM</p></div>
                               </button>
-                              <button onClick={() => addNode('ai_processor', 'AI Agent Processor', 'Elabora dati con Gemini', <BrainCircuit size={20}/>, 'bg-purple-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-purple-500 hover:shadow-md transition text-left group">
+                              <button onClick={() => addNode('action', 'Invia SMS', 'Via provider esterno (es. Twilio)', <Smartphone size={20}/>, 'bg-green-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-green-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-green-100 text-green-600 p-3 rounded-xl group-hover:bg-green-600 group-hover:text-white transition"><Smartphone size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Invia SMS</p><p className="text-xs text-gray-400">Twilio / provider SMS</p></div>
+                              </button>
+                              <button onClick={() => addNode('action', 'Notifica Push App', 'IntegraOS mobile notification', <Bell size={20}/>, 'bg-violet-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-violet-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-violet-100 text-violet-600 p-3 rounded-xl group-hover:bg-violet-500 group-hover:text-white transition"><Bell size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Notifica Push App</p><p className="text-xs text-gray-400">IntegraOS mobile</p></div>
+                              </button>
+
+                              <div className="col-span-1 md:col-span-2 mb-2 mt-4"><p className="text-xs font-black text-gray-400 uppercase tracking-widest">📊 CRM / Dati</p></div>
+                              <button onClick={() => addNode('action', 'Aggiorna Tag CRM', 'Assegna o rimuovi un tag cliente', <Tag size={20}/>, 'bg-purple-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-purple-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-purple-100 text-purple-600 p-3 rounded-xl group-hover:bg-purple-500 group-hover:text-white transition"><Tag size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Aggiorna Tag CRM</p><p className="text-xs text-gray-400">Assegna / rimuovi tag</p></div>
+                              </button>
+                              <button onClick={() => addNode('action', 'Crea Task per Agente', 'Assegna attività a un agente', <PhoneCall size={20}/>, 'bg-rose-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-rose-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-rose-100 text-rose-600 p-3 rounded-xl group-hover:bg-rose-500 group-hover:text-white transition"><PhoneCall size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Crea Task Agente</p><p className="text-xs text-gray-400">Richiama / visita cliente</p></div>
+                              </button>
+                              <button onClick={() => addNode('action', 'Assegna Punti Fidelity', 'Aggiungi punti alla card cliente', <CreditCard size={20}/>, 'bg-indigo-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-indigo-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-indigo-100 text-indigo-600 p-3 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition"><CreditCard size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Assegna Punti Fidelity</p><p className="text-xs text-gray-400">Configurabile in punti</p></div>
+                              </button>
+                              <button onClick={() => addNode('action', 'Crea Preventivo Auto', 'Genera preventivo da template', <FileText size={20}/>, 'bg-teal-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-teal-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-teal-100 text-teal-600 p-3 rounded-xl group-hover:bg-teal-600 group-hover:text-white transition"><FileText size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Crea Preventivo Auto</p><p className="text-xs text-gray-400">Da template configurabile</p></div>
+                              </button>
+
+                              <div className="col-span-1 md:col-span-2 mb-2 mt-4"><p className="text-xs font-black text-gray-400 uppercase tracking-widest">🔗 Integrazioni</p></div>
+                              <button onClick={() => addNode('ai_processor', 'AI Agent Processor', 'Elabora dati con Gemini AI', <BrainCircuit size={20}/>, 'bg-purple-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-purple-500 hover:shadow-md transition text-left group">
                                   <div className="bg-purple-100 text-purple-600 p-3 rounded-xl group-hover:bg-purple-600 group-hover:text-white transition"><BrainCircuit size={18}/></div>
-                                  <div><p className="font-bold text-sm text-gray-900">AI Logic (Gemini)</p></div>
+                                  <div><p className="font-bold text-sm text-gray-900">AI Logic (Gemini)</p><p className="text-xs text-gray-400">Prompt personalizzabile</p></div>
                               </button>
-                              
-                              <div className="col-span-1 md:col-span-2 mb-2 mt-4"><p className="text-xs font-black text-gray-400 uppercase tracking-widest">Logica di Controllo</p></div>
+                              <button onClick={() => addNode('action', 'Invia Webhook', 'POST a URL esterno (Zapier, Make...)', <Globe size={20}/>, 'bg-gray-700')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-gray-600 hover:shadow-md transition text-left group">
+                                  <div className="bg-gray-100 text-gray-700 p-3 rounded-xl group-hover:bg-gray-700 group-hover:text-white transition"><Globe size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Invia Webhook</p><p className="text-xs text-gray-400">URL esterno / Zapier / Make</p></div>
+                              </button>
+
+                              <div className="col-span-1 md:col-span-2 mb-2 mt-4"><p className="text-xs font-black text-gray-400 uppercase tracking-widest">⚙️ Logica di Controllo</p></div>
                               <button onClick={() => addNode('delay', 'Attendi Tempo', 'Metti in pausa il flusso', <Clock size={20}/>, 'bg-amber-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-amber-500 hover:shadow-md transition text-left group">
                                   <div className="bg-amber-100 text-amber-600 p-3 rounded-xl group-hover:bg-amber-500 group-hover:text-white transition"><Clock size={18}/></div>
-                                  <div><p className="font-bold text-sm text-gray-900">Aggiungi Ritardo</p></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Aggiungi Ritardo</p><p className="text-xs text-gray-400">Minuti / Ore / Giorni</p></div>
                               </button>
-                              <button onClick={() => addNode('condition', 'Verifica Condizione', 'Se Vero/Falso', <GitBranch size={20}/>, 'bg-purple-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-purple-500 hover:shadow-md transition text-left group">
+                              <button onClick={() => addNode('condition', 'Verifica Condizione', 'Se Vero → percorso A, Falso → B', <GitBranch size={20}/>, 'bg-purple-500')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-purple-500 hover:shadow-md transition text-left group">
                                   <div className="bg-purple-100 text-purple-600 p-3 rounded-xl group-hover:bg-purple-500 group-hover:text-white transition"><GitBranch size={18}/></div>
-                                  <div><p className="font-bold text-sm text-gray-900">Bivio (If/Else)</p></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Bivio If / Else</p><p className="text-xs text-gray-400">Percorso condizionale</p></div>
+                              </button>
+                              <button onClick={() => addNode('condition', 'Loop / Ripeti', 'Ripete azione per N volte', <Repeat size={20}/>, 'bg-cyan-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-cyan-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-cyan-100 text-cyan-600 p-3 rounded-xl group-hover:bg-cyan-600 group-hover:text-white transition"><Repeat size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">Loop / Ripeti</p><p className="text-xs text-gray-400">N volte configurabili</p></div>
+                              </button>
+                              <button onClick={() => addNode('condition', 'A/B Split Test', 'Divide il flusso 50/50', <SplitSquareHorizontal size={20}/>, 'bg-pink-600')} className="bg-white border-2 border-gray-100 p-4 rounded-2xl flex items-center gap-3 hover:border-pink-500 hover:shadow-md transition text-left group">
+                                  <div className="bg-pink-100 text-pink-600 p-3 rounded-xl group-hover:bg-pink-600 group-hover:text-white transition"><SplitSquareHorizontal size={18}/></div>
+                                  <div><p className="font-bold text-sm text-gray-900">A/B Split Test</p><p className="text-xs text-gray-400">Divide il flusso 50/50</p></div>
                               </button>
                           </>
                       )}

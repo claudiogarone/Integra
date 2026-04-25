@@ -154,7 +154,13 @@ Grazie per aver utilizzato IntegraOS!`;
           setCreditsUsed(prev => prev + 5);
           
       } catch (err: any) {
-          alert("Errore AI Creative Studio: " + err.message);
+          console.error('Creative Studio error:', err)
+          const msg = err.message || 'Errore sconosciuto'
+          if (msg.toLowerCase().includes('gemini') || msg.toLowerCase().includes('chiave')) {
+              alert(`⚠️ Errore configurazione AI: La chiave API Gemini potrebbe non essere attiva.\n\nDettaglio: ${msg}\n\nContatta il supporto IntegraOS se il problema persiste.`)
+          } else {
+              alert(`Errore AI Creative Studio: ${msg}`)
+          }
       } finally {
           setIsGenerating(false)
       }

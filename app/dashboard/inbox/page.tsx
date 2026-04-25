@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { 
   MessageSquare, Phone, Mail, User, DollarSign, Award, 
@@ -61,13 +61,47 @@ export default function InboxPage() {
 
   const supabase = createClient()
 
+  // FIX: Ref per tracciare sempre il chatId corrente nel Realtime listener
+  // (evita la closure stale: al mount selectedChatId era sempre null)
+  const selectedChatIdRef = useRef<string | null>(null)
+  selectedChatIdRef.current = selectedChatId
+
+  // Refs per conversations e crmContacts usati dentro loadMessages
+  const conversationsRef = useRef<NativeContact[]>([])
+  const crmContactsRef = useRef<any[]>([])
+
+  // Funzione stabile per caricare i messaggi di una chat specifica
+  const loadMessages = useCallback(async (chatId: string) => {
+    if (!chatId) return;
+    setLoadingMsgs(true);
+    try {
+      const { data: msgs } = await supabase
+        .from('inbox_messages')
+        .select('*')
+        .eq('inbox_contact_id', chatId)
+        .order('created_at', { ascending: false });
+      if (msgs) setChatMessages(msgs);
+
+      const currentConv = conversationsRef.current.find(c => c.id === chatId);
+      if (currentConv) {
+        const matched = crmContactsRef.current.find(
+          c => c.name?.toLowerCase() === currentConv.name.toLowerCase()
+        );
+        setActiveCrmContact(matched || null);
+      }
+    } catch (e) {
+      setChatMessages([]);
+    } finally {
+      setLoadingMsgs(false);
+    }
+  }, [supabase])
+
   // 1. CARICAMENTO INIZIALE CHAT, CRM E BILLING
   useEffect(() => {
     const initInbox = async () => {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-          // Carica Profilo e Utilizzo
           const { data: profile } = await supabase.from('profiles').select('plan, usage_chat, ai_reply_enabled').eq('id', user.id).single()
           if (profile) {
               setCurrentPlan(profile.plan || 'Base')
@@ -75,7 +109,6 @@ export default function InboxPage() {
               setAiEnabled(profile.ai_reply_enabled || false)
           }
 
-          // Carica Costi Extra
           const { data: metrics } = await supabase.from('usage_metrics').select('cost_user').eq('user_id', user.id).eq('resource_type', 'chat_message').eq('is_free', false)
           if (metrics) {
               setTotalCost(metrics.reduce((acc: number, m: any) => acc + (m.cost_user || 0), 0))
@@ -85,14 +118,19 @@ export default function InboxPage() {
       try {
         const { data: contactsData } = await supabase.from('inbox_contacts').select('*, inbox_channels(id, provider, bot_enabled)').order('last_interaction', { ascending: false });
         if (contactsData) {
-            setConversations(contactsData.map(c => ({
+            const mapped = contactsData.map(c => ({
                 id: c.id, name: c.name || 'Sconosciuto', channel_id: c.channel_id,
                 external_id: c.external_id, provider: c.inbox_channels?.provider || 'web',
                 bot_enabled: c.inbox_channels?.bot_enabled || false
-            })));
+            }));
+            conversationsRef.current = mapped;
+            setConversations(mapped);
         }
         const { data: contacts } = await supabase.from('contacts').select('*');
-        if (contacts) setCrmContacts(contacts);
+        if (contacts) {
+          crmContactsRef.current = contacts;
+          setCrmContacts(contacts);
+        }
       } catch (e) {
         console.error("Errore init inbox", e);
       } finally {
@@ -101,15 +139,16 @@ export default function InboxPage() {
     };
     initInbox();
     
-    // Supabase Realtime Listener per update UI live
-    const channel = supabase.channel('schema-db-changes')
+    // FIX: Il listener usa selectedChatIdRef.current invece della closure stale
+    // Al mount selectedChatId era sempre null — ora legge sempre il valore aggiornato
+    const realtimeChannel = supabase.channel('inbox-messages-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inbox_messages' }, () => {
-         // Ricarica chat quando arriva un db event
-         if (selectedChatId) setLoadingMsgs(true) // trigger refresh
+         const currentChatId = selectedChatIdRef.current;
+         if (currentChatId) loadMessages(currentChatId);
       })
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, []);
+    return () => { supabase.removeChannel(realtimeChannel) }
+  }, [loadMessages]);
 
   const toggleAiReply = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -124,31 +163,19 @@ export default function InboxPage() {
       }
   }
 
-  // 2. CARICA MESSAGGI E TROVA CONTATTO CRM
+  // 2. CARICA MESSAGGI AL CAMBIO DI CHAT
+  // FIX: Solo `selectedChatId` come dipendenza — rimosso `loadingMsgs` (causava loop)
+  // e rimossi `conversations`/`crmContacts` (ora letti tramite ref aggiornati)
   useEffect(() => {
-    if (!selectedChatId) return;
-    
-    const loadChatDetails = async () => {
-      setLoadingMsgs(true);
-      try {
-        const { data: msgs } = await supabase.from('inbox_messages').select('*').eq('inbox_contact_id', selectedChatId).order('created_at', { ascending: false })
-        if (msgs) setChatMessages(msgs);
-        
-        const currentConv = conversations.find(c => c.id === selectedChatId);
-        if (currentConv) {
-            const matched = crmContacts.find(c => c.name?.toLowerCase() === currentConv.name.toLowerCase());
-            setActiveCrmContact(matched || null);
-        }
-      } catch (e) {
-        setChatMessages([]);
-      } finally {
-        setLoadingMsgs(false);
-      }
-    };
-    loadChatDetails();
-    setImportingLead(false); // Resetta il form quando si cambia chat
+    if (!selectedChatId) {
+      setChatMessages([]);
+      setActiveCrmContact(null);
+      return;
+    }
+    loadMessages(selectedChatId);
+    setImportingLead(false);
     setLeadFormData({ email: '', phone: '' });
-  }, [selectedChatId, conversations, crmContacts, loadingMsgs]);
+  }, [selectedChatId, loadMessages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
       e.preventDefault();
