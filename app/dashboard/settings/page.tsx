@@ -46,10 +46,16 @@ export default function SettingsPage() {
   const [smsNumber, setSmsNumber] = useState('')
   const [smsBotEnabled, setSmsBotEnabled] = useState(false)
   const [smsWebhookCopied, setSmsWebhookCopied] = useState(false)
-  // Email inbound
-  const [inboxEmail, setInboxEmail] = useState('')
+  // Email inbound IMAP
+  const [imapEmail, setImapEmail] = useState('')
+  const [imapPassword, setImapPassword] = useState('')
+  const [imapHost, setImapHost] = useState('') // Vuoto = auto-detect
   const [emailBotEnabled, setEmailBotEnabled] = useState(false)
   const [emailCopied, setEmailCopied] = useState(false)
+  const [emailTestStatus, setEmailTestStatus] = useState<'idle'|'loading'|'ok'|'error'>('idle')
+  const [emailTestMsg, setEmailTestMsg] = useState('')
+  const [emailSyncing, setEmailSyncing] = useState(false)
+  const [emailSyncMsg, setEmailSyncMsg] = useState('')
   const [botPrompt, setBotPrompt] = useState('Sei un cordiale e professionale assistente clienti. Rispondi in modo conciso ma esaustivo.')
 
   const defaultHours = {
@@ -142,12 +148,8 @@ export default function SettingsPage() {
             if (ig) { setIgPageToken(ig.access_token || ''); setIgBusinessId(ig.provider_id || ''); setIgBotEnabled(ig.bot_enabled) }
             const sms = channels.find((c: any) => c.provider === 'sms')
             if (sms) { setSmsSid(sms.metadata?.account_sid || ''); setSmsAuthToken(sms.access_token || ''); setSmsNumber(sms.provider_id || ''); setSmsBotEnabled(sms.bot_enabled) }
-            const email = channels.find((c: any) => c.provider === 'email')
-            if (email) { setEmailBotEnabled(email.bot_enabled) }
-        }
-        // Genera indirizzo email univoco per questa azienda
-        const shortId = user.id.replace(/-/g, '').substring(0, 12).toLowerCase()
-        setInboxEmail(`inbox-${shortId}@mail.integraos.tech`)
+            const email = channels.find((c: any) => c.provider === 'email_imap')
+            if (email) { setImapEmail(email.provider_id || ''); setEmailBotEnabled(email.bot_enabled); setImapHost(email.metadata?.imap_host || '') }
       } catch (error) {
           console.error("Errore caricamento impostazioni:", error)
       } finally {
@@ -246,10 +248,11 @@ export default function SettingsPage() {
         }, { onConflict: 'user_id,provider,provider_id' })
     }
 
-    if (inboxEmail) {
+    if (imapEmail) {
         await supabase.from('inbox_channels').upsert({ 
-            user_id: user.id, provider: 'email', provider_id: inboxEmail, name: 'Email Inbound', 
-            access_token: '', bot_enabled: emailBotEnabled, bot_prompt: botPrompt
+            user_id: user.id, provider: 'email_imap', provider_id: imapEmail, name: 'Email IMAP', 
+            access_token: imapPassword, bot_enabled: emailBotEnabled, bot_prompt: botPrompt,
+            metadata: { imap_host: imapHost || null }
         }, { onConflict: 'user_id,provider,provider_id' })
     }
 
@@ -282,8 +285,50 @@ export default function SettingsPage() {
       setSmsWebhookCopied(true); setTimeout(() => setSmsWebhookCopied(false), 2000)
   }
   const copyEmailAddress = () => {
-      navigator.clipboard.writeText(inboxEmail)
+      navigator.clipboard.writeText(imapEmail)
       setEmailCopied(true); setTimeout(() => setEmailCopied(false), 2000)
+  }
+
+  const handleTestEmail = async () => {
+      if (!imapEmail || !imapPassword) {
+          setEmailTestStatus('error')
+          setEmailTestMsg('Inserisci email e password prima di testare.')
+          return
+      }
+      setEmailTestStatus('loading')
+      setEmailTestMsg('')
+      try {
+          const params = new URLSearchParams({ email: imapEmail, password: imapPassword })
+          if (imapHost) params.set('host', imapHost)
+          const res = await fetch(`/api/inbox/email-poll?${params}`)
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.error)
+          setEmailTestStatus('ok')
+          setEmailTestMsg(data.message)
+      } catch (err: any) {
+          setEmailTestStatus('error')
+          setEmailTestMsg(err.message)
+      }
+  }
+
+  const handleSyncEmail = async () => {
+      if (!user) return
+      setEmailSyncing(true)
+      setEmailSyncMsg('')
+      try {
+          const res = await fetch('/api/inbox/email-poll', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId: user.id })
+          })
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.error)
+          setEmailSyncMsg(`✅ Sincronizzate ${data.importedCount} nuove email nell'Inbox.`)
+      } catch (err: any) {
+          setEmailSyncMsg(`❌ ${err.message}`)
+      } finally {
+          setEmailSyncing(false)
+      }
   }
 
   const handleActivateTelegram = async () => {
@@ -692,13 +737,17 @@ export default function SettingsPage() {
                           </div>
 
                           {/* ── EMAIL INBOUND ─────────────────────────── */}
+                          {/* ── EMAIL (IMAP) ───────────────────────────── */}
                           <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-amber-400 transition">
                               <div className="flex justify-between items-start mb-4">
                                   <div className="flex items-center gap-3">
                                       <div className="bg-amber-100 text-amber-600 p-2.5 rounded-xl text-lg">📧</div>
                                       <div>
-                                          <h4 className="font-black text-gray-800">Email Inbound</h4>
-                                          <p className="text-xs text-gray-500">Le email in arrivo compaiono nell'Inbox come chat.</p>
+                                          <div className="flex items-center gap-2">
+                                              <h4 className="font-black text-gray-800">Email (Gmail, Outlook, Aruba...)</h4>
+                                              {emailTestStatus === 'ok' && <span className="text-[10px] bg-emerald-100 text-emerald-700 font-black px-2 py-0.5 rounded-full">✓ CONNESSA</span>}
+                                          </div>
+                                          <p className="text-xs text-gray-500">Le email ricevute compaiono nell'Inbox come conversazioni.</p>
                                       </div>
                                   </div>
                                   <label className="flex items-center gap-2 text-xs font-bold text-amber-600 cursor-pointer">
@@ -706,18 +755,83 @@ export default function SettingsPage() {
                                       {emailBotEnabled ? '🤖 AI Risponde' : '👤 Manuale'}
                                   </label>
                               </div>
+
                               <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl mb-4 text-xs text-amber-900 space-y-1.5 leading-relaxed">
-                                  <p className="font-black mb-2">📋 Il tuo indirizzo IntegraOS univoco:</p>
-                                  <p>Configura il <b>forward automatico</b> dalla tua email aziendale verso questo indirizzo. Ogni email ricevuta comparirà nell'Inbox come una conversazione.</p>
-                                  <div className="flex items-center gap-2 mt-2">
-                                      <code className="bg-amber-200 px-2 py-1 rounded text-[10px] flex-1 font-bold">{inboxEmail || 'Caricamento...'}</code>
-                                      <button onClick={copyEmailAddress} className="bg-amber-500 text-white px-2 py-1 rounded text-[10px] font-black shrink-0 flex items-center gap-1">
-                                          {emailCopied ? <><CheckCircle size={10}/> Copiato</> : <><Copy size={10}/> Copia</>}
-                                      </button>
-                                  </div>
-                                  <p className="mt-2"><b>Come fare il forward:</b> Gmail → Impostazioni → Inoltro → Aggiungi indirizzo → incolla l'indirizzo sopra</p>
+                                  <p className="font-black mb-1">📋 Funziona con qualsiasi provider (3 minuti):</p>
+                                  <p><b>1.</b> Inserisci la tua email aziendale qui sotto</p>
+                                  <p><b>2.</b> Per <b>Gmail</b>: vai su <a href="https://myaccount.google.com/apppasswords" target="_blank" className="underline font-bold">account.google.com/apppasswords</a> → genera una "Password per le app" (non usare la password normale)</p>
+                                  <p><b>3.</b> Per <b>Outlook/Hotmail</b>: abilita IMAP in Impostazioni → Sincronizza email → IMAP</p>
+                                  <p><b>4.</b> Per <b>email del sito</b> (Aruba, SiteGround, ecc.): usa email e password del pannello di controllo hosting</p>
+                                  <p><b>5.</b> Clicca <b>"Testa Connessione"</b> — IntegraOS verifica e poi sincronizza automaticamente</p>
                               </div>
-                              <p className="text-[10px] text-gray-400 font-medium">💾 Clicca <b>"Salva Tutto"</b> per attivare l'AI reply sulle email in arrivo.</p>
+
+                              <div className="grid grid-cols-1 gap-3 mb-3">
+                                  <div>
+                                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Indirizzo Email</label>
+                                      <input
+                                          type="email"
+                                          value={imapEmail}
+                                          onChange={e => { setImapEmail(e.target.value); setEmailTestStatus('idle') }}
+                                          placeholder="info@miazienda.it oppure mia@gmail.com"
+                                          className="w-full bg-gray-50 border p-3 rounded-xl text-sm outline-none focus:border-amber-400"
+                                      />
+                                  </div>
+                                  <div>
+                                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Password (o App Password per Gmail)</label>
+                                      <input
+                                          type="password"
+                                          value={imapPassword}
+                                          onChange={e => { setImapPassword(e.target.value); setEmailTestStatus('idle') }}
+                                          placeholder="••••••••••••"
+                                          className="w-full bg-gray-50 border p-3 rounded-xl text-sm font-mono outline-none focus:border-amber-400"
+                                      />
+                                  </div>
+                                  <div>
+                                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Server IMAP (opzionale — lascia vuoto per auto-detect)</label>
+                                      <input
+                                          type="text"
+                                          value={imapHost}
+                                          onChange={e => setImapHost(e.target.value)}
+                                          placeholder="es. imap.miohosting.it (lascia vuoto per Gmail, Outlook, Libero, ecc.)"
+                                          className="w-full bg-gray-50 border p-3 rounded-xl text-sm font-mono outline-none focus:border-amber-400"
+                                      />
+                                  </div>
+                              </div>
+
+                              <div className="flex gap-2">
+                                  <button
+                                      onClick={handleTestEmail}
+                                      disabled={emailTestStatus === 'loading' || !imapEmail || !imapPassword}
+                                      className={`flex-1 py-2.5 rounded-xl text-sm font-black transition flex items-center justify-center gap-2 ${
+                                          emailTestStatus === 'ok' ? 'bg-emerald-500 text-white'
+                                          : emailTestStatus === 'error' ? 'bg-red-500 text-white'
+                                          : 'bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40'
+                                      }`}
+                                  >
+                                      {emailTestStatus === 'loading' ? <><Loader2 size={14} className="animate-spin"/> Verifica in corso...</>
+                                       : emailTestStatus === 'ok' ? <>✓ Connessione OK</>
+                                       : emailTestStatus === 'error' ? <>✗ Errore — riprova</>
+                                       : <>🔌 Testa Connessione</>}
+                                  </button>
+
+                                  {emailTestStatus === 'ok' && (
+                                      <button
+                                          onClick={handleSyncEmail}
+                                          disabled={emailSyncing}
+                                          className="flex-1 py-2.5 rounded-xl text-sm font-black bg-[#00665E] text-white hover:bg-[#004d46] transition flex items-center justify-center gap-2 disabled:opacity-50"
+                                      >
+                                          {emailSyncing ? <><Loader2 size={14} className="animate-spin"/> Sincronizzazione...</> : <>📥 Sincronizza ora</>}
+                                      </button>
+                                  )}
+                              </div>
+
+                              {emailTestMsg && (
+                                  <p className={`text-xs mt-2 font-bold px-1 ${emailTestStatus === 'error' ? 'text-red-500' : 'text-emerald-600'}`}>{emailTestMsg}</p>
+                              )}
+                              {emailSyncMsg && (
+                                  <p className="text-xs mt-1 font-bold px-1 text-[#00665E]">{emailSyncMsg}</p>
+                              )}
+                              <p className="text-[10px] text-gray-400 mt-3 font-medium">💾 Salva Tutto per persistere le credenziali. IntegraOS non potrà leggere le email già lette in precedenza.</p>
                           </div>
 
                           {/* VOICE AI BUDGETING */}

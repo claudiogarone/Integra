@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { createClient } from '../../../../utils/supabase/client'
+import { createClient } from '../../../utils/supabase/client'
 
 export default function ArPublicPage() {
   const params = useParams()
