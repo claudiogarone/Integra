@@ -11,7 +11,7 @@ import {
   Database, Calendar, BarChart3, Megaphone, Image as ImageIcon, 
   Radar, EyeOff, Handshake, UserCog, GraduationCap, Mic, 
   ShoppingBag, FileText, MessageSquare, BarChart, Target, Building,
-  BrainCircuit, Star, Shield, Brain
+  BrainCircuit, Star, Shield, Brain, ClipboardList, ScanLine, PartyPopper
 } from 'lucide-react'
 
 type MenuItem = {
@@ -88,8 +88,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               { name: 'Fidelity Card & Punti', href: '/dashboard/loyalty', icon: <CreditCard size={18}/> },
               { name: 'Report Fedeltà', href: '/dashboard/loyalty/report', icon: <BarChart size={18}/> },
               { name: 'Campagne Marketing', href: '/dashboard/marketing', icon: <Megaphone size={18}/> },
+              { name: 'Sondaggi & Landing', href: '/dashboard/surveys', icon: <ClipboardList size={18}/>, badge: 'Nuovo' },
+              { name: 'Gestione Eventi', href: '/dashboard/events', icon: <PartyPopper size={18}/>, badge: 'Nuovo' },
               { name: 'Launchpad Social', href: '/dashboard/launchpad', icon: <Sparkles size={18}/> },
               { name: 'Radar Media Locali', href: '/dashboard/radar', icon: <Radar size={18}/> },
+              { name: 'AR Tour & QR Code', href: '/dashboard/ar-tour', icon: <ScanLine size={18}/>, badge: 'AI' },
           ]
       },
       {

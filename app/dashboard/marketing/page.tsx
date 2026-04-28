@@ -23,10 +23,12 @@ export default function MarketingPage() {
   const [step, setStep] = useState(1) 
   const [viewCampaign, setViewCampaign] = useState<any>(null)
 
-  const [channel, setChannel] = useState<'email' | 'whatsapp' | 'sms' | 'social' | 'telegram'>('email')
+  const [channel, setChannel] = useState<'email' | 'whatsapp' | 'sms' | 'social' | 'telegram' | 'custom'>('email')
   const [subject, setSubject] = useState('')
   const [content, setContent] = useState('Ciao {{name}},\n\nAbbiamo delle novità fantastiche pensate apposta per te...')
-  const [scheduleDate, setScheduleDate] = useState('') 
+  const [scheduleDate, setScheduleDate] = useState('')
+  const [customChannelName, setCustomChannelName] = useState('')
+  const [customChannelCost, setCustomChannelCost] = useState('0.00') 
   
   const [selectedCatalogProducts, setSelectedCatalogProducts] = useState<any[]>([]) 
   const [customProduct, setCustomProduct] = useState({ name: '', price: '', url: '' }) 
@@ -47,7 +49,8 @@ export default function MarketingPage() {
     whatsapp: 0.09,
     sms: 0.06,
     social: 0.014,
-    telegram: 0.007
+    telegram: 0.007,
+    custom: parseFloat(customChannelCost) || 0
   }
 
   const [sending, setSending] = useState(false)
@@ -590,7 +593,29 @@ export default function MarketingPage() {
                                          <p className="text-xs text-gray-500 font-bold mt-1">€0,007 / msg</p>
                                      </div>
                                  </div>
+
+                                 <div onClick={() => setChannel('custom')} className={`p-6 rounded-2xl border-2 cursor-pointer transition flex flex-col items-center justify-center gap-3 text-center ${channel === 'custom' ? 'border-rose-500 bg-rose-50 shadow-md' : 'border-gray-200 bg-white hover:border-rose-300'}`}>
+                                     <Layers size={32} className={channel === 'custom' ? 'text-rose-600' : 'text-gray-400'}/>
+                                     <div>
+                                         <h4 className="font-black text-gray-900">Altro / Personalizzato</h4>
+                                         <p className="text-[10px] text-gray-400 font-medium">Meta Ads, Google, Influencer, Fisico...</p>
+                                         <p className="text-xs text-rose-500 font-bold mt-1">Prezzo custom</p>
+                                     </div>
+                                 </div>
                              </div>
+
+                             {channel === 'custom' && (
+                                 <div className="mt-2 p-5 bg-rose-50 border border-rose-200 rounded-2xl flex flex-col md:flex-row gap-4 items-start md:items-center">
+                                     <div className="flex-1">
+                                         <label className="text-[10px] font-black uppercase text-rose-700 tracking-widest block mb-1">Nome Canale</label>
+                                         <input type="text" placeholder="Es: Meta Ads, Google Display, Volantini..." value={customChannelName} onChange={e => setCustomChannelName(e.target.value)} className="w-full p-3 bg-white border border-rose-200 rounded-xl font-bold text-gray-900 outline-none focus:border-rose-500 text-sm" />
+                                     </div>
+                                     <div className="w-48 shrink-0">
+                                         <label className="text-[10px] font-black uppercase text-rose-700 tracking-widest block mb-1">Costo per Contatto (€)</label>
+                                         <input type="number" min="0" step="0.001" placeholder="0.050" value={customChannelCost} onChange={e => setCustomChannelCost(e.target.value)} className="w-full p-3 bg-white border border-rose-200 rounded-xl font-black text-rose-700 outline-none focus:border-rose-500 text-center" />
+                                     </div>
+                                 </div>
+                             )}
 
                              <div className="mt-auto flex justify-end">
                                  <button onClick={() => setStep(2)} className="bg-[#00665E] text-white px-8 py-4 rounded-xl font-black hover:bg-[#004d46] transition shadow-[0_10px_20px_rgba(0,102,94,0.2)] flex items-center gap-2">Componi Messaggio <ArrowRight size={18}/></button>

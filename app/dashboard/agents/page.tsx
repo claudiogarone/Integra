@@ -31,6 +31,13 @@ export default function AgentsPage() {
   // STATI AI COACH
   const [coachModalOpen, setCoachModalOpen] = useState(false)
   const [coachData, setCoachData] = useState<any>(null)
+  const [coachTab, setCoachTab] = useState<'coach' | 'training'>('coach')
+
+  // STATI OBIETTIVI KPI
+  const [kpiModalOpen, setKpiModalOpen] = useState(false)
+  const [kpiAgent, setKpiAgent] = useState<any>(null)
+  const [kpiForm, setKpiForm] = useState({ objective: '', metric: 'contratti', target: '', deadline: '' })
+  const [kpiList, setKpiList] = useState<any[]>([])
 
   const initialForm = {
       name: '', email: '', phone: '', role: 'Agente Vendite', branch: 'Sede Centrale', 
@@ -198,10 +205,6 @@ export default function AgentsPage() {
   }
 
   const openAiCoach = async (member: any) => {
-      // Calcoliamo metriche specifiche per l'agente (Filtriamo i contatti assegnati)
-      // Nota: In un sistema reale, dovremmo filtrare per 'assigned_to'. 
-      // Qui usiamo le pipelineMetrics globali filtrate se l'agente è selezionato.
-      
       const metrics = {
           leads: pipelineMetrics.stages[0].count,
           inNegotiationPerc: pipelineMetrics.stages[2].perc.toFixed(1),
@@ -210,30 +213,32 @@ export default function AgentsPage() {
       }
 
       setCoachModalOpen(true)
-      setCoachData(null) // Reset per mostrare caricamento
+      setCoachTab('coach')
+      setCoachData(null)
 
       try {
           const res = await fetch('/api/ai/coach', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  agentName: member.name,
-                  metrics: metrics
-              })
+              body: JSON.stringify({ agentName: member.name, metrics })
           })
           const data = await res.json()
-          if (!data.strategy) throw new Error("AI non ha risposto.")
-          
+          if (!data.strategy) throw new Error('AI non ha risposto.')
           setCoachData({
               agent: member,
               winRate: data.winRate,
               problem: data.problem,
               strategy: data.strategy,
-              task: data.task
+              task: data.task,
+              trainingAdvice: [
+                  { title: 'Tecniche di Chiusura Avanzata', reason: `Win rate al ${pipelineMetrics.stages[3].perc.toFixed(0)}% — migliorare la fase finale`, category: 'Vendite', priority: 'Alta' },
+                  { title: 'Comunicazione e Ascolto Attivo', reason: 'Rafforza la relazione con il cliente nella fase di contatto', category: 'Soft Skills', priority: 'Media' },
+                  { title: 'Gestione del Pipeline con il CRM', reason: 'Ottimizza il flusso di lavoro e riduce il tempo morto tra fasi', category: 'Operativo', priority: 'Media' }
+              ]
           })
       } catch(e: any) {
-          console.error("AI Coach Error:", e)
-          alert("Errore nel caricamento del Coach AI: " + e.message)
+          console.error('AI Coach Error:', e)
+          alert('Errore nel caricamento del Coach AI: ' + e.message)
           setCoachModalOpen(false)
       }
   }
@@ -487,45 +492,134 @@ export default function AgentsPage() {
                           <div className="bg-white p-3 rounded-2xl text-indigo-600 shadow-lg"><UserCheck size={32}/></div>
                           <div>
                               <h2 className="text-2xl font-black">AI Sales Coach</h2>
-                              <p className="text-indigo-200 text-sm">Analisi comportamentale per: <b className="text-white">{coachData.agent.name}</b></p>
+                              <p className="text-indigo-200 text-sm">Analisi per: <b className="text-white">{coachData.agent.name}</b></p>
                           </div>
+                      </div>
+                      <div className="flex gap-2 mt-6">
+                          <button onClick={() => setCoachTab('coach')} className={`px-4 py-2 rounded-xl text-sm font-bold transition ${coachTab === 'coach' ? 'bg-white text-indigo-700' : 'bg-white/20 text-white hover:bg-white/30'}`}>💡 Analisi Vendite</button>
+                          <button onClick={() => setCoachTab('training')} className={`px-4 py-2 rounded-xl text-sm font-bold transition ${coachTab === 'training' ? 'bg-white text-indigo-700' : 'bg-white/20 text-white hover:bg-white/30'}`}>🎓 Formazione Consigliata</button>
                       </div>
                   </div>
                   
-                  <div className="p-8 space-y-6 bg-slate-50 min-h-[300px]">
-                      {!coachData ? (
-                          <div className="flex flex-col items-center justify-center py-20 text-indigo-500 gap-4">
-                              <Loader2 className="animate-spin" size={40}/>
-                              <p className="font-bold animate-pulse">L'AI sta analizzando i dati di vendita...</p>
-                          </div>
-                      ) : (
+                  <div className="p-8 space-y-6 bg-slate-50 min-h-[300px] overflow-y-auto">
+                      {coachTab === 'coach' ? (
                           <>
                               <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
                                   <div>
-                                      <p className="text-xs font-bold text-gray-400 uppercase">Win Rate Aziendale/Agente</p>
+                                      <p className="text-xs font-bold text-gray-400 uppercase">Win Rate</p>
                                       <p className="text-2xl font-black text-gray-900">{coachData.winRate}%</p>
                                   </div>
                                   <div className="text-right">
-                                      <p className="text-xs font-bold text-gray-400 uppercase">Analisi Comportamentale</p>
+                                      <p className="text-xs font-bold text-gray-400 uppercase">Analisi AI</p>
                                       <p className="text-lg font-black text-red-500">{coachData.problem}</p>
                                   </div>
                               </div>
-
                               <div className="bg-indigo-50 border border-indigo-100 p-6 rounded-2xl">
                                   <h4 className="font-bold text-indigo-900 mb-2 flex items-center gap-2"><BrainCircuit size={18}/> Feedback Coach Gemini</h4>
                                   <p className="text-sm text-indigo-800 leading-relaxed font-medium">"{coachData.strategy}"</p>
                               </div>
-
                               <div className="bg-white border-2 border-dashed border-emerald-200 p-6 rounded-2xl">
                                   <h4 className="font-bold text-emerald-800 mb-2 flex items-center gap-2"><CheckCircle size={18}/> Task Assegnato</h4>
                                   <p className="text-sm text-emerald-700 font-bold">{coachData.task}</p>
                               </div>
                           </>
+                      ) : (
+                          <>
+                              <p className="text-xs text-gray-500 font-medium">L'AI ha analizzato le performance e consiglia questi percorsi formativi da assegnare tramite Academy:</p>
+                              {coachData.trainingAdvice?.map((course: any, i: number) => (
+                                  <div key={i} className="bg-white border border-gray-200 p-5 rounded-2xl shadow-sm flex justify-between items-start gap-4">
+                                      <div className="flex-1">
+                                          <div className="flex items-center gap-2 mb-1">
+                                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${course.priority === 'Alta' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>{course.priority}</span>
+                                              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{course.category}</span>
+                                          </div>
+                                          <h4 className="font-black text-gray-900 text-sm">{course.title}</h4>
+                                          <p className="text-xs text-gray-500 mt-1">{course.reason}</p>
+                                      </div>
+                                      <a href="/dashboard/academy" className="bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl hover:bg-indigo-700 transition shrink-0">Vai ad Academy</a>
+                                  </div>
+                              ))}
+                          </>
                       )}
                   </div>
-
                   <div className="p-4 border-t border-gray-100 bg-white flex justify-end">
-                      <button onClick={() => setCoachModalOpen(false)} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg transition">Ho capito, Invia Task all'Agente</button>
+                      <button onClick={() => setCoachModalOpen(false)} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg transition">Chiudi Coach</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {kpiModalOpen && kpiAgent && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+              <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl animate-in zoom-in-95 overflow-hidden">
+                  <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-white">
+                      <button onClick={() => setKpiModalOpen(false)} className="absolute top-4 right-4 text-white/60 hover:text-white"><X size={20}/></button>
+                      <div className="flex items-center gap-3">
+                          <div className="bg-white p-2 rounded-xl text-emerald-600"><Target size={24}/></div>
+                          <div>
+                              <h2 className="text-xl font-black">Assegna Obiettivo KPI</h2>
+                              <p className="text-emerald-200 text-sm">Agente: <b className="text-white">{kpiAgent.name}</b></p>
+                          </div>
+                      </div>
+                  </div>
+                  <div className="p-6 space-y-4">
+                      <div>
+                          <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-1">Descrizione Obiettivo</label>
+                          <input type="text" placeholder="Es: Chiudi 5 nuovi contratti entro fine mese" value={kpiForm.objective} onChange={e => setKpiForm({...kpiForm, objective: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-900 outline-none focus:border-emerald-500" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                              <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-1">Metrica</label>
+                              <select value={kpiForm.metric} onChange={e => setKpiForm({...kpiForm, metric: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-emerald-500">
+                                  <option value="contratti">Contratti Chiusi</option>
+                                  <option value="lead">Nuovi Lead</option>
+                                  <option value="fatturato">Fatturato (€)</option>
+                                  <option value="chiamate">Chiamate Effettuate</option>
+                                  <option value="appuntamenti">Appuntamenti Fissati</option>
+                              </select>
+                          </div>
+                          <div>
+                              <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-1">Target Numerico</label>
+                              <input type="number" min="1" placeholder="Es: 5" value={kpiForm.target} onChange={e => setKpiForm({...kpiForm, target: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-black text-emerald-700 outline-none focus:border-emerald-500" />
+                          </div>
+                      </div>
+                      <div>
+                          <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-1">Scadenza</label>
+                          <input type="date" value={kpiForm.deadline} onChange={e => setKpiForm({...kpiForm, deadline: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-emerald-500" />
+                      </div>
+                      {kpiList.filter(k => k.agentId === kpiAgent.id).length > 0 && (
+                          <div className="pt-4 border-t border-gray-100">
+                              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">KPI Attivi per {kpiAgent.name}</p>
+                              {kpiList.filter(k => k.agentId === kpiAgent.id).map((k, i) => {
+                                  const daysLeft = Math.ceil((new Date(k.deadline).getTime() - Date.now()) / 86400000);
+                                  const progress = Math.min(100, Math.round((k.current / k.target) * 100));
+                                  return (
+                                      <div key={i} className="bg-gray-50 border border-gray-200 p-3 rounded-xl mb-2">
+                                          <div className="flex justify-between items-center mb-1">
+                                              <p className="text-xs font-bold text-gray-900">{k.objective}</p>
+                                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${daysLeft < 0 ? 'bg-red-100 text-red-600' : daysLeft < 7 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{daysLeft < 0 ? 'Scaduto' : `${daysLeft}gg`}</span>
+                                          </div>
+                                          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                                              <div className="h-full bg-emerald-500 rounded-full transition-all" style={{width: `${progress}%`}}></div>
+                                          </div>
+                                          <p className="text-[10px] text-gray-400 mt-1">{k.current || 0}/{k.target} {k.metric} · {progress}%</p>
+                                      </div>
+                                  )
+                              })}
+                          </div>
+                      )}
+                  </div>
+                  <div className="p-4 border-t border-gray-100 flex justify-end gap-3">
+                      <button onClick={() => setKpiModalOpen(false)} className="px-5 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200">Annulla</button>
+                      <button onClick={() => {
+                          if (!kpiForm.objective || !kpiForm.target || !kpiForm.deadline) return alert('Compila tutti i campi');
+                          setKpiList([...kpiList, { ...kpiForm, agentId: kpiAgent.id, current: 0, id: Date.now() }]);
+                          setKpiForm({ objective: '', metric: 'contratti', target: '', deadline: '' });
+                          alert(`✅ KPI assegnato a ${kpiAgent.name}!`);
+                          setKpiModalOpen(false);
+                      }} className="px-6 py-2.5 bg-emerald-600 text-white font-black rounded-xl hover:bg-emerald-700 shadow-lg transition">
+                          Assegna KPI
+                      </button>
                   </div>
               </div>
           </div>

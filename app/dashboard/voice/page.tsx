@@ -24,7 +24,7 @@ export default function VoiceAgentPage() {
 
   // STATI UI
   const [agentActive, setAgentActive] = useState(false)
-  const [activeTab, setActiveTab] = useState<'overview' | 'settings'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'minutes'>('overview')
   const [isSaving, setIsSaving] = useState(false)
   
   // STATI AZIONI INTERATTIVE
@@ -177,6 +177,7 @@ Regola d'oro: Sii conciso. Usa frasi brevi, adatte a una conversazione telefonic
           <div className="flex gap-2">
               <button onClick={() => setActiveTab('overview')} className={`px-5 py-2 rounded-lg font-bold text-sm transition ${activeTab === 'overview' ? 'bg-[#00665E] text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}>Monitoraggio Live</button>
               <button onClick={() => setActiveTab('settings')} className={`px-5 py-2 rounded-lg font-bold text-sm transition ${activeTab === 'settings' ? 'bg-[#00665E] text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}>Configurazione Centralino</button>
+              {currentPlan !== 'Ambassador' && <button onClick={() => setActiveTab('minutes')} className={`px-5 py-2 rounded-lg font-bold text-sm transition flex items-center gap-1.5 ${activeTab === 'minutes' ? 'bg-amber-500 text-white shadow-md' : 'text-amber-600 hover:bg-amber-50 border border-amber-200'}`}><Zap size={14}/> Ricarica Minuti</button>}
           </div>
           
           <div className="flex items-center gap-4">
@@ -379,6 +380,50 @@ Regola d'oro: Sii conciso. Usa frasi brevi, adatte a una conversazione telefonic
                       </div>
                   </div>
 
+              </div>
+          )}
+
+          {/* TAB 3: RICARICA MINUTI */}
+          {activeTab === 'minutes' && (
+              <div className="animate-in fade-in space-y-6">
+                  <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-3xl p-6">
+                      <h3 className="font-black text-gray-900 text-xl mb-1 flex items-center gap-2"><Zap size={20} className="text-amber-500"/> Acquista Pacchetti Minuti</h3>
+                      <p className="text-sm text-gray-500">Hai consumato <b className="text-amber-600">{minutesUsed}/{limits[currentPlan]}</b> minuti inclusi nel piano <b>{currentPlan}</b>. Acquista minuti aggiuntivi per continuare.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                      {[
+                          { mins: 50, price: 9.90, label: 'Starter', color: 'border-blue-200 bg-blue-50', badge: 'bg-blue-500', popular: false },
+                          { mins: 200, price: 29.90, label: 'Business', color: 'border-[#00665E]/40 bg-teal-50', badge: 'bg-[#00665E]', popular: true },
+                          { mins: 500, price: 59.90, label: 'Pro', color: 'border-purple-200 bg-purple-50', badge: 'bg-purple-600', popular: false },
+                          { mins: 1500, price: 149.90, label: 'Enterprise+', color: 'border-amber-200 bg-amber-50', badge: 'bg-amber-500', popular: false },
+                      ].map((pkg, i) => (
+                          <div key={i} className={`relative border-2 ${pkg.color} rounded-3xl p-6 flex flex-col items-center text-center shadow-sm hover:shadow-xl transition hover:scale-[1.02]`}>
+                              {pkg.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#00665E] text-white text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-lg">Più Popolare</div>}
+                              <div className={`${pkg.badge} text-white text-xs font-black uppercase px-3 py-1 rounded-full mb-4`}>{pkg.label}</div>
+                              <p className="text-5xl font-black text-gray-900 mb-1">{pkg.mins}</p>
+                              <p className="text-sm font-bold text-gray-500 mb-4">minuti extra</p>
+                              <p className="text-2xl font-black text-gray-900 mb-1">€{pkg.price.toFixed(2)}</p>
+                              <p className="text-[10px] text-gray-400 font-bold mb-6">€{(pkg.price/pkg.mins).toFixed(3)}/min • IVA incl.</p>
+                              <button onClick={() => {
+                                  if (confirm(`Acquistare ${pkg.mins} minuti per €${pkg.price.toFixed(2)}?\nVerrai reindirizzato al checkout sicuro.`)) {
+                                      alert('🔗 Reindirizzamento al checkout Stripe...\n(In produzione: stripe.checkout.session.create)')
+                                  }
+                              }} className={`w-full py-3 rounded-xl font-black text-sm text-white ${pkg.badge} hover:opacity-90 transition shadow-md`}>
+                                  Acquista Pacchetto
+                              </button>
+                          </div>
+                      ))}
+                  </div>
+
+                  <div className="bg-white border border-gray-200 rounded-3xl p-6">
+                      <h4 className="font-black text-gray-900 mb-4">Cronologia Acquisti Minuti</h4>
+                      <div className="text-center py-8 text-gray-400">
+                          <Clock size={32} className="mx-auto mb-2 opacity-30"/>
+                          <p className="text-sm font-bold">Nessun acquisto ancora effettuato</p>
+                          <p className="text-xs mt-1">I tuoi acquisti appariranno qui con ricevuta</p>
+                      </div>
+                  </div>
               </div>
           )}
 

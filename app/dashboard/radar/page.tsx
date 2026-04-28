@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
     Radar, MapPin, CloudRain, Calendar, Megaphone, 
-    TrendingUp, ShieldAlert, Crosshair, Zap, Building, Lock, Loader2, ArrowRight, Search, CheckCircle2, Globe, BarChart3
+    TrendingUp, ShieldAlert, Crosshair, Zap, Building, Lock, Loader2, ArrowRight, Search, CheckCircle2, Globe, BarChart3,
+    Users, CreditCard, Handshake
 } from 'lucide-react'
 
 export default function MarketRadarPage() {
@@ -367,6 +368,69 @@ export default function MarketRadarPage() {
                               </div>
                           </div>
                       ))}
+                  </div>
+              )}
+
+              {/* SEZIONE: CHI FAR PAGARE / CON CHI COLLABORARE */}
+              {hasScanned && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-bottom-8 mt-2">
+                      {/* CHI FAR PAGARE */}
+                      <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-3xl p-6">
+                          <div className="flex items-center gap-3 mb-4">
+                              <div className="bg-amber-500 p-2.5 rounded-xl text-white"><CreditCard size={20}/></div>
+                              <div>
+                                  <h3 className="font-black text-gray-900 text-base">Chi Far Pagare di Più</h3>
+                                  <p className="text-[10px] text-amber-700 font-bold uppercase">Segmentazione Profittabilità</p>
+                              </div>
+                          </div>
+                          <div className="space-y-3">
+                              {[
+                                  { segment: 'Clienti Premium (LTV > 500€)', action: 'Prezzi +20%, servizi esclusivi', badge: 'Alta priorità', color: 'bg-red-100 text-red-700' },
+                                  { segment: 'Nuovi Clienti Zona Ricca', action: 'Pacchetti all-inclusive, no sconti', badge: 'Media', color: 'bg-amber-100 text-amber-700' },
+                                  { segment: 'B2B e Professionisti', action: 'Contratti annuali con margine 35%+', badge: 'Potenziale', color: 'bg-blue-100 text-blue-700' },
+                              ].map((s,i) => (
+                                  <div key={i} className="bg-white rounded-2xl p-4 border border-amber-100 shadow-sm">
+                                      <div className="flex justify-between items-start mb-1">
+                                          <p className="font-bold text-gray-900 text-sm">{s.segment}</p>
+                                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${s.color}`}>{s.badge}</span>
+                                      </div>
+                                      <p className="text-xs text-gray-500">{s.action}</p>
+                                  </div>
+                              ))}
+                          </div>
+                          <button onClick={() => router.push('/dashboard/crm')} className="mt-4 w-full bg-amber-500 text-white font-bold py-2.5 rounded-xl hover:bg-amber-600 flex items-center justify-center gap-2 text-sm">
+                              <Users size={14}/> Segmenta nel CRM
+                          </button>
+                      </div>
+
+                      {/* CON CHI COLLABORARE */}
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-3xl p-6">
+                          <div className="flex items-center gap-3 mb-4">
+                              <div className="bg-blue-600 p-2.5 rounded-xl text-white"><Handshake size={20}/></div>
+                              <div>
+                                  <h3 className="font-black text-gray-900 text-base">Con Chi Collaborare</h3>
+                                  <p className="text-[10px] text-blue-700 font-bold uppercase">Opportunità di Partnership Locali</p>
+                              </div>
+                          </div>
+                          <div className="space-y-3">
+                              {[
+                                  { partner: 'Palestre & Wellness Center', synergy: 'Cross-promo clienti salute/benessere', match: '95%' },
+                                  { partner: 'Ristoranti Premium Area', synergy: 'Accordi regalo/cashback per clienti VIP', match: '88%' },
+                                  { partner: 'Studi Professionali (CAF/Notai)', synergy: 'Referral B2B con commissione', match: '74%' },
+                              ].map((p,i) => (
+                                  <div key={i} className="bg-white rounded-2xl p-4 border border-blue-100 shadow-sm">
+                                      <div className="flex justify-between items-start mb-1">
+                                          <p className="font-bold text-gray-900 text-sm">{p.partner}</p>
+                                          <span className="text-xs font-black text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">{p.match}</span>
+                                      </div>
+                                      <p className="text-xs text-gray-500">{p.synergy}</p>
+                                  </div>
+                              ))}
+                          </div>
+                          <button onClick={() => router.push('/dashboard/affiliation')} className="mt-4 w-full bg-blue-600 text-white font-bold py-2.5 rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2 text-sm">
+                              <Handshake size={14}/> Vai ad Affiliation Network
+                          </button>
+                      </div>
                   </div>
               )}
 

@@ -24,8 +24,32 @@ export default function SettingsPage() {
   // --- NATIVE INBOX CHANNELS ---
   const [telegramToken, setTelegramToken] = useState('')
   const [telegramBotEnabled, setTelegramBotEnabled] = useState(true)
+  const [telegramStatus, setTelegramStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle')
+  const [telegramStatusMsg, setTelegramStatusMsg] = useState('')
   const [whatsappToken, setWhatsappToken] = useState('')
+  const [whatsappPhoneNumberId, setWhatsappPhoneNumberId] = useState('')
   const [whatsappBotEnabled, setWhatsappBotEnabled] = useState(false)
+  const [waWebhookCopied, setWaWebhookCopied] = useState(false)
+  // Facebook Messenger
+  const [fbPageToken, setFbPageToken] = useState('')
+  const [fbPageId, setFbPageId] = useState('')
+  const [fbBotEnabled, setFbBotEnabled] = useState(false)
+  const [fbWebhookCopied, setFbWebhookCopied] = useState(false)
+  // Instagram DM
+  const [igPageToken, setIgPageToken] = useState('')
+  const [igBusinessId, setIgBusinessId] = useState('')
+  const [igBotEnabled, setIgBotEnabled] = useState(false)
+  const [igWebhookCopied, setIgWebhookCopied] = useState(false)
+  // SMS via Twilio
+  const [smsSid, setSmsSid] = useState('')
+  const [smsAuthToken, setSmsAuthToken] = useState('')
+  const [smsNumber, setSmsNumber] = useState('')
+  const [smsBotEnabled, setSmsBotEnabled] = useState(false)
+  const [smsWebhookCopied, setSmsWebhookCopied] = useState(false)
+  // Email inbound
+  const [inboxEmail, setInboxEmail] = useState('')
+  const [emailBotEnabled, setEmailBotEnabled] = useState(false)
+  const [emailCopied, setEmailCopied] = useState(false)
   const [botPrompt, setBotPrompt] = useState('Sei un cordiale e professionale assistente clienti. Rispondi in modo conciso ma esaustivo.')
 
   const defaultHours = {
@@ -109,18 +133,21 @@ export default function SettingsPage() {
         const { data: channels } = await supabase.from('inbox_channels').select('*').eq('user_id', user.id)
         if (channels) {
             const tg = channels.find((c: any) => c.provider === 'telegram')
-            if (tg) { 
-                setTelegramToken(tg.access_token || '')
-                setTelegramBotEnabled(tg.bot_enabled)
-                if (tg.bot_prompt) setBotPrompt(tg.bot_prompt)
-            }
+            if (tg) { setTelegramToken(tg.access_token || ''); setTelegramBotEnabled(tg.bot_enabled); if (tg.bot_prompt) setBotPrompt(tg.bot_prompt); if (tg.access_token) setTelegramStatus('ok') }
             const wa = channels.find((c: any) => c.provider === 'whatsapp')
-            if (wa) { 
-                setWhatsappToken(wa.access_token || '')
-                setWhatsappBotEnabled(wa.bot_enabled)
-                if (wa.bot_prompt) setBotPrompt(wa.bot_prompt)
-            }
+            if (wa) { setWhatsappToken(wa.access_token || ''); setWhatsappPhoneNumberId(wa.metadata?.phone_number_id || ''); setWhatsappBotEnabled(wa.bot_enabled); if (wa.bot_prompt) setBotPrompt(wa.bot_prompt) }
+            const fb = channels.find((c: any) => c.provider === 'facebook')
+            if (fb) { setFbPageToken(fb.access_token || ''); setFbPageId(fb.provider_id || ''); setFbBotEnabled(fb.bot_enabled) }
+            const ig = channels.find((c: any) => c.provider === 'instagram')
+            if (ig) { setIgPageToken(ig.access_token || ''); setIgBusinessId(ig.provider_id || ''); setIgBotEnabled(ig.bot_enabled) }
+            const sms = channels.find((c: any) => c.provider === 'sms')
+            if (sms) { setSmsSid(sms.metadata?.account_sid || ''); setSmsAuthToken(sms.access_token || ''); setSmsNumber(sms.provider_id || ''); setSmsBotEnabled(sms.bot_enabled) }
+            const email = channels.find((c: any) => c.provider === 'email')
+            if (email) { setEmailBotEnabled(email.bot_enabled) }
         }
+        // Genera indirizzo email univoco per questa azienda
+        const shortId = user.id.replace(/-/g, '').substring(0, 12).toLowerCase()
+        setInboxEmail(`inbox-${shortId}@mail.integraos.tech`)
       } catch (error) {
           console.error("Errore caricamento impostazioni:", error)
       } finally {
@@ -181,17 +208,48 @@ export default function SettingsPage() {
     })
     
     // Salva i canali Native Inbox
-    if (telegramToken || telegramBotEnabled !== undefined) {
+    if (telegramToken) {
         await supabase.from('inbox_channels').upsert({ 
             user_id: user.id, provider: 'telegram', provider_id: 'default_tg', name: 'Telegram Bot', 
             access_token: telegramToken, bot_enabled: telegramBotEnabled, bot_prompt: botPrompt 
         }, { onConflict: 'user_id,provider,provider_id' })
     }
     
-    if (whatsappToken || whatsappBotEnabled !== undefined) {
+    if (whatsappToken) {
         await supabase.from('inbox_channels').upsert({ 
-            user_id: user.id, provider: 'whatsapp', provider_id: 'default_wa', name: 'WhatsApp', 
-            access_token: whatsappToken, bot_enabled: whatsappBotEnabled, bot_prompt: botPrompt 
+            user_id: user.id, provider: 'whatsapp', provider_id: whatsappPhoneNumberId || 'default_wa', name: 'WhatsApp', 
+            access_token: whatsappToken, bot_enabled: whatsappBotEnabled, bot_prompt: botPrompt,
+            metadata: { phone_number_id: whatsappPhoneNumberId }
+        }, { onConflict: 'user_id,provider,provider_id' })
+    }
+
+    if (fbPageToken && fbPageId) {
+        await supabase.from('inbox_channels').upsert({ 
+            user_id: user.id, provider: 'facebook', provider_id: fbPageId, name: 'Facebook Messenger', 
+            access_token: fbPageToken, bot_enabled: fbBotEnabled, bot_prompt: botPrompt,
+            metadata: { verify_token: user.id }
+        }, { onConflict: 'user_id,provider,provider_id' })
+    }
+
+    if (igPageToken && igBusinessId) {
+        await supabase.from('inbox_channels').upsert({ 
+            user_id: user.id, provider: 'instagram', provider_id: igBusinessId, name: 'Instagram DM', 
+            access_token: igPageToken, bot_enabled: igBotEnabled, bot_prompt: botPrompt
+        }, { onConflict: 'user_id,provider,provider_id' })
+    }
+
+    if (smsSid && smsAuthToken && smsNumber) {
+        await supabase.from('inbox_channels').upsert({ 
+            user_id: user.id, provider: 'sms', provider_id: smsNumber, name: 'SMS Twilio', 
+            access_token: smsAuthToken, bot_enabled: smsBotEnabled, bot_prompt: botPrompt,
+            metadata: { account_sid: smsSid }
+        }, { onConflict: 'user_id,provider,provider_id' })
+    }
+
+    if (inboxEmail) {
+        await supabase.from('inbox_channels').upsert({ 
+            user_id: user.id, provider: 'email', provider_id: inboxEmail, name: 'Email Inbound', 
+            access_token: '', bot_enabled: emailBotEnabled, bot_prompt: botPrompt
         }, { onConflict: 'user_id,provider,provider_id' })
     }
 
@@ -205,6 +263,51 @@ export default function SettingsPage() {
       navigator.clipboard.writeText(webhookUrl)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+  }
+
+  const copyWaWebhook = () => {
+      navigator.clipboard.writeText(`${publicBaseUrl}/api/inbox/webhook/whatsapp`)
+      setWaWebhookCopied(true); setTimeout(() => setWaWebhookCopied(false), 2000)
+  }
+  const copyFbWebhook = () => {
+      navigator.clipboard.writeText(`${publicBaseUrl}/api/inbox/webhook/facebook`)
+      setFbWebhookCopied(true); setTimeout(() => setFbWebhookCopied(false), 2000)
+  }
+  const copyIgWebhook = () => {
+      navigator.clipboard.writeText(`${publicBaseUrl}/api/inbox/webhook/instagram`)
+      setIgWebhookCopied(true); setTimeout(() => setIgWebhookCopied(false), 2000)
+  }
+  const copySmsWebhook = () => {
+      navigator.clipboard.writeText(`${publicBaseUrl}/api/inbox/webhook/sms`)
+      setSmsWebhookCopied(true); setTimeout(() => setSmsWebhookCopied(false), 2000)
+  }
+  const copyEmailAddress = () => {
+      navigator.clipboard.writeText(inboxEmail)
+      setEmailCopied(true); setTimeout(() => setEmailCopied(false), 2000)
+  }
+
+  const handleActivateTelegram = async () => {
+      if (!telegramToken.trim()) {
+          setTelegramStatus('error')
+          setTelegramStatusMsg('Incolla il token del bot prima di attivare.')
+          return
+      }
+      setTelegramStatus('loading')
+      setTelegramStatusMsg('')
+      try {
+          const res = await fetch('/api/inbox/register/telegram', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ botToken: telegramToken })
+          })
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.error)
+          setTelegramStatus('ok')
+          setTelegramStatusMsg(data.message || `✅ ${data.botName} collegato con successo!`)
+      } catch (err: any) {
+          setTelegramStatus('error')
+          setTelegramStatusMsg(err.message)
+      }
   }
 
   const updateSocial = (network: string, value: string) => setFormData(prev => ({...prev, social_links: {...prev.social_links, [network]: value}}))
@@ -342,54 +445,280 @@ export default function SettingsPage() {
 
                   {/* NATIVE INBOX CHANNELS */}
                   <div className="bg-gradient-to-br from-[#F8FAFC] to-blue-50 p-8 rounded-3xl border border-blue-100 shadow-sm relative overflow-hidden">
-                      <div className="flex items-center gap-4 mb-6">
+                      <div className="flex items-center gap-4 mb-2">
                           <div className="bg-[#00665E] text-white p-3 rounded-xl shadow-lg"><MessageCircle size={24}/></div>
                           <div>
                               <h3 className="text-xl font-black text-gray-900">Canali Omnichannel & AI</h3>
-                              <p className="text-sm text-gray-600">Gestisci i token per ricevere messaggi dai social direttamente nell'Inbox di IntegraOS.</p>
+                              <p className="text-sm text-gray-600">Collega i tuoi canali social. I messaggi arriveranno nell'Inbox in tempo reale.</p>
                           </div>
                       </div>
+                      <p className="text-xs text-[#00665E] font-bold mb-6 ml-1">✅ Gli endpoint webhook sono già configurati da IntegraOS — devi solo incollare le tue credenziali qui sotto.</p>
 
                       <div className="grid grid-cols-1 gap-6">
                           
-                          {/* TELEGRAM */}
-                          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-[#00665E] transition">
+                          {/* ── TELEGRAM ─────────────────────────────── */}
+                          <div className={`bg-white p-5 rounded-2xl border shadow-sm transition ${telegramStatus === 'ok' ? 'border-[#00665E]' : 'border-gray-100 hover:border-blue-300'}`}>
                               <div className="flex justify-between items-start mb-4">
                                   <div className="flex items-center gap-3">
-                                      <div className="bg-blue-100 text-blue-500 p-2 rounded-lg"><MessageCircle size={20}/></div>
-                                      <div><h4 className="font-bold text-gray-800">Bot Telegram</h4><p className="text-xs text-gray-500">Apri BotFather su Telegram e crea un bot.</p></div>
+                                      <div className="bg-blue-100 text-blue-500 p-2.5 rounded-xl text-lg">✈️</div>
+                                      <div>
+                                          <div className="flex items-center gap-2">
+                                              <h4 className="font-black text-gray-800">Bot Telegram</h4>
+                                              {telegramStatus === 'ok' && <span className="text-[10px] bg-emerald-100 text-emerald-700 font-black px-2 py-0.5 rounded-full">✓ ATTIVO</span>}
+                                          </div>
+                                          <p className="text-xs text-gray-500">Ricevi messaggi Telegram nell'Inbox IntegraOS.</p>
+                                      </div>
                                   </div>
                                   <label className="flex items-center gap-2 text-xs font-bold text-[#00665E] cursor-pointer">
                                       <input type="checkbox" checked={telegramBotEnabled} onChange={e => setTelegramBotEnabled(e.target.checked)} className="accent-[#00665E] w-4 h-4"/> 
-                                      {telegramBotEnabled ? 'AI Risponde' : 'Risposta Manuale'}
+                                      {telegramBotEnabled ? '🤖 AI Risponde' : '👤 Manuale'}
                                   </label>
                               </div>
-                              <input type="text" value={telegramToken} onChange={e => setTelegramToken(e.target.value)} placeholder="Incolla il Token del Bot (es. 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11)" className="w-full bg-gray-50 border p-3 rounded-xl text-sm font-mono outline-none focus:border-[#00665E] text-gray-700" />
+
+                              {/* Guida step-by-step */}
+                              <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl mb-4 text-xs text-blue-800 space-y-1.5 leading-relaxed">
+                                  <p className="font-black text-blue-900 mb-2">📋 Come ottenere il Token (2 minuti):</p>
+                                  <p><b>1.</b> Apri Telegram e cerca <b>@BotFather</b></p>
+                                  <p><b>2.</b> Scrivi <code className="bg-blue-200 px-1 rounded">/newbot</code> e scegli un nome per il bot</p>
+                                  <p><b>3.</b> BotFather ti invierà il <b>Token API</b> — copialo e incollalo qui sotto</p>
+                                  <p><b>4.</b> Clicca <b>"Attiva Canale"</b> — IntegraOS configurerà tutto automaticamente</p>
+                              </div>
+
+                              <div className="flex gap-2">
+                                  <input 
+                                      type="text" 
+                                      value={telegramToken} 
+                                      onChange={e => { setTelegramToken(e.target.value); setTelegramStatus('idle') }} 
+                                      placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" 
+                                      className="flex-1 bg-gray-50 border p-3 rounded-xl text-sm font-mono outline-none focus:border-[#00665E] text-gray-700" 
+                                  />
+                                  <button 
+                                      onClick={handleActivateTelegram}
+                                      disabled={telegramStatus === 'loading' || !telegramToken.trim()}
+                                      className={`px-4 py-2 rounded-xl text-sm font-black transition shrink-0 flex items-center gap-1.5 ${
+                                          telegramStatus === 'ok' 
+                                              ? 'bg-emerald-500 text-white' 
+                                              : 'bg-[#00665E] text-white hover:bg-[#004d46] disabled:opacity-40'
+                                      }`}
+                                  >
+                                      {telegramStatus === 'loading' ? <><Loader2 size={14} className="animate-spin"/> Attivazione...</> 
+                                       : telegramStatus === 'ok' ? <>✓ Attivo</> 
+                                       : <>⚡ Attiva Canale</>}
+                                  </button>
+                              </div>
+                              {telegramStatusMsg && (
+                                  <p className={`text-xs mt-2 font-bold px-2 ${telegramStatus === 'error' ? 'text-red-500' : 'text-emerald-600'}`}>{telegramStatusMsg}</p>
+                              )}
                           </div>
 
-                          {/* WHATSAPP */}
-                          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-emerald-500 transition opacity-80">
+                          {/* ── WHATSAPP ─────────────────────────────── */}
+                          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-emerald-300 transition">
                               <div className="flex justify-between items-start mb-4">
                                   <div className="flex items-center gap-3">
-                                      <div className="bg-emerald-100 text-emerald-600 p-2 rounded-lg"><Phone size={20}/></div>
-                                      <div><h4 className="font-bold text-gray-800">WhatsApp Cloud API</h4><p className="text-xs text-gray-500">Incolla l'Access Token dell'App Meta Developers.</p></div>
+                                      <div className="bg-emerald-100 text-emerald-600 p-2.5 rounded-xl text-lg">📱</div>
+                                      <div>
+                                          <h4 className="font-black text-gray-800">WhatsApp Business</h4>
+                                          <p className="text-xs text-gray-500">Meta Cloud API — gratuita fino a 1.000 conversazioni/mese.</p>
+                                      </div>
                                   </div>
                                   <label className="flex items-center gap-2 text-xs font-bold text-emerald-600 cursor-pointer">
                                       <input type="checkbox" checked={whatsappBotEnabled} onChange={e => setWhatsappBotEnabled(e.target.checked)} className="accent-emerald-600 w-4 h-4"/> 
-                                      {whatsappBotEnabled ? 'AI Risponde' : 'Risposta Manuale'}
+                                      {whatsappBotEnabled ? '🤖 AI Risponde' : '👤 Manuale'}
                                   </label>
                               </div>
-                              <input type="text" value={whatsappToken} onChange={e => setWhatsappToken(e.target.value)} placeholder="EAAI... Access Token Meta Permanente" className="w-full bg-gray-50 border p-3 rounded-xl text-sm font-mono outline-none focus:border-emerald-600 text-gray-700" />
+
+                              {/* Guida step-by-step */}
+                              <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-xl mb-4 text-xs text-emerald-900 space-y-1.5 leading-relaxed">
+                                  <p className="font-black mb-2">📋 Come configurare WhatsApp (10 minuti):</p>
+                                  <p><b>1.</b> Vai su <a href="https://developers.facebook.com" target="_blank" className="underline font-bold">developers.facebook.com</a> → Crea App → WhatsApp</p>
+                                  <p><b>2.</b> In <b>WhatsApp → Configurazione</b> copia il <b>"Phone Number ID"</b></p>
+                                  <p><b>3.</b> Genera un <b>Access Token Permanente</b> da Sistema Utente (non temporaneo!)</p>
+                                  <p><b>4.</b> In <b>Webhook</b> incolla questo URL IntegraOS:</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                      <code className="bg-emerald-200 px-2 py-1 rounded text-[10px] flex-1 truncate">{publicBaseUrl}/api/inbox/webhook/whatsapp</code>
+                                      <button onClick={copyWaWebhook} className="bg-emerald-600 text-white px-2 py-1 rounded text-[10px] font-black shrink-0 flex items-center gap-1">
+                                          {waWebhookCopied ? <><CheckCircle size={10}/> Copiato</> : <><Copy size={10}/> Copia</>}
+                                      </button>
+                                  </div>
+                                  <p><b>5.</b> Il <b>Verify Token</b> da inserire in Meta è il tuo User ID: <code className="bg-emerald-200 px-1 rounded">{user?.id?.substring(0,8)}...</code></p>
+                              </div>
+
+                              <div className="grid grid-cols-1 gap-3">
+                                  <div>
+                                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Phone Number ID</label>
+                                      <input type="text" value={whatsappPhoneNumberId} onChange={e => setWhatsappPhoneNumberId(e.target.value)} placeholder="123456789012345" className="w-full bg-gray-50 border p-3 rounded-xl text-sm font-mono outline-none focus:border-emerald-500 text-gray-700" />
+                                  </div>
+                                  <div>
+                                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Access Token Permanente</label>
+                                      <input type="password" value={whatsappToken} onChange={e => setWhatsappToken(e.target.value)} placeholder="EAAI..." className="w-full bg-gray-50 border p-3 rounded-xl text-sm font-mono outline-none focus:border-emerald-500 text-gray-700" />
+                                  </div>
+                              </div>
+                              <p className="text-[10px] text-gray-400 mt-3 font-medium">💾 Clicca <b>"Salva Tutto"</b> in alto a destra per confermare le credenziali WhatsApp.</p>
                           </div>
 
-                          {/* AI PROMPT */}
-                          {(telegramBotEnabled || whatsappBotEnabled) && (
+                          {/* AI PROMPT — mostrato se almeno un canale ha AI attiva */}
+                          {(telegramBotEnabled || whatsappBotEnabled || fbBotEnabled || igBotEnabled || smsBotEnabled || emailBotEnabled) && (
                               <div className="bg-purple-50 p-5 rounded-2xl border border-purple-100 animate-in fade-in">
-                                  <h4 className="font-bold text-purple-900 mb-2 flex items-center gap-2"><BrainCircuit size={16}/> Comportamento e Personalità Bot</h4>
-                                  <p className="text-xs text-purple-700 mb-3">Descrivi come l'intelligenza artificiale deve rispondere ai clienti quando ti scrivono sui canali in cui è attivata.</p>
-                                  <textarea value={botPrompt} onChange={e => setBotPrompt(e.target.value)} rows={3} className="w-full bg-white border border-purple-200 p-3 rounded-xl text-sm outline-none focus:border-purple-500 text-gray-700 resize-none"/>
+                                  <h4 className="font-bold text-purple-900 mb-2 flex items-center gap-2"><BrainCircuit size={16}/> Personalità Bot AI (Tutti i Canali)</h4>
+                                  <p className="text-xs text-purple-700 mb-3">Un unico prompt per tutti i canali con AI attiva. Specifica il tono, i servizi, le FAQ e come comportarsi con i clienti.</p>
+                                  <textarea value={botPrompt} onChange={e => setBotPrompt(e.target.value)} rows={4} className="w-full bg-white border border-purple-200 p-3 rounded-xl text-sm outline-none focus:border-purple-500 text-gray-700 resize-none" placeholder="Es: Sei l'assistente di [Nome Azienda]. Rispondi in italiano con tono professionale. Non dare prezzi senza prima chiedere email e telefono al cliente."/>
                               </div>
                           )}
+
+                          {/* ── FACEBOOK MESSENGER ───────────────────── */}
+                          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-blue-400 transition">
+                              <div className="flex justify-between items-start mb-4">
+                                  <div className="flex items-center gap-3">
+                                      <div className="bg-blue-600 text-white p-2.5 rounded-xl text-lg">💬</div>
+                                      <div>
+                                          <h4 className="font-black text-gray-800">Facebook Messenger</h4>
+                                          <p className="text-xs text-gray-500">Ricevi DM dalla tua Pagina Facebook.</p>
+                                      </div>
+                                  </div>
+                                  <label className="flex items-center gap-2 text-xs font-bold text-blue-600 cursor-pointer">
+                                      <input type="checkbox" checked={fbBotEnabled} onChange={e => setFbBotEnabled(e.target.checked)} className="accent-blue-600 w-4 h-4"/>
+                                      {fbBotEnabled ? '🤖 AI Risponde' : '👤 Manuale'}
+                                  </label>
+                              </div>
+                              <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl mb-4 text-xs text-blue-900 space-y-1.5 leading-relaxed">
+                                  <p className="font-black mb-2">📋 Come configurare (10 minuti):</p>
+                                  <p><b>1.</b> Vai su <a href="https://developers.facebook.com" target="_blank" className="underline font-bold">developers.facebook.com</a> → Crea App → Messenger</p>
+                                  <p><b>2.</b> In <b>Messenger → Configurazione</b> copia il <b>Page ID</b> e genera un <b>Page Access Token</b></p>
+                                  <p><b>3.</b> In <b>Webhook</b> incolla questo URL:</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                      <code className="bg-blue-200 px-2 py-1 rounded text-[10px] flex-1 truncate">{publicBaseUrl}/api/inbox/webhook/facebook</code>
+                                      <button onClick={copyFbWebhook} className="bg-blue-600 text-white px-2 py-1 rounded text-[10px] font-black shrink-0 flex items-center gap-1">
+                                          {fbWebhookCopied ? <><CheckCircle size={10}/> Copiato</> : <><Copy size={10}/> Copia</>}
+                                      </button>
+                                  </div>
+                                  <p><b>4.</b> Verify Token: <code className="bg-blue-200 px-1 rounded">{user?.id?.substring(0,8)}...</code> — Clicca <b>"Salva Tutto"</b></p>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Page ID</label>
+                                      <input type="text" value={fbPageId} onChange={e => setFbPageId(e.target.value)} placeholder="123456789" className="w-full bg-gray-50 border p-3 rounded-xl text-sm font-mono outline-none focus:border-blue-500" />
+                                  </div>
+                                  <div>
+                                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Page Access Token</label>
+                                      <input type="password" value={fbPageToken} onChange={e => setFbPageToken(e.target.value)} placeholder="EAAI..." className="w-full bg-gray-50 border p-3 rounded-xl text-sm font-mono outline-none focus:border-blue-500" />
+                                  </div>
+                              </div>
+                          </div>
+
+                          {/* ── INSTAGRAM DM ─────────────────────────── */}
+                          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-pink-400 transition">
+                              <div className="flex justify-between items-start mb-4">
+                                  <div className="flex items-center gap-3">
+                                      <div className="bg-gradient-to-br from-pink-500 to-purple-600 text-white p-2.5 rounded-xl text-lg">📸</div>
+                                      <div>
+                                          <h4 className="font-black text-gray-800">Instagram DM</h4>
+                                          <p className="text-xs text-gray-500">Account Professionale collegato a FB Business.</p>
+                                      </div>
+                                  </div>
+                                  <label className="flex items-center gap-2 text-xs font-bold text-pink-600 cursor-pointer">
+                                      <input type="checkbox" checked={igBotEnabled} onChange={e => setIgBotEnabled(e.target.checked)} className="accent-pink-600 w-4 h-4"/>
+                                      {igBotEnabled ? '🤖 AI Risponde' : '👤 Manuale'}
+                                  </label>
+                              </div>
+                              <div className="bg-pink-50 border border-pink-100 p-4 rounded-xl mb-4 text-xs text-pink-900 space-y-1.5 leading-relaxed">
+                                  <p className="font-black mb-2">📋 Come configurare (stessa app di Facebook):</p>
+                                  <p><b>1.</b> Nella stessa App Meta, aggiungi il prodotto <b>Instagram</b></p>
+                                  <p><b>2.</b> Collega l'account IG Professionale alla Pagina Facebook</p>
+                                  <p><b>3.</b> Copia l'<b>Instagram Business Account ID</b> dal pannello Meta</p>
+                                  <p><b>4.</b> Usa lo stesso <b>Page Access Token</b> della Pagina FB collegata</p>
+                                  <p><b>5.</b> In Webhook usa questo URL:</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                      <code className="bg-pink-200 px-2 py-1 rounded text-[10px] flex-1 truncate">{publicBaseUrl}/api/inbox/webhook/instagram</code>
+                                      <button onClick={copyIgWebhook} className="bg-pink-600 text-white px-2 py-1 rounded text-[10px] font-black shrink-0 flex items-center gap-1">
+                                          {igWebhookCopied ? <><CheckCircle size={10}/> Copiato</> : <><Copy size={10}/> Copia</>}
+                                      </button>
+                                  </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Instagram Business ID</label>
+                                      <input type="text" value={igBusinessId} onChange={e => setIgBusinessId(e.target.value)} placeholder="123456789" className="w-full bg-gray-50 border p-3 rounded-xl text-sm font-mono outline-none focus:border-pink-400" />
+                                  </div>
+                                  <div>
+                                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Page Access Token (stesso di FB)</label>
+                                      <input type="password" value={igPageToken} onChange={e => setIgPageToken(e.target.value)} placeholder="EAAI..." className="w-full bg-gray-50 border p-3 rounded-xl text-sm font-mono outline-none focus:border-pink-400" />
+                                  </div>
+                              </div>
+                          </div>
+
+                          {/* ── SMS (TWILIO) ──────────────────────────── */}
+                          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-indigo-400 transition">
+                              <div className="flex justify-between items-start mb-4">
+                                  <div className="flex items-center gap-3">
+                                      <div className="bg-indigo-100 text-indigo-600 p-2.5 rounded-xl text-lg">💬</div>
+                                      <div>
+                                          <h4 className="font-black text-gray-800">SMS (Twilio)</h4>
+                                          <p className="text-xs text-gray-500">Ricevi e rispondi agli SMS dal tuo numero Twilio.</p>
+                                      </div>
+                                  </div>
+                                  <label className="flex items-center gap-2 text-xs font-bold text-indigo-600 cursor-pointer">
+                                      <input type="checkbox" checked={smsBotEnabled} onChange={e => setSmsBotEnabled(e.target.checked)} className="accent-indigo-600 w-4 h-4"/>
+                                      {smsBotEnabled ? '🤖 AI Risponde' : '👤 Manuale'}
+                                  </label>
+                              </div>
+                              <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl mb-4 text-xs text-indigo-900 space-y-1.5 leading-relaxed">
+                                  <p className="font-black mb-2">📋 Come configurare Twilio (5 minuti):</p>
+                                  <p><b>1.</b> Vai su <a href="https://console.twilio.com" target="_blank" className="underline font-bold">console.twilio.com</a> → copia <b>Account SID</b> e <b>Auth Token</b></p>
+                                  <p><b>2.</b> Acquista un numero di telefono con SMS abilitati</p>
+                                  <p><b>3.</b> In <b>Phone Numbers → Configura</b> imposta il Webhook "When a message comes in":</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                      <code className="bg-indigo-200 px-2 py-1 rounded text-[10px] flex-1 truncate">{publicBaseUrl}/api/inbox/webhook/sms</code>
+                                      <button onClick={copySmsWebhook} className="bg-indigo-600 text-white px-2 py-1 rounded text-[10px] font-black shrink-0 flex items-center gap-1">
+                                          {smsWebhookCopied ? <><CheckCircle size={10}/> Copiato</> : <><Copy size={10}/> Copia</>}
+                                      </button>
+                                  </div>
+                              </div>
+                              <div className="grid grid-cols-1 gap-3">
+                                  <div className="grid grid-cols-2 gap-3">
+                                      <div>
+                                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Account SID</label>
+                                          <input type="text" value={smsSid} onChange={e => setSmsSid(e.target.value)} placeholder="ACxxxxxxxxxxxx" className="w-full bg-gray-50 border p-3 rounded-xl text-sm font-mono outline-none focus:border-indigo-400" />
+                                      </div>
+                                      <div>
+                                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Auth Token</label>
+                                          <input type="password" value={smsAuthToken} onChange={e => setSmsAuthToken(e.target.value)} placeholder="••••••••" className="w-full bg-gray-50 border p-3 rounded-xl text-sm font-mono outline-none focus:border-indigo-400" />
+                                      </div>
+                                  </div>
+                                  <div>
+                                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Numero Twilio (con prefisso)</label>
+                                      <input type="text" value={smsNumber} onChange={e => setSmsNumber(e.target.value)} placeholder="+39012345678" className="w-full bg-gray-50 border p-3 rounded-xl text-sm font-mono outline-none focus:border-indigo-400" />
+                                  </div>
+                              </div>
+                          </div>
+
+                          {/* ── EMAIL INBOUND ─────────────────────────── */}
+                          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-amber-400 transition">
+                              <div className="flex justify-between items-start mb-4">
+                                  <div className="flex items-center gap-3">
+                                      <div className="bg-amber-100 text-amber-600 p-2.5 rounded-xl text-lg">📧</div>
+                                      <div>
+                                          <h4 className="font-black text-gray-800">Email Inbound</h4>
+                                          <p className="text-xs text-gray-500">Le email in arrivo compaiono nell'Inbox come chat.</p>
+                                      </div>
+                                  </div>
+                                  <label className="flex items-center gap-2 text-xs font-bold text-amber-600 cursor-pointer">
+                                      <input type="checkbox" checked={emailBotEnabled} onChange={e => setEmailBotEnabled(e.target.checked)} className="accent-amber-500 w-4 h-4"/>
+                                      {emailBotEnabled ? '🤖 AI Risponde' : '👤 Manuale'}
+                                  </label>
+                              </div>
+                              <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl mb-4 text-xs text-amber-900 space-y-1.5 leading-relaxed">
+                                  <p className="font-black mb-2">📋 Il tuo indirizzo IntegraOS univoco:</p>
+                                  <p>Configura il <b>forward automatico</b> dalla tua email aziendale verso questo indirizzo. Ogni email ricevuta comparirà nell'Inbox come una conversazione.</p>
+                                  <div className="flex items-center gap-2 mt-2">
+                                      <code className="bg-amber-200 px-2 py-1 rounded text-[10px] flex-1 font-bold">{inboxEmail || 'Caricamento...'}</code>
+                                      <button onClick={copyEmailAddress} className="bg-amber-500 text-white px-2 py-1 rounded text-[10px] font-black shrink-0 flex items-center gap-1">
+                                          {emailCopied ? <><CheckCircle size={10}/> Copiato</> : <><Copy size={10}/> Copia</>}
+                                      </button>
+                                  </div>
+                                  <p className="mt-2"><b>Come fare il forward:</b> Gmail → Impostazioni → Inoltro → Aggiungi indirizzo → incolla l'indirizzo sopra</p>
+                              </div>
+                              <p className="text-[10px] text-gray-400 font-medium">💾 Clicca <b>"Salva Tutto"</b> per attivare l'AI reply sulle email in arrivo.</p>
+                          </div>
 
                           {/* VOICE AI BUDGETING */}
                           <div className="bg-emerald-50 p-5 rounded-2xl border border-emerald-100 shadow-sm mt-4">
