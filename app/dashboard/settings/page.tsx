@@ -150,6 +150,7 @@ export default function SettingsPage() {
             if (sms) { setSmsSid(sms.metadata?.account_sid || ''); setSmsAuthToken(sms.access_token || ''); setSmsNumber(sms.provider_id || ''); setSmsBotEnabled(sms.bot_enabled) }
             const email = channels.find((c: any) => c.provider === 'email_imap')
             if (email) { setImapEmail(email.provider_id || ''); setEmailBotEnabled(email.bot_enabled); setImapHost(email.metadata?.imap_host || '') }
+        }
       } catch (error) {
           console.error("Errore caricamento impostazioni:", error)
       } finally {
