@@ -1,0 +1,8 @@
+[33m1e6573c[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m feat: add settings page with profile management and native inbox channel configuration
+[33m3cc7aea[m feat: add AR tour public preview page, email polling cron jobs, and updated dashboard settings
+[33mec6fc44[m feat: initialize platform structure with multi-channel inbox webhooks, dashboard modules, and settings management
+[33md5f0dc6[m feat: implement dashboard modules and API routes for loyalty, marketing, CRM, and automation features
+[33m904cb5b[m feat: implement unified inbox page with real-time messaging, CRM lead integration, and VoIP configuration support
+[33m892767f[m feat: implement unified inbox dashboard with multi-channel support, CRM integration, and AI-driven messaging workflows
+[33mb5a0403[m feat: implement Supabase authentication middleware and secure admin login portal
+[33m0730327[m feat: implement comprehensive dashboard infrastructure, administrative API endpoints, and supporting database schema modules
