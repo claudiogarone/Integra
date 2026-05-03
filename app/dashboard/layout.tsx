@@ -122,6 +122,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               { name: 'Agenti & Teams', href: '/dashboard/agents', icon: <UserCog size={18}/> },
               { name: 'Valutazione Performance', href: '/dashboard/performance', icon: <Target size={18}/>, badge: 'Nuovo' },
               { name: 'Ops & Safety 360', href: '/dashboard/operations', icon: <Shield size={18}/>, badge: 'Nuovo' },
+              { name: 'Compliance & Privacy', href: '/dashboard/compliance', icon: <ShieldCheck size={18}/>, badge: 'RPO' },
               { name: 'Wellness Aziendale', href: '/dashboard/wellness', icon: <Leaf size={18}/> },
               { name: 'Finance & CFO', href: '/dashboard/finance', icon: <Landmark size={18}/> },
               { name: 'Energy Monitor', href: '/dashboard/energy', icon: <Zap size={18}/> },

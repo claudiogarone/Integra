@@ -76,7 +76,7 @@ export default function AgentTeamsPage() {
                       </div>
                       <span className="text-xs font-bold text-gray-600">3 Agenti Attivi</span>
                   </div>
-                  <button className="bg-[#00665E] hover:bg-[#004d46] text-white px-5 py-2.5 rounded-xl font-black text-sm transition flex items-center gap-2 shadow-lg">
+                  <button onClick={() => alert("Modulo in sviluppo: L'apertura della finestra per invitare o creare un nuovo agente AI personalizzato sarà disponibile nel prossimo aggiornamento.")} className="bg-[#00665E] hover:bg-[#004d46] text-white px-5 py-2.5 rounded-xl font-black text-sm transition flex items-center gap-2 shadow-lg">
                       <UserPlus size={18}/> Aggiungi Teammate
                   </button>
               </div>
@@ -133,7 +133,7 @@ export default function AgentTeamsPage() {
                                       ))}
                                   </div>
 
-                                  <button className="w-full bg-[#00665E] text-white font-bold py-3 rounded-xl hover:bg-[#004d46] transition flex items-center justify-center gap-2 text-xs">
+                                  <button onClick={() => alert(`Apertura registro eventi per ${member.name}. Qui vedrai tutte le chiamate API e i task eseguiti in tempo reale da questo agente.`)} className="w-full bg-[#00665E] text-white font-bold py-3 rounded-xl hover:bg-[#004d46] transition flex items-center justify-center gap-2 text-xs">
                                       Monitora Azioni <ArrowRight size={14}/>
                                   </button>
                               </div>

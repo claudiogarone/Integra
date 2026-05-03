@@ -196,7 +196,10 @@ export default function AgendaPage() {
             }, 
             body: JSON.stringify(payload) 
         });
-        if (!res.ok) throw new Error("Errore salvataggio");
+        if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.error || "Errore salvataggio DB");
+        }
         await fetchEvents(accessToken);
         setIsEventModalOpen(false);
     } catch (error: any) { alert("❌ Errore: " + error.message); } finally { setSaving(false); }

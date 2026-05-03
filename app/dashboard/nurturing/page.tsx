@@ -35,8 +35,8 @@ export default function NurturingEnginePage() {
   // STATO PREVIEW MESSAGGIO
   const [activeMessage, setActiveMessage] = useState<number>(1)
 
-  // DATABASE GENERATIVO AI (MOCK rimosso, caricamento da DB)
   const [campaignData, setCampaignData] = useState<any[]>([])
+  const [marketingCampaigns, setMarketingCampaigns] = useState<any[]>([])
 
   useEffect(() => {
     const getData = async () => {
@@ -65,6 +65,15 @@ export default function NurturingEnginePage() {
                 setToneOfVoice(campaign.tone || 'Amichevole ed Empatico')
                 setIsConfigOpen(false)
             }
+
+            // Carica campagne marketing programmate
+            const { data: mktCampaigns } = await supabase
+              .from('campaigns')
+              .select('*')
+              .eq('user_id', user.id)
+              .eq('status', 'Programmata')
+              .order('created_at', { ascending: false })
+            if (mktCampaigns) setMarketingCampaigns(mktCampaigns)
         }
       } catch (err) {
         console.error('Errore inizializzazione Nurturing:', err)
@@ -78,9 +87,15 @@ export default function NurturingEnginePage() {
   const generateCampaign = async () => {
       setIsGenerating(true)
       try {
+          const { data: { session } } = await supabase.auth.getSession()
+          const token = session?.access_token || ''
+
           const res = await fetch('/api/ai/nurturing', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+              },
               body: JSON.stringify({ industry, toneOfVoice, customInstructions })
           })
           const data = await res.json()
@@ -247,6 +262,30 @@ export default function NurturingEnginePage() {
                         </div>
                     )}
                   </div>
+
+                  {marketingCampaigns.length > 0 && (
+                      <div className="mt-8 pt-8 border-t border-gray-200">
+                          <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                              <CalendarDays size={16}/> Altre Campagne Programmate (Dal Modulo Marketing)
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {marketingCampaigns.map((camp) => {
+                                  const campDate = camp.target_filters?.meta?.scheduled_for ? new Date(camp.target_filters.meta.scheduled_for) : new Date();
+                                  return (
+                                  <div key={camp.id} className="p-4 rounded-xl border border-gray-200 bg-white shadow-sm flex flex-col justify-between">
+                                      <div>
+                                          <div className="flex justify-between items-center mb-2">
+                                              <span className="text-[10px] font-bold bg-orange-50 text-orange-600 border border-orange-100 px-2 py-0.5 rounded uppercase">{camp.status}</span>
+                                              <span className="text-[10px] font-bold text-gray-400">{campDate.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                          </div>
+                                          <h4 className="font-black text-sm text-gray-900 line-clamp-1">{camp.title}</h4>
+                                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">{camp.content}</p>
+                                      </div>
+                                  </div>
+                              )})}
+                          </div>
+                      </div>
+                  )}
               </div>
 
           </div>

@@ -86,6 +86,7 @@ export async function POST(request: Request) {
                     if (startObj) {
                         eventsToInsert.push({
                             employee_id: user.id, // Collegato obbligatoriamente all'utente vero!
+                            company_id: user.id,
                             title: `📥 ${currentEvent.summary.substring(0, 100)}`, 
                             description: currentEvent.description ? currentEvent.description.substring(0, 400) : 'Sincronizzato da calendario esterno',
                             event_date: startObj.date,

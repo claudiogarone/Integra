@@ -110,6 +110,7 @@ export async function POST(request: Request) {
                 .from('calendar_events')
                 .insert([{ 
                     employee_id: user.id, // Viene associato l'evento all'utente reale!
+                    company_id: user.id,
                     title, 
                     description: description || '', 
                     event_date, 

@@ -10,7 +10,18 @@ export async function POST(req: Request) {
         const { industry, toneOfVoice, customInstructions } = body
         
         const supabase = await createClient()
-        const { data: { user } } = await supabase.auth.getUser()
+        
+        const authHeader = req.headers.get('Authorization')
+        const token = authHeader ? authHeader.replace('Bearer ', '') : null
+        
+        let user;
+        if (token) {
+            const { data } = await supabase.auth.getUser(token)
+            user = data.user
+        } else {
+            const { data } = await supabase.auth.getUser()
+            user = data.user
+        }
         
         if (!user) {
             return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 })

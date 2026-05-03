@@ -197,11 +197,15 @@ export default function MarketingPage() {
       setSending(true)
       
       const targets = contacts.filter(c => selectedIds.includes(c.id))
-      const validTargets = targets.filter(t => t.email && t.email.includes('@') && t.email !== 'Non inserita') 
+      const validTargets = targets.filter(t => {
+          if (channel === 'email') return t.email && t.email.includes('@') && t.email !== 'Non inserita';
+          if (channel === 'whatsapp' || channel === 'sms') return t.phone && t.phone.length > 5 && t.phone !== 'Non inserito';
+          return true;
+      })
 
       if(validTargets.length === 0) { 
           setSending(false); 
-          return alert("Nessuna email valida trovata nei contatti selezionati.") 
+          return alert("Nessun recapito valido trovato nei contatti selezionati per il canale scelto.") 
       }
 
       // Questo è il testo che si salva nel Database (Come storico)
@@ -317,7 +321,7 @@ export default function MarketingPage() {
 
   // --- DATI REALI PER IL GRAFICO E I KPI ---
   const chartData = campaigns.slice(0, 7).reverse().map(c => {
-      const date = new Date(c.created_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+      const date = new Date(c.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
       return {
           name: date,
           inviate: c.sent_count || 0,
@@ -369,7 +373,7 @@ export default function MarketingPage() {
                              )}
                          </div>
                          <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 mb-3">
-                             <span>{new Date(camp.created_at).toLocaleDateString('it-IT')}</span>
+                             <span>{new Date(camp.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                              <span className={`uppercase tracking-widest px-2 py-0.5 rounded border ${camp.status === 'Programmata' ? 'bg-orange-50 text-orange-600 border-orange-100' : 'bg-green-50 text-green-600 border-green-100'}`}>{camp.status}</span>
                          </div>
                          
@@ -656,7 +660,7 @@ export default function MarketingPage() {
                                  <select value={retargetCampaignId} onChange={(e) => handleRetargeting(e.target.value)} className="w-full p-3 rounded-lg border border-purple-200 text-sm font-bold text-purple-900 outline-none cursor-pointer">
                                      <option value="">-- Seleziona una campagna precedente a cui fare retargeting --</option>
                                      {campaigns.map(camp => (
-                                         <option key={camp.id} value={camp.id}>Invia a chi era in target con: "{camp.title}" ({new Date(camp.created_at).toLocaleDateString()})</option>
+                                         <option key={camp.id} value={camp.id}>Invia a chi era in target con: "{camp.title}" ({new Date(camp.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })})</option>
                                      ))}
                                  </select>
                              </div>
@@ -668,12 +672,12 @@ export default function MarketingPage() {
                                  </div>
                                  <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar bg-slate-50/30">
                                      {filteredContacts.map(c => {
-                                         const hasEmail = c.email && c.email.includes('@') && c.email !== 'Non inserita';
+                                         const isValid = channel === 'email' ? (c.email && c.email.includes('@') && c.email !== 'Non inserita') : (channel === 'whatsapp' || channel === 'sms' ? (c.phone && c.phone.length > 5 && c.phone !== 'Non inserito') : true);
                                          return (
-                                             <div key={c.id} onClick={() => hasEmail && toggleContact(c.id)} className={`flex justify-between items-center p-3 rounded-xl text-sm transition select-none border ${!hasEmail ? 'opacity-40 cursor-not-allowed bg-gray-100' : selectedIds.includes(c.id) ? 'bg-[#00665E]/5 border-[#00665E]/30 cursor-pointer' : 'bg-white hover:border-[#00665E]/30 border-gray-200 cursor-pointer shadow-sm'}`}>
+                                             <div key={c.id} onClick={() => isValid && toggleContact(c.id)} className={`flex justify-between items-center p-3 rounded-xl text-sm transition select-none border ${!isValid ? 'opacity-40 cursor-not-allowed bg-gray-100' : selectedIds.includes(c.id) ? 'bg-[#00665E]/5 border-[#00665E]/30 cursor-pointer' : 'bg-white hover:border-[#00665E]/30 border-gray-200 cursor-pointer shadow-sm'}`}>
                                                  <div className="flex items-center gap-4">
                                                      {selectedIds.includes(c.id) ? <CheckSquare size={20} fill="#00665E" className="text-white"/> : <Square size={20} className="text-gray-300"/>}
-                                                     <div><span className="font-black text-gray-800 block">{c.name}</span><span className="text-gray-500 text-xs font-medium">{hasEmail ? c.email : 'Nessuna email salvata'}</span></div>
+                                                     <div><span className="font-black text-gray-800 block">{c.name}</span><span className="text-gray-500 text-xs font-medium">{channel === 'email' ? (isValid ? c.email : 'Nessuna email salvata') : (channel === 'whatsapp' || channel === 'sms' ? (isValid ? c.phone : 'Nessun telefono salvato') : (c.email || c.phone || 'Senza recapito'))}</span></div>
                                                  </div>
                                                  <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-1 rounded border border-gray-200 uppercase">{c.status || 'Lead'}</span>
                                              </div>

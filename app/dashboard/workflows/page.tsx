@@ -100,7 +100,7 @@ export default function WorkflowsPage() {
       setIsSaving(true)
       
       try {
-          const { data, error } = await supabase.from('workflows').upsert({
+          const { data, error } = await supabase.from('workflows').insert({
               user_id: user.id,
               name: workflowName,
               status: true,

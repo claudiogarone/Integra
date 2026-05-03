@@ -174,14 +174,32 @@ export default function AgentPortalPage() {
       a.click();
   }
 
-  const sendFinalQuote = () => {
+  const sendFinalQuote = async () => {
       setIsSendingQuote(true)
-      setTimeout(() => {
-          setIsSendingQuote(false)
-          alert(`🚀 PREVENTIVO INVIATO A ${quoteClientInfo.name || 'Cliente'}.`)
+      try {
+          const quoteNumber = `SQ-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`;
+          if (user) {
+              const { error } = await supabase.from('quotes').insert({
+                  user_id: user.id,
+                  quote_number: quoteNumber,
+                  client_name: quoteClientInfo.name,
+                  client_email: quoteClientInfo.email,
+                  total_amount: quoteTotal,
+                  status: 'Inviato',
+                  items: quoteItems,
+                  notes: 'Generato via Smart Quote (Agent Portal)'
+              });
+              if (error) throw error;
+          }
+          
+          alert(`🚀 SMART LINK INVIATO!\n\nÈ stato generato il link univoco: integra.os/quote/${quoteNumber}\nÈ stato inviato via SMS/WhatsApp a ${quoteClientInfo.name || 'Cliente'}. \n\nIl preventivo è stato archiviato nella sezione CRM > Preventivi.`)
           setIsQuoteBuilderOpen(false)
           setQuoteStep('edit'); setQuoteItems([{ desc: '', qty: 1, price: 0 }]); setQuoteClientInfo({ name: '', email: '', phone: '' })
-      }, 2000)
+      } catch (err: any) {
+          alert('Errore salvataggio preventivo: ' + err.message);
+      } finally {
+          setIsSendingQuote(false)
+      }
   }
 
   if (loading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-emerald-400 font-bold animate-pulse">Avvio Area Operativa...</div>
@@ -211,9 +229,9 @@ export default function AgentPortalPage() {
               <div className="flex items-center gap-4">
                   <div className="hidden md:flex gap-2">
                       {activeApps.map(app => (
-                          <span key={app.id} className="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-full flex items-center gap-2 text-xs font-bold text-slate-300">
+                          <button key={app.id} onClick={() => app.id === 'preventivatore' && setIsQuoteBuilderOpen(true)} className="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-full flex items-center gap-2 text-xs font-bold text-slate-300 hover:bg-slate-700 transition cursor-pointer">
                               {app.icon} {app.name}
-                          </span>
+                          </button>
                       ))}
                   </div>
                   <button onClick={handleLogout} className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 p-2 rounded-full transition" title="Disconnetti"><Power size={18}/></button>

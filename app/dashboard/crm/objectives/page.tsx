@@ -52,16 +52,21 @@ export default function ObjectivesPage() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await fetch('/api/crm/objectives', {
+      const res = await fetch('/api/crm/objectives', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingObj ? { ...form, id: editingObj.id } : form)
       })
-      await fetchObjectives()
-      setIsModalOpen(false)
-      setEditingObj(null)
-      setForm({ name: '', ob_minimum: 0, ob_ideal: 0, current_value: 0, timing: 'Mensile', unit: 'numero', category: 'generale', sort_order: 0 })
-    } catch (e) { console.error(e) }
+      if (!res.ok) {
+         const data = await res.json()
+         alert("Errore salvataggio: " + data.error)
+      } else {
+         await fetchObjectives()
+         setIsModalOpen(false)
+         setEditingObj(null)
+         setForm({ name: '', ob_minimum: 0, ob_ideal: 0, current_value: 0, timing: 'Mensile', unit: 'numero', category: 'generale', sort_order: 0 })
+      }
+    } catch (e: any) { alert("Errore di connessione: " + e.message) }
     setSaving(false)
   }
 

@@ -157,7 +157,7 @@ export default function MarketingPages() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
-    const finalSlug = formData.slug || `${formData.title.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`
+    const finalSlug = (formData.slug || `${formData.title}-${Date.now()}`).toLowerCase().replace(/\s+/g, '-');
 
     const payload = {
       user_id: user.id, type: activeTab, title: formData.title, slug: finalSlug, subheadline: formData.description,
@@ -169,14 +169,15 @@ export default function MarketingPages() {
 
     let error
     if (editingId) {
-       const { error: err } = await supabase.from('marketing_pages').update(payload).eq('id', editingId)
+       const { user_id, ...updatePayload } = payload;
+       const { error: err } = await supabase.from('marketing_pages').update(updatePayload).eq('id', editingId)
        error = err
     } else {
        const { error: err } = await supabase.from('marketing_pages').insert(payload)
        error = err
     }
 
-    if (!error) { fetchPages(); setIsModalOpen(false) } else { alert('Errore: ' + error.message) }
+    if (!error) { fetchPages(); setIsModalOpen(false) } else { alert('Errore di salvataggio: ' + error.message) }
     setSaving(false)
   }
 

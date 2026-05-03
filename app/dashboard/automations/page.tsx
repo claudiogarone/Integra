@@ -229,7 +229,7 @@ export default function AutomationsPage() {
       setIsSaving(true)
       
       try {
-          const { data, error } = await supabase.from('automations').upsert({
+          const { data, error } = await supabase.from('automations').insert({
               user_id: user.id,
               name: workflowName,
               status: true,
